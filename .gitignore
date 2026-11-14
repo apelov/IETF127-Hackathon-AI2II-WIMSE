@@ -1,0 +1,8 @@
+keys/
+.venv/
+bin/
+runs/
+__pycache__/
+*.pyc
+.DS_Store
+validation/bundle-*/
