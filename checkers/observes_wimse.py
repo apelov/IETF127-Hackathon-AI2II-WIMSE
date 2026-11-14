@@ -33,6 +33,21 @@ def load_cases() -> dict[str, dict]:
     return {c["id"]: c for c in data["cases"]}
 
 
+def _collect_duplicates(pairs: list[tuple[str, Any]]) -> dict:
+    """object_pairs_hook that collects duplicate keys into lists."""
+    result: dict = {}
+    for key, value in pairs:
+        if key in result:
+            existing = result[key]
+            if isinstance(existing, list):
+                existing.append(value)
+            else:
+                result[key] = [existing, value]
+        else:
+            result[key] = value
+    return result
+
+
 def parse_tshark_json(capture_path: pathlib.Path) -> list[dict]:
     """Run tshark and parse JSON output for HTTP on port 5050."""
     cmd = [
@@ -49,7 +64,7 @@ def parse_tshark_json(capture_path: pathlib.Path) -> list[dict]:
     if not proc.stdout.strip():
         raise ValueError("tshark produced no output (empty capture or no HTTP on port 5050)")
     try:
-        return json.loads(proc.stdout)
+        return json.loads(proc.stdout, object_pairs_hook=_collect_duplicates)
     except json.JSONDecodeError as e:
         raise ValueError(f"tshark output is not valid JSON: {e}")
 
@@ -69,7 +84,7 @@ def parse_tshark_all_tcp(capture_path: pathlib.Path) -> list[dict]:
     if not proc.stdout.strip():
         return []
     try:
-        return json.loads(proc.stdout)
+        return json.loads(proc.stdout, object_pairs_hook=_collect_duplicates)
     except json.JSONDecodeError as e:
         raise ValueError(f"tshark all-TCP output is not valid JSON: {e}")
 
@@ -189,9 +204,8 @@ def extract_request_info(http_layer: dict) -> Optional[dict]:
     if not method or not uri:
         return None
 
-    # Extract X-Test-Case from request lines
-    req_lines = http_layer.get("http.request.line")
-    case_id = extract_header_from_lines(req_lines, "X-Test-Case")
+    # Extract X-Test-Case using extract_header_value which handles duplicate headers
+    case_id = extract_header_value(http_layer, "X-Test-Case")
 
     # Extract body from http.file_data (hex-encoded)
     body = None
@@ -441,6 +455,15 @@ def main() -> int:
     for stream, pairs in exchanges.items():
         for req, resp in pairs:
             case_id = req.get("case_id")
+            method = req.get("method")
+            uri = req.get("uri")
+            is_test_route = method == "POST" and ROUTE_PATTERN.match(uri or "")
+
+            # Ignore non-test traffic: requests to non-executions route without X-Test-Case header
+            # (e.g., GET /jwks readiness probes from the harness)
+            if not case_id and not is_test_route:
+                continue
+
             if not case_id:
                 errors.append(f"FAIL stream {stream}: request missing X-Test-Case header")
                 continue
