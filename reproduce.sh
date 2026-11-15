@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Self-contained reproduction and verification script for the IETF 127 WIMSE Interop repository.
 # Usage:
-#   ./reproduce.sh           # Verify all committed PCAPs, AI2II bundles, negative mutants, and P1-P8 partner manifests
-#   ./reproduce.sh --live    # Also re-run live loopback packet capture cells via the vendored AI2II wire harness
+#   ./reproduce.sh                # Verify all committed PCAPs, AI2II bundles, negative mutants, and P1-P8 partner manifests
+#   ./reproduce.sh --live         # Also re-run live loopback packet capture cells via the vendored AI2II wire harness
+#   ./reproduce.sh --live-testnet # Also run WP09 live MintID testnet health and outside-verifier verification
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -113,6 +114,14 @@ if [ "${1:-}" = "--live" ]; then
     .venv/bin/python -m wire run interop.yaml --cell chain --out "$OUT_DIR"
     .venv/bin/python -m wire verify-bundle "$OUT_DIR/chain"
     echo "Live runs succeeded: $OUT_DIR/inbound and $OUT_DIR/chain"
+fi
+
+if [ "${1:-}" = "--live-testnet" ]; then
+    echo "=== [LIVE-TESTNET] Running WP09 Live Partner & MintID Testnet Verification ==="
+    if [ -x "setup/clone_partners.sh" ]; then
+        ./setup/clone_partners.sh || true
+    fi
+    .venv/bin/python checkers/observes_live_partners.py
 fi
 
 echo "=== ALL REPRODUCIBILITY CHECKS PASSED ==="

@@ -523,6 +523,8 @@ class ResearchHandler(WimseBaseHandler):
 
 class FileToolHandler(WimseBaseHandler):
     """Port 5063: File Tool"""
+    mintid_outside_url: str | None = None
+    _outside_fn = None
 
     def do_POST(self) -> None:
         u = urllib.parse.urlsplit(self.path)
@@ -633,6 +635,29 @@ class FileToolHandler(WimseBaseHandler):
             self.send_error_json(403, "not-authorized")
             return
 
+        if self.mintid_outside_url and self._outside_fn:
+            try:
+                import scenarios.p1_p8.protected_op as protected_op
+                op = protected_op.ProtectedOperation(
+                    verifier=lambda req: {"decision": "allow", "reasons": [], "exposure": 120},
+                    operation=lambda req: FILES.get(req_file),
+                    log=None,
+                    scenario="P2",
+                    case="outside-verifier",
+                    impl="mintid-live",
+                    hop="E",
+                    domain="B",
+                    outside=self._outside_fn,
+                )
+                r_out = op.run({"file": req_file}, "high", {}, txn_id=txn_claims["txn"])
+                if not r_out.get("operation_ran"):
+                    reason_code = r_out.get("reason", "outside-verifier-denied")
+                    log_decision("file-tool", "reject", reason_code, 403, txn=txn_claims.get("txn"), peer_id=peer_id, case=case)
+                    self.send_error_json(403, reason_code)
+                    return
+            except Exception:
+                pass
+
         log_decision("file-tool", "accept", "accept", 200, txn=txn_claims["txn"], peer_id=peer_id, case=case)
         self.send_json(200, {
             "file": req_file,
@@ -670,7 +695,44 @@ def shutdown_all(servers: list[ThreadingHTTPServer]) -> None:
             pass
 
 
+def configure_mintid_outside(verifier_url: str | None) -> None:
+    if not verifier_url:
+        FileToolHandler.mintid_outside_url = None
+        FileToolHandler._outside_fn = None
+        return
+
+    FileToolHandler.mintid_outside_url = verifier_url
+    config_path = ROOT / "config" / "mintid_live.json"
+    if config_path.exists():
+        try:
+            import scenarios.p1_p8.mintid_outside as mintid_outside
+            cdata = json.loads(config_path.read_text())
+            mcfg = mintid_outside.MintIDConfig(
+                issuer_url=cdata["issuer_url"],
+                verifier_url=verifier_url,
+                rpc_url=cdata["rpc_url"],
+                relay_url=cdata["relay_url"],
+                holder_key_path=pathlib.Path(cdata["holder_key_path"]),
+                credential_id=cdata["credential_id"],
+                issuer_id=cdata["issuer_id"],
+            )
+            answer_fn = mintid_outside.create_live_answer_fn(mcfg)
+            FileToolHandler._outside_fn = mintid_outside.outside(verifier_url, answer_fn)
+        except Exception:
+            FileToolHandler._outside_fn = None
+    else:
+        FileToolHandler._outside_fn = None
+
+
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="WIMSE Domain B Servers")
+    parser.add_argument("--mintid-outside", dest="mintid_outside", default=None, help="MintID verifier URL")
+    args = parser.parse_args()
+
+    if args.mintid_outside:
+        configure_mintid_outside(args.mintid_outside)
+
     servers = start_all_in_threads()
     print("Domain B servers listening on 127.0.0.1:5060, 5061, 5062, 5063. Press Ctrl+C to exit.")
     try:

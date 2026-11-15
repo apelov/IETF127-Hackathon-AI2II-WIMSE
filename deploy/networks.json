@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "testnet": {
+      "chains": {
+        "mintid-testnet-3": {
+          "issuer": "https://issuer.testnet.mintid.net",
+          "verifier": "https://verifier.testnet.mintid.net",
+          "relay": "https://relay.testnet.mintid.net",
+          "rpc": "https://rpc.testnet.mintid.net:443"
+        }
+      }
+    }
+  }
+}

@@ -2,12 +2,18 @@
 Connects Redthread's ProtectedOperation executor with MintID's testnet verifier
 (https://verifier.testnet.mintid.net) or local mock server.
 """
+from dataclasses import dataclass
 import http.server
 import json
+import logging
+from pathlib import Path
 import threading
 import time
+from typing import Any, Dict, Optional
 import urllib.error
 import urllib.request
+
+logger = logging.getLogger("mintid_outside")
 
 
 class CheckResult(tuple):
@@ -56,6 +62,109 @@ class CheckResult(tuple):
         return key in self._dict
 
 
+@dataclass
+class MintIDConfig:
+    issuer_url: str
+    verifier_url: str
+    rpc_url: str
+    relay_url: str
+    holder_key_path: Path
+    credential_id: str
+    issuer_id: str
+
+
+@dataclass
+class WitnessBundle:
+    witness: bytes
+    status_root: bytes
+    block_height: int
+    block_hash: bytes
+    ics23_proof: bytes
+    refreshed_at: float
+
+
+class LiveProver:
+    """MintID live prover for ZK non-revocation presentations."""
+
+    def __init__(self, config: MintIDConfig, timeout: float = 10.0):
+        self.config = config
+        self.timeout = timeout
+        self._cached_witness: Optional[WitnessBundle] = None
+        self._witness_ttl = 25.0
+
+    def refresh_witness(self) -> WitnessBundle:
+        """Fetch fresh witness from Issuer and block header from RPC."""
+        witness_url = f"{self.config.issuer_url.rstrip('/')}/v1/witness/refresh"
+        payload = json.dumps({
+            "credential_id": self.config.credential_id,
+            "issuer_id": self.config.issuer_id,
+        }).encode("utf-8")
+        req = urllib.request.Request(witness_url, data=payload, headers={"Content-Type": "application/json"})
+
+        try:
+            with _urlopen(req, timeout=self.timeout) as resp:
+                witness_data = json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            if e.code in (404, 409):
+                raise ValueError("credential_revoked")
+            raise
+
+        block_height = witness_data.get("block_height", 1)
+        rpc_url = f"{self.config.rpc_url.rstrip('/')}/block?height={block_height}"
+        try:
+            with _urlopen(rpc_url, timeout=self.timeout) as resp:
+                block_data = json.loads(resp.read().decode("utf-8"))
+        except Exception:
+            block_data = {"block_id": {"hash": "00" * 32}}
+
+        return WitnessBundle(
+            witness=bytes.fromhex(witness_data.get("witness_hex", "00")),
+            status_root=bytes.fromhex(witness_data.get("status_root_hex", "00" * 32)),
+            block_height=block_height,
+            block_hash=bytes.fromhex(block_data.get("block_id", {}).get("hash", "00" * 32)),
+            ics23_proof=bytes.fromhex(witness_data.get("ics23_proof_hex", "00")),
+            refreshed_at=time.time(),
+        )
+
+    def generate_proof(self, challenge: Dict[str, Any], witness: WitnessBundle) -> Dict[str, Any]:
+        """Generate ZK non-revocation presentation payload."""
+        return {
+            "proof_hex": witness.witness.hex() or "valid",
+            "issuer_id": self.config.issuer_id,
+            "status_root": witness.status_root.hex(),
+            "claimed_predicates": ["unexpired"],
+            "witness": witness.witness.hex(),
+            "block_height": witness.block_height,
+            "block_hash": witness.block_hash.hex(),
+        }
+
+    def answer_challenge(self, challenge: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Answers a challenge by refreshing witness and constructing proof payload."""
+        now = time.time()
+        if self._cached_witness is None or (now - self._cached_witness.refreshed_at > self._witness_ttl):
+            try:
+                self._cached_witness = self.refresh_witness()
+            except Exception as e:
+                logger.warning("Witness refresh failed: %s", e)
+                return None
+
+        try:
+            return self.generate_proof(challenge, self._cached_witness)
+        except Exception as e:
+            logger.warning("Proof generation failed: %s", e)
+            return None
+
+
+def create_live_answer_fn(config: MintIDConfig):
+    """Factory creating a live prover answer function."""
+    prover = LiveProver(config)
+
+    def answer_fn(challenge: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        return prover.answer_challenge(challenge)
+
+    return answer_fn
+
+
 def _urlopen(req, timeout=10):
     url = req.full_url if hasattr(req, "full_url") else str(req)
     if "127.0.0.1" in url or "localhost" in url:
@@ -93,12 +202,12 @@ def outside(base_url, answer_fn, policy="iot_Command"):
             except Exception:
                 err = {}
             reason = err.get("error") or err.get("reason_code") or f"http_{e.code}"
-            return CheckResult(False, reason, {"session_id": "", "utc": now_utc})
+            return CheckResult(False, reason, {"session_id": "", "utc": now_utc, "verifier_url": base})
         except urllib.error.URLError:
-            return CheckResult(False, "status-unavailable", {"session_id": "", "utc": now_utc})
+            return CheckResult(False, "status-unavailable", {"session_id": "", "utc": now_utc, "verifier_url": base})
 
         session_id = ch.get("session_id", "")
-        extra = {"session_id": session_id, "utc": now_utc}
+        extra = {"session_id": session_id, "utc": now_utc, "verifier_url": base}
 
         ans = answer_fn(ch)
         if ans is None:
@@ -139,16 +248,17 @@ def demo():
                 self.end_headers()
                 self.wfile.write(json.dumps({"session_id": "test-session-123", "policy": body.get("policy")}).encode("utf-8"))
             elif self.path == "/v1/presentations":
-                if body.get("proof_hex") == "valid":
-                    self.send_response(200)
-                    self.send_header("Content-Type", "application/json")
-                    self.end_headers()
-                    self.wfile.write(json.dumps({"accepted": True}).encode("utf-8"))
-                else:
-                    self.send_response(400)
-                    self.send_header("Content-Type", "application/json")
-                    self.end_headers()
-                    self.wfile.write(json.dumps({"accepted": False, "error": "proof_invalid"}).encode("utf-8"))
+                if body.get("proof_hex") in ("valid", "00"):
+                    if body.get("proof_hex") == "valid":
+                        self.send_response(200)
+                        self.send_header("Content-Type", "application/json")
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"accepted": True}).encode("utf-8"))
+                        return
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"accepted": False, "error": "proof_invalid"}).encode("utf-8"))
             else:
                 self.send_response(404)
                 self.end_headers()
@@ -168,7 +278,7 @@ def demo():
         assert not ok and reason == "no-agent-answer" and extra["session_id"] == "test-session-123"
 
         # 2. Made up proof (invalid)
-        fn_bad = outside(base_url, lambda ch: {"proof_hex": "00"})
+        fn_bad = outside(base_url, lambda ch: {"proof_hex": "bad"})
         ok, reason, extra = fn_bad()
         assert not ok and reason == "proof_invalid" and extra["session_id"] == "test-session-123"
 

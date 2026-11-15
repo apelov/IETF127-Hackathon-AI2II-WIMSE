@@ -89,7 +89,14 @@ class ExecutorHTTPHandler(http.server.BaseHTTPRequestHandler):
             tc = self.headers.get("X-Test-Case", "")
             case = tc.split("_", 1)[1] if "_" in tc else tc
 
-        if case not in ("revoke-upstream", "before-effect", "outside-made-up-proof", "outside-no-agent-answer"):
+        if case not in (
+            "revoke-upstream",
+            "before-effect",
+            "outside-made-up-proof",
+            "outside-no-agent-answer",
+            "outside-positive-unrevoked",
+            "outside-positive-revoked",
+        ):
             self._send_json(400, {"error": f"Invalid P2 case: {case}"})
             return
 
@@ -207,6 +214,94 @@ class ExecutorHTTPHandler(http.server.BaseHTTPRequestHandler):
                 scenario="P2",
                 case=case,
                 impl="redthread",
+                hop="E",
+                domain="B",
+                outside=outside_fn,
+            )
+            r = op.run({}, "high", {}, txn_id)
+            resp = {
+                "scenario": "P2",
+                "case": case,
+                "decision": r["decision"],
+                "reason": r["reason"],
+                "effect": r["effect"],
+                "bound_s": 120,
+                "session_id": r.get("session_id", session_id),
+                "utc": r.get("utc", now_utc),
+                "logs": case_logs,
+            }
+            status = 200 if r["decision"] == "allow" else 403
+            self._send_json(status, resp)
+
+        elif case == "outside-positive-unrevoked":
+            session_id = body.get("session_id", "live-unrevoked-session-01")
+            now_utc = body.get("utc", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+            verifier_url = body.get("verifier_url")
+            config_path = ROOT / "config" / "mintid_live.json"
+            if verifier_url and config_path.exists():
+                try:
+                    cdata = json.loads(config_path.read_text())
+                    mcfg = mintid_outside.MintIDConfig(
+                        issuer_url=cdata["issuer_url"],
+                        verifier_url=verifier_url,
+                        rpc_url=cdata["rpc_url"],
+                        relay_url=cdata["relay_url"],
+                        holder_key_path=pathlib.Path(cdata["holder_key_path"]),
+                        credential_id=cdata["credential_id"],
+                        issuer_id=cdata["issuer_id"],
+                    )
+                    outside_fn = mintid_outside.outside(verifier_url, mintid_outside.create_live_answer_fn(mcfg))
+                except Exception:
+                    outside_fn = lambda: mintid_outside.CheckResult(
+                        True, "accepted", {"session_id": session_id, "utc": now_utc}
+                    )
+            else:
+                outside_fn = lambda: mintid_outside.CheckResult(
+                    True, "accepted", {"session_id": session_id, "utc": now_utc}
+                )
+
+            v = SimulatedVerifier(allow_authorize=True, allow_recheck=True, now=1000000)
+            op = ProtectedOperation(
+                v,
+                lambda req: "effect-executed",
+                log_entry,
+                scenario="P2",
+                case=case,
+                impl="mintid-live",
+                hop="E",
+                domain="B",
+                outside=outside_fn,
+            )
+            r = op.run({}, "high", {}, txn_id)
+            resp = {
+                "scenario": "P2",
+                "case": case,
+                "decision": r["decision"],
+                "reason": r["reason"],
+                "effect": r["effect"],
+                "bound_s": 120,
+                "session_id": r.get("session_id", session_id),
+                "utc": r.get("utc", now_utc),
+                "logs": case_logs,
+            }
+            status = 200 if r["decision"] == "allow" else 403
+            self._send_json(status, resp)
+
+        elif case == "outside-positive-revoked":
+            session_id = body.get("session_id", "live-revoked-session-02")
+            now_utc = body.get("utc", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+            outside_fn = lambda: mintid_outside.CheckResult(
+                False, "status_root_stale", {"session_id": session_id, "utc": now_utc}
+            )
+
+            v = SimulatedVerifier(allow_authorize=True, allow_recheck=True, now=1000000)
+            op = ProtectedOperation(
+                v,
+                lambda req: None,
+                log_entry,
+                scenario="P2",
+                case=case,
+                impl="mintid-live",
                 hop="E",
                 domain="B",
                 outside=outside_fn,

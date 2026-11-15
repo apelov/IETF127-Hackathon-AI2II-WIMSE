@@ -279,7 +279,7 @@ def verify_capture(capture_path: pathlib.Path) -> None:
                     errors += 1
 
     c10_seq = case_statuses.get("C10", [])
-    if c10_seq and (403 not in c10_seq or c10_seq.index(200) > c10_seq.index(403)):
+    if c10_seq and (200 not in c10_seq or 403 not in c10_seq or c10_seq.index(200) > c10_seq.index(403)):
         print(f"FAIL C10: expected 200 accept before 403 revoked, got {c10_seq}", file=sys.stderr)
         errors += 1
 
@@ -287,6 +287,13 @@ def verify_capture(capture_path: pathlib.Path) -> None:
         observed = case_statuses.get(cid, [])
         if not observed:
             print(f"FAIL {cid}: missing from capture", file=sys.stderr)
+            errors += 1
+            continue
+        if cid == "B_CHAIN" and set(observed) != {200}:
+            print(
+                f"FAIL B_CHAIN: expected all hops to return 200, observed non-200 in {observed}",
+                file=sys.stderr,
+            )
             errors += 1
             continue
         exp_set = set(spec["expected_statuses"])

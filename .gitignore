@@ -2,6 +2,7 @@ keys/
 .venv/
 bin/
 runs/
+external/
 __pycache__/
 *.pyc
 .DS_Store

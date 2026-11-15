@@ -1,0 +1,9 @@
+{
+  "issuer_url": "https://issuer.testnet.mintid.net",
+  "verifier_url": "https://verifier.testnet.mintid.net",
+  "rpc_url": "https://rpc.testnet.mintid.net:443",
+  "relay_url": "https://relay.testnet.mintid.net",
+  "holder_key_path": "keys/mintid_holder_ed25519.pem",
+  "credential_id": "mintid-cred-agent-001",
+  "issuer_id": "7bf0b103ee565ba991b5c4ad204128df004128df004128df004128df004128df"
+}
