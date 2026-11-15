@@ -159,6 +159,7 @@ def verify_capture(capture_path: pathlib.Path) -> None:
             streams[sid]["resps"].append((srcport, dstport, http))
 
     case_statuses: dict[str, list[int]] = defaultdict(list)
+    case_reasons: dict[str, set[str]] = defaultdict(set)
     b_chain_txns: set[str] = set()
     b_chain_ports: set[int] = set()
     b_chain_wpt_bound = False
@@ -228,6 +229,14 @@ def verify_capture(capture_path: pathlib.Path) -> None:
             status = _extract_status(resp)
             case_statuses[case_id].append(status)
             resp_body = _decode_body(resp)
+            if isinstance(resp_body, dict):
+                body_reason = resp_body.get("reason") or resp_body.get("error")
+                if body_reason:
+                    case_reasons[case_id].add(str(body_reason))
+                elif status == 200:
+                    case_reasons[case_id].add("accept")
+            elif status == 200:
+                case_reasons[case_id].add("accept")
 
             if case_id == "B_CHAIN":
                 b_chain_ports.add(dstport)
@@ -288,7 +297,16 @@ def verify_capture(capture_path: pathlib.Path) -> None:
             )
             errors += 1
             continue
-        print(f"CHECK {cid} ref={spec['ref']} statuses={observed}")
+        exp_reason = spec.get("expected_reason")
+        obs_reasons = case_reasons.get(cid, set())
+        if exp_reason and exp_reason not in obs_reasons:
+            print(
+                f"FAIL {cid}: expected_reason {exp_reason!r} not in observed reasons {sorted(obs_reasons)}",
+                file=sys.stderr,
+            )
+            errors += 1
+            continue
+        print(f"CHECK {cid} ref={spec['ref']} statuses={observed} reason={exp_reason}")
 
     # Verify B_CHAIN 3-agent ports, WPT binding, and unified txn UUID
     required_b_ports = {5050, 5051, 5060, 5061, 5062, 5063}

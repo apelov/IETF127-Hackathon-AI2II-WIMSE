@@ -52,6 +52,23 @@ def _parse_iso(ts_str: str) -> float:
     return datetime.fromisoformat(ts_str.replace("Z", "+00:00")).timestamp()
 
 
+EXPECTED_SCENARIO_REASONS = {
+    "P1": {"status-revoked", "status-stale", "status-unavailable", "status-grace"},
+    "P2": {"status-revoked"},
+    "P3": {
+        "attenuation:host",
+        "attenuation:methods",
+        "attenuation:exp",
+        "attenuation:tools",
+        "attenuation:unknown-member",
+        "ok",
+    },
+    "P4": {"limit-aud-not-single", "limit-exceeded", "attenuation:max_calls"},
+    "P5": {"signature-invalid", "forwarded-target-uri-unauthenticated", "ok"},
+    "P6": {"build-mismatch", "tool-digest-mismatch"},
+}
+
+
 def verify_manifests(sdir: pathlib.Path) -> None:
     # 1. Verify Redthread P1-P6 local manifest & 22 cases
     rt_manifest = json.loads((sdir / "redthread-local.manifest.json").read_text())
@@ -65,7 +82,8 @@ def verify_manifests(sdir: pathlib.Path) -> None:
     if len(results) != 22 or not all(r.get("match") is True for r in results):
         raise ValueError(f"Expected 22/22 matching Redthread cases, got {len(results)}")
 
-    p1_reasons = set()
+    scenario_reasons: dict[str, set[str]] = defaultdict(set)
+    rows_by_scn_case: dict[tuple[str, str], list[dict]] = defaultdict(list)
     p2_rows = []
     for scn, fname in rt_manifest["files"].items():
         for line in (sdir / fname).read_text().splitlines():
@@ -75,24 +93,73 @@ def verify_manifests(sdir: pathlib.Path) -> None:
             missing = REQUIRED_FIELDS - set(row.keys())
             if missing:
                 raise ValueError(f"{fname} missing required fields {missing}")
-            if scn == "P1":
-                p1_reasons.add(row["reason"])
-                for rec_item in row.get("record", []) or []:
-                    p1_reasons.add(rec_item)
-            elif scn == "P2":
+            if row.get("scenario") != scn:
+                raise ValueError(f"{fname} row scenario {row.get('scenario')!r} != {scn!r}")
+            scenario_reasons[scn].add(row["reason"])
+            for rec_item in row.get("record", []) or []:
+                scenario_reasons[scn].add(rec_item)
+            rows_by_scn_case[(scn, row["case"])].append(row)
+            if scn == "P2":
                 p2_rows.append(row)
 
-    for req_reason in ("status-revoked", "status-stale", "status-unavailable", "status-grace"):
-        if req_reason not in p1_reasons:
-            raise ValueError(f"P1 missing distinct reason {req_reason}")
+    # Verify canonical reason codes per scenario (P1..P6)
+    for scn, req_reasons in EXPECTED_SCENARIO_REASONS.items():
+        missing_r = req_reasons - scenario_reasons[scn]
+        if missing_r:
+            raise ValueError(f"{scn} missing expected scenario reason(s): {sorted(missing_r)}")
 
-    # P2 checks: bound_s == 120, revoke-upstream 50s allow -> 51s deny, before-effect authorize(pending) -> before-effect(deny, 0ms)
+    # Independently verify expected_decision and expected_reason for all 22 P1-P6 cases
+    if len(rows_by_scn_case) != 22:
+        raise ValueError(f"Expected 22 distinct (scenario, case) pairs across P1-P6 traces, got {len(rows_by_scn_case)}")
+
+    for (scn, case_name), case_rows in rows_by_scn_case.items():
+        last = case_rows[-1]
+        exp_dec = str(last.get("expected_decision", ""))
+        exp_rsn = str(last.get("expected_reason", ""))
+        if not exp_dec or not exp_rsn:
+            raise ValueError(f"{scn}/{case_name} missing expected_decision or expected_reason")
+
+        # Settling row must match final expected reason and final expected decision
+        target_rsn = exp_rsn.split(" then ")[-1]
+        if last["reason"] != target_rsn:
+            raise ValueError(f"{scn}/{case_name}: final reason {last['reason']!r} != {target_rsn!r}")
+        if "deny" in exp_dec.split(" then ")[-1] and last["decision"] != "deny":
+            raise ValueError(f"{scn}/{case_name}: expected final decision 'deny', got {last['decision']!r}")
+        if exp_dec == "allow" and last["decision"] != "allow":
+            raise ValueError(f"{scn}/{case_name}: expected final decision 'allow', got {last['decision']!r}")
+
+        # Multi-step transition checks
+        if (scn, case_name) == ("P1", "low-value-grace"):
+            if len(case_rows) != 3:
+                raise ValueError(f"P1/low-value-grace expected 3 steps, got {len(case_rows)}")
+            if (
+                case_rows[0]["decision"] != "allow"
+                or case_rows[1]["decision"] != "allow"
+                or "status-grace" not in (case_rows[1].get("record") or [])
+                or case_rows[2]["decision"] != "deny"
+                or case_rows[2]["reason"] != "status-stale"
+            ):
+                raise ValueError("P1/low-value-grace failed allow -> allow(status-grace) -> deny(status-stale) transition")
+        elif (scn, case_name) == ("P4", "single-accounting-rp"):
+            if len(case_rows) != 6:
+                raise ValueError(f"P4/single-accounting-rp expected 6 calls (5 allow + 1 deny), got {len(case_rows)}")
+            if not all(r["decision"] == "allow" and r["reason"] == "ok" for r in case_rows[:5]):
+                raise ValueError("P4/single-accounting-rp first 5 calls must be allow: ok")
+            if case_rows[5]["decision"] != "deny" or case_rows[5]["reason"] != "limit-exceeded":
+                raise ValueError("P4/single-accounting-rp 6th call must be deny: limit-exceeded")
+
+    # P2 checks: bound_s == 120, revoke-upstream 50s allow -> 51s deny (simulated clock), before-effect authorize(pending) -> before-effect(deny, 0ms)
     if not any(r.get("bound_s") == 120 for r in p2_rows):
         raise ValueError("P2 missing bound_s == 120")
     up_allow = [r for r in p2_rows if r["case"] == "revoke-upstream" and r["decision"] == "allow"]
     up_deny = [r for r in p2_rows if r["case"] == "revoke-upstream" and r["decision"] == "deny"]
     if not up_allow or not up_deny:
         raise ValueError("P2 revoke-upstream missing allow/deny transition")
+    if up_allow[-1].get("t_since_revocation_ms") != 50000 or up_deny[0].get("t_since_revocation_ms") != 51000:
+        raise ValueError(
+            f"P2 revoke-upstream expected 50000ms last allow -> 51000ms first deny (simulated), got "
+            f"{up_allow[-1].get('t_since_revocation_ms')} -> {up_deny[0].get('t_since_revocation_ms')}"
+        )
     be_auth = [r for r in p2_rows if r["case"] == "before-effect" and r.get("check") == "authorize" and r.get("effect") == "pending"]
     be_recheck = [
         r for r in p2_rows
