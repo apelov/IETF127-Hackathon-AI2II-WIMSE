@@ -1,0 +1,30 @@
+{
+  "cell": "chain",
+  "verdict": "PASS",
+  "reason": "all peers exited 0, capture non-empty, every checker passed and rejected its negatives",
+  "peers": {
+    "chain-stack": {
+      "exit": -9,
+      "timed_out": false,
+      "binaries": {
+        "/Users/apelov/Code/IETF127-Hackathon/WIMSE/bin/maurice": "36f92fe85b5b8ad3675cdf84800dcb0ae22507523ee6e9e9f679b69e1603c695"
+      },
+      "commit": "8f8441e4af0071c968f2e1ed32887eeda538431e",
+      "dirty": false
+    },
+    "wimse-chain-client": {
+      "exit": 0,
+      "timed_out": false,
+      "binaries": {},
+      "commit": "8f8441e4af0071c968f2e1ed32887eeda538431e",
+      "dirty": false
+    }
+  },
+  "checkers": {
+    "observes-chain": 0,
+    "observes-p1-p8": 0
+  },
+  "contains_secrets": false,
+  "started_at": "2026-11-15T04:10:11Z",
+  "ended_at": "2026-11-15T04:10:21Z"
+}

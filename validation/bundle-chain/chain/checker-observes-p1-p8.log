@@ -1,0 +1,27 @@
+CHECK P2_revoke-upstream status=403 reason=status-revoked
+CHECK P2_before-effect status=403 reason=status-revoked
+CHECK P2_outside-made-up-proof status=403 reason=proof_invalid
+CHECK P2_outside-no-agent-answer status=403 reason=no-agent-answer
+CHECK P7_display-match status=200 reason=ok
+CHECK P7_display-mismatch status=403 reason=display-mismatch
+CHECK P8_no-delegation status=403 reason=no-delegation
+CHECK P8_write-under-read status=403 reason=scope-exceeded
+CHECK P8_revoked-between-authz-and-use status=403 reason=status-revoked
+CHECK P8_revoked-after-token-released status=200 reason=token-released
+SUMMARY cases=10 errors=0
+--- negative: checkers/negatives/p1_p8_unrelated.pcap replaces {capture}
+FAIL P2_revoke-upstream: missing from capture
+FAIL P2_before-effect: missing from capture
+FAIL P2_outside-made-up-proof: missing from capture
+FAIL P2_outside-no-agent-answer: missing from capture
+FAIL P7_display-match: missing from capture
+FAIL P7_display-mismatch: missing from capture
+FAIL P8_no-delegation: missing from capture
+FAIL P8_write-under-read: missing from capture
+FAIL P8_revoked-between-authz-and-use: missing from capture
+FAIL P8_revoked-after-token-released: missing from capture
+SUMMARY cases=10 errors=10
+--- negative: checkers/negatives/p1_p8_request_only.pcap replaces {capture}
+ERROR: Case P2_revoke-upstream on stream 0 has request without response
+--- negative: checkers/negatives/p1_p8_missing_before_effect.pcap replaces {capture}
+ERROR: Case P2_before-effect on stream 1 has request without response

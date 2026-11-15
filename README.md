@@ -1,12 +1,22 @@
-# WIMSE inbound interop harness
+# IETF 127 WIMSE + OAuth + Agent Call-Chain Interop Harness
 
-This harness sends 34 WIMSE inbound cases to a local Maurice instance. `cases.json` is
-the expected outcome for both the client driver and the packet checker. The keys in
-`keys/` are throwaway test keys and are ignored by Git.
+This repository contains the complete implementation, loopback packet captures (`.pcap`), structured decision journals (`.jsonl`), partner traces (`P1–P8`), and **AI2II** verification bundles (`inbound` and `chain`) from the **IETF 127 Hackathon WIMSE Interop**.
+
+## Key Documentation Index
+
+- **[`SCENARIOS_AND_AUTHORS.md`](SCENARIOS_AND_AUTHORS.md)** — Complete contributor & implementation table (**AgentMaurice**, **RICH**, **Redthread Security**, **MintID**, **OmniArx**, **Cred**), normative Internet-Drafts & RFCs, AI model provenance table (AI2II Rule L4), and full catalog of all 3 test suites:
+  - **Suite 1 (`inbound` cell):** 34 WIMSE inbound cases (`A2–A13j`, `C2–C12b`, `IN4–IN15`) against local **AgentMaurice** (`:5050`).
+  - **Suite 2 (`chain` cell):** 19 3-Agent, 2-Domain call-chain (`Agent 1: Maurice -> Agent 2: RICH Coordinator -> Agent 3: RICH Research Sub-Agent -> File Tool`) and mid-transaction revocation / attack cases (`B_CHAIN`, `C5–C10`, `D1–D7`) across `:5050–5063`.
+  - **Suite 3 (`chain` cell + partner traces):** Extended partner scenarios `P1–P8` (`ietf127-wimse-scenario/1`) — live `P2/P7/P8` HTTP execution on `:5064` plus full trace verification of Redthread `P1–P6`, MintID live `mintid-testnet-3` non-revocation proofs, OmniArx `P7` approval display vectors, and Cred `P8` pre-release vs post-release bearer revocation boundaries.
+- **[`EVIDENCE.md`](EVIDENCE.md)** — Exact SHA-256 digests, packet counts, and `tshark` one-liners for all committed `.pcap` captures, negative PCAP mutants, and `.jsonl` journals.
+- **[`scenarios/p1_p8/PARTNER_COORDINATION_SUMMARY.md`](scenarios/p1_p8/PARTNER_COORDINATION_SUMMARY.md)** — Sanitized technical summary of the multi-party design and trace-verification discussions across `P1–P8`.
+- **[`VERIFY.md`](VERIFY.md)** — Detailed manual walkthrough for inspecting individual cases and logs.
+
+---
 
 ## Quick Reproduction (Fresh Git Clone)
 
-Anyone cloning this repository can verify all committed PCAP captures, AI2II evidence bundles (`SHA256SUMS` + `verdict.json`), negative mutant PCAP rejections, and `P1–P8` partner manifests with a single command (requires only Python 3 and `tshark`):
+Anyone cloning this repository can verify all committed PCAP captures (`inbound` and `chain`), AI2II evidence bundles (`SHA256SUMS` + `verdict.json`), all 9 negative mutant PCAP rejections, and `P1–P8` partner manifests with a single command (requires only Python 3 and `tshark`):
 
 ```sh
 ./reproduce.sh
@@ -14,9 +24,11 @@ Anyone cloning this repository can verify all committed PCAP captures, AI2II evi
 
 The AI2II `wire` harness is vendored directly in `wire/`, and `reproduce.sh` automatically creates `.venv` (installing `requirements.txt`) and generates ephemeral test keys in `keys/` if missing.
 
+---
+
 ## Exploring Captures in Wireshark (`dissectors/wimse.lua`)
 
-A custom Lua post-dissector in `dissectors/wimse.lua` automatically binds loopback ports `5050–5064` to HTTP, tags packets with `[Case: <ID>]` in the Info column, and base64url-decodes WIMSE `Workload-Identity-Token` (WIT), `Workload-Proof-Token` (WPT), OAuth `Txn-Token`, `Authorization: Bearer` tokens, and RFC 9421 `Signature-Input` parameters into a collapsible **IETF WIMSE & OAuth Agent Call Chain** protocol tree.
+A custom Lua post-dissector in [`dissectors/wimse.lua`](dissectors/wimse.lua) automatically binds loopback ports `5050–5064` to HTTP, tags packets with `[Case: <ID>]` in the Info column, and base64url-decodes WIMSE `Workload-Identity-Token` (WIT), `Workload-Proof-Token` (WPT), OAuth `Txn-Token`, `Authorization: Bearer` tokens, and RFC 9421 `Signature-Input` parameters into a collapsible **IETF WIMSE & OAuth Agent Call Chain** protocol tree.
 
 To install it permanently into your personal Wireshark Lua plugins directory (macOS / Linux):
 
@@ -29,15 +41,18 @@ Or pass it on demand to `wireshark` or `tshark`:
 
 ```sh
 wireshark -X lua_script:dissectors/wimse.lua validation/bundle-inbound/inbound/capture.pcap
-tshark -X lua_script:dissectors/wimse.lua -r validation/bundle-inbound/inbound/capture.pcap -Y 'wimse.test_case == "A4"' -O wimse
+wireshark -X lua_script:dissectors/wimse.lua validation/bundle-chain/chain/capture.pcap
+tshark -X lua_script:dissectors/wimse.lua -r validation/bundle-chain/chain/capture.pcap -Y 'wimse.test_case == "B_CHAIN"' -O wimse
 ```
 
 Useful Wireshark display filters:
-- `wimse.test_case == "A4"` — filter by scenario/case ID (`A2`, `C12`, `B_CHAIN`, etc.)
-- `wimse.wit.sub contains "peer.ietf127.example"` — filter by workload identity URI
+- `wimse.test_case == "B_CHAIN"` — filter by scenario/case ID (`A2`, `C12`, `B_CHAIN`, `C7`, `P2_BEFORE_EFFECT`, `P7_R2`, `P8_BEFORE_RELEASE`, etc.)
+- `wimse.wit.sub contains "rich.ietf127.example"` — filter by workload identity URI
 - `wimse.wpt.wth` — show requests carrying a WPT proof
 - `wimse.sig.wimse_aud` — show requests signed with RFC 9421 HTTP Message Signatures
 - `wimse.txn.id == "<uuid>"` — trace a single transaction ID across all agent hops (`Agent 1 -> Agent 2 -> Agent 3 -> Tool`)
+
+---
 
 ## Live Capture Setup (with Local AgentMaurice)
 
@@ -51,54 +66,31 @@ To re-run the live packet captures against a local **AgentMaurice** instance:
 
 2. Ensure `/etc/hosts` maps the test trust domain to loopback (`127.0.0.1 maurice.ietf127.example`), generate the ephemeral test keys, and patch the WIMSE configuration:
 
-Requirements: Python 3 with `cryptography` and `PyYAML`, `tshark` (Wireshark CLI), and `maurice` on `PATH` with the target agent and workflow in `setup/target.json`.
-
 ```sh
 python3 setup/gen_keys.py
 python3 setup/patch_config.py
-# Restart Maurice after patching its config.
 ```
 
-`patch_config.py` backs up the existing `~/.maurice/one/config/standalone.yaml`
-before replacing its trailing `wimse:` block. Inspect the generated configuration
-before restarting. The server must load the patched trust entries and grants; otherwise
-even valid cases fail with `untrusted-trust-domain`.
+`patch_config.py` backs up the existing `~/.maurice/one/config/standalone.yaml` before replacing its trailing `wimse:` block.
 
-## Run
-
-Start a capture before the driver and stop it after the driver exits:
+3. Run both cells (`inbound` and `chain`) live via `./reproduce.sh --live`, or invoke the vendored `wire` runner directly on a clean git working tree:
 
 ```sh
-tcpdump -i lo0 -s 0 -U -w /tmp/wimse.pcap 'tcp port 5050 or tcp port 47999'
-python3 peers/driver.py
-python3 checkers/wire.py /tmp/wimse.pcap
+PYTHONPATH=. .venv/bin/python -m wire run interop.yaml --cell inbound --out /tmp/wimse-bundle-inbound
+PYTHONPATH=. .venv/bin/python -m wire run interop.yaml --cell chain --out /tmp/wimse-bundle-chain
+PYTHONPATH=. .venv/bin/python -m wire summarize validation
 ```
 
-The driver checks HTTP status, problem type, authentication challenge, the matching
-Maurice decision journal entry, and that the attacker URL in C12/C12b was not fetched.
-It exits nonzero if any case differs. For a subset, pass comma-separated IDs to
-`--cases` on both commands. The packet checker checks that each declared case has
-the expected number of HTTP request/response pairs, route, status, problem type,
-and challenge. It does not read the driver or Maurice journal. Since the case tag
-is an unsigned test header, the checker is suitable only for this controlled
-single-client capture.
+---
 
-The checker here was written by the same model family as the harness. It is a
-development aid, **not** the independent checker required for an AI2II PASS bundle.
-An independent checker needs an author from a different model family, a capture
-from a passing run, and negative captures that it demonstrably rejects.
+## Current Verification Status (2026-11-14)
 
-## Current local state (2026-11-14)
+Both AI2II cells (`inbound` and `chain`) are **PASS**:
 
-AI2II cell `inbound` **PASS** at commit `801b463` (clean tree): the driver passed 34/34
-cases against `bin/maurice` (sha256 `36f92fe8...`), the independent checker
-`checkers/observes_wimse.py` (Nemotron Ultra) reported 0 errors on the run's capture, and
-it rejects all three negatives. Evidence: `validation/bundle-inbound/inbound/`.
-
-```sh
-PYTHONPATH=. .venv/bin/python -m wire run interop.yaml --cell inbound --out validation/bundle-inbound
+```text
+PASS	inbound	458453327d36	validation/bundle-inbound/inbound
+PASS	chain	8f8441e4af00	validation/bundle-chain/chain
 ```
 
-Port 5050 must be free (stop any running Maurice) and the tree must be committed.
-Maurice journals mixed-credential rejections (A6a/A6b) without a WIT fingerprint, so the
-driver matches those entries by reason within the request's journal window.
+- **`inbound` (`validation/bundle-inbound/inbound/`):** 34/34 cases passed against `bin/maurice` (sha256 `36f92fe8...`), verified by `checkers/observes_wimse.py` (NVIDIA Nemotron Ultra), rejecting all 3 negative mutants (`unrelated.pcap`, `request_only.pcap`, `forbidden_fetch.pcap`).
+- **`chain` (`validation/bundle-chain/chain/`):** 19/19 3-agent cross-domain call-chain & attack cases (`:5050–5063`) + 10/10 live `P2/P7/P8` partner scenario cases (`:5064`) passed, verified by `checkers/observes_chain.py` and `checkers/observes_p1_p8.py`, rejecting all 6 negative mutants (`chain_unrelated.pcap`, `chain_request_only.pcap`, `chain_leaked_txn.pcap`, `p1_p8_unrelated.pcap`, `p1_p8_request_only.pcap`, `p1_p8_missing_before_effect.pcap`).

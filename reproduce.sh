@@ -28,17 +28,38 @@ for bundle in validation/bundle-*/*/; do
 done
 .venv/bin/python -m wire summarize validation
 
-echo "=== [4/5] Running Independent Packet Checker (observes_wimse.py) on Committed PCAP & Mutants ==="
+echo "=== [4/5] Running Independent Packet Checkers on Committed PCAPs & Negative Mutants ==="
 if command -v tshark >/dev/null 2>&1; then
+    echo "  -> Checking Suite 1 (observes_wimse.py on validation/bundle-inbound/inbound/capture.pcap)"
     .venv/bin/python checkers/observes_wimse.py validation/bundle-inbound/inbound/capture.pcap
     for neg in checkers/negatives/unrelated.pcap checkers/negatives/request_only.pcap checkers/negatives/forbidden_fetch.pcap; do
-        if [ -f "$neg" ]; then
-            if .venv/bin/python checkers/observes_wimse.py "$neg" >/dev/null 2>&1; then
-                echo "ERROR: negative mutant $neg unexpectedly passed!" >&2
-                exit 1
-            else
-                echo "  -> Negative mutant rejected as expected: $neg"
-            fi
+        if .venv/bin/python checkers/observes_wimse.py "$neg" >/dev/null 2>&1; then
+            echo "ERROR: negative mutant $neg unexpectedly passed observes_wimse.py!" >&2
+            exit 1
+        else
+            echo "     Rejected negative mutant as expected: $neg"
+        fi
+    done
+
+    echo "  -> Checking Suite 2 (observes_chain.py on validation/bundle-chain/chain/capture.pcap)"
+    .venv/bin/python checkers/observes_chain.py validation/bundle-chain/chain/capture.pcap
+    for neg in checkers/negatives/chain_unrelated.pcap checkers/negatives/chain_request_only.pcap checkers/negatives/chain_leaked_txn.pcap; do
+        if .venv/bin/python checkers/observes_chain.py "$neg" >/dev/null 2>&1; then
+            echo "ERROR: negative mutant $neg unexpectedly passed observes_chain.py!" >&2
+            exit 1
+        else
+            echo "     Rejected negative mutant as expected: $neg"
+        fi
+    done
+
+    echo "  -> Checking Suite 3 (observes_p1_p8.py on validation/bundle-chain/chain/capture.pcap)"
+    .venv/bin/python checkers/observes_p1_p8.py validation/bundle-chain/chain/capture.pcap
+    for neg in checkers/negatives/p1_p8_unrelated.pcap checkers/negatives/p1_p8_request_only.pcap checkers/negatives/p1_p8_missing_before_effect.pcap; do
+        if .venv/bin/python checkers/observes_p1_p8.py "$neg" >/dev/null 2>&1; then
+            echo "ERROR: negative mutant $neg unexpectedly passed observes_p1_p8.py!" >&2
+            exit 1
+        else
+            echo "     Rejected negative mutant as expected: $neg"
         fi
     done
 else
@@ -89,7 +110,9 @@ if [ "${1:-}" = "--live" ]; then
     OUT_DIR="$(mktemp -d /tmp/wimse-repro.XXXXXX)"
     .venv/bin/python -m wire run interop.yaml --cell inbound --out "$OUT_DIR"
     .venv/bin/python -m wire verify-bundle "$OUT_DIR/inbound"
-    echo "Live run succeeded: $OUT_DIR/inbound"
+    .venv/bin/python -m wire run interop.yaml --cell chain --out "$OUT_DIR"
+    .venv/bin/python -m wire verify-bundle "$OUT_DIR/chain"
+    echo "Live runs succeeded: $OUT_DIR/inbound and $OUT_DIR/chain"
 fi
 
 echo "=== ALL REPRODUCIBILITY CHECKS PASSED ==="

@@ -1,0 +1,21 @@
+P2/P7/P8 executor: ran 10 cases successfully.
+CASE B_CHAIN [Phase-B] PASS :: 3-Agent 2-domain call chain (TTS-A -> Agent1:Maurice -> AS-A -> AS-B -> Agent2:Coordinator -> TTS-B -> Agent3:Research -> TTS-B -> FileTool) :: step1=tts-a status=200 txn=feb0e93d-29ec-42e0-b777-b15262f178d9; step2=maurice status=200; step3=as-a status=200 txn=feb0e93d-29ec-42e0-b777-b15262f178d9; step4=as-b status=200 txn=feb0e93d-29ec-42e0-b777-b15262f178d9; step5=coord status=200 summary=$4.2M hops=['agent1:maurice', 'agent2:coordinator', 'agent3:research', 'tool:files']
+CASE C5 [ATK-5] PASS :: Txn-Token swapped after signing HTTP-Sig :: status=400 want=400 reason=proof-invalid want_reason=proof-invalid
+CASE C6 [ATK-6] PASS :: Foreign Txn-Token (Domain A aud presented to Domain B File Tool) :: status=403 want=403 reason=txn-token-invalid want_reason=txn-token-invalid
+CASE C7 [ATK-7] PASS :: Prompt injection attempting out-of-scope file read (salaries.xlsx under Q3.pdf tctx) :: status=200 file_status=200 inj_status=403
+CASE C8 [ATK-8] PASS :: Prompt injection attempting credential exfiltration from caller_context :: status=200 leaked=False raw_jwt_in_ctx=False
+CASE C9 [ATK-9a] PASS :: Autonomous workload call (no Txn-Token) to delegated-only route /files/read :: status=403 want=403 reason=not-authorized want_reason=not-authorized
+CASE C9b [ATK-9b] PASS :: Delegated call (with Txn-Token) to autonomous-only route /files/index :: status=403 want=403 reason=not-authorized want_reason=not-authorized
+CASE C10 [ATK-10] PASS :: Mid-transaction workload revocation (accept before revoke, 403 revoked after) :: step1=200 step2_rev=200 step3_revoked=403 reason=revoked step4_clr=200
+CASE D1 [TXN-1] PASS :: Txn-Token header present on HTTP-Sig request but omitted from @signature-params :: status=400 want=400 reason=proof-invalid want_reason=proof-invalid
+CASE D2 [TXN-2] PASS :: Txn-Token header present on WPT request with wrong tth hash :: file_tool status=401 www_auth=WPT realm="wimse" reason=proof-invalid; maurice status=401 www_auth=WPT reason=None
+CASE D3_exp [TXN-3a] PASS :: Expired Txn-Token rejected by File Tool :: status=403 want=403 reason=txn-token-invalid want_reason=txn-token-invalid
+CASE D3_sig [TXN-3b] PASS :: Txn-Token signed with untrusted rogue key rejected by File Tool :: status=403 want=403 reason=txn-token-invalid want_reason=txn-token-invalid
+CASE D3_typ [TXN-3c] PASS :: Txn-Token with wrong typ=jwt rejected by File Tool :: status=403 want=403 reason=txn-token-invalid want_reason=txn-token-invalid
+CASE D3_reqwl [TXN-3d] PASS :: Txn-Token missing required req_wl claim rejected by File Tool :: status=403 want=403 reason=txn-token-invalid want_reason=txn-token-invalid
+CASE D3_dup [TXN-3e] PASS :: Request with duplicate Txn-Token headers rejected by File Tool :: status=403 want=403 reason=txn-token-invalid want_reason=txn-token-invalid
+CASE D4 [TXN-4] PASS :: Txn-Token with scope=profile:view rejected on files:read route :: status=403 want=403 reason=not-authorized want_reason=not-authorized
+CASE D5 [CHAIN-1] PASS :: Cross-domain guard blocks Domain A Txn-Token from leaving Domain A / AS-B rejects raw Txn-Token :: outbound_guard_blocked=True; as-b status=403 want=403 reason=grant-invalid want_reason=grant-invalid
+CASE D6 [TXO-4/5] PASS :: Replacement Txn-Token scope narrowing accepted; widened scope and mutated txn rejected :: nar=(True,ok) widen=(False,scope-widened) mut=(False,txn-mutated)
+CASE D7 [CHAIN-2] PASS :: Cross-domain JWT grant with wrong audience rejected by AS-B :: as_a_status=200 as_b_status=403 want=403 reason=grant-invalid want_reason=grant-invalid
+SUMMARY total=19 failed=0 []
