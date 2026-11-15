@@ -1,0 +1,82 @@
+{
+  "id": "P8",
+  "title": "Final hop to a bearer-only third-party API",
+  "proposed_by": "Kieran Sweeney (Cred)",
+  "drafts": [
+    "draft-sweeney-wimse-credential-delegation"
+  ],
+  "setup": [
+    "Last hop in domain B: the agent calls a third-party OAuth API that accepts only a bearer token, using a delegated user credential with provider-native scopes. Cred (hackathon/ietf127 branch) sits in front of that hop."
+  ],
+  "cases": [
+    {
+      "name": "no-delegation",
+      "do": "Agent asks for the credential without a delegation.",
+      "expect": {
+        "decision": "deny",
+        "reason": "no-delegation"
+      },
+      "basis": "external"
+    },
+    {
+      "name": "write-under-read",
+      "do": "Read-only grant; agent attempts a write.",
+      "expect": {
+        "decision": "deny",
+        "reason": "scope-exceeded"
+      },
+      "basis": "external"
+    },
+    {
+      "name": "revoked-between-authz-and-use",
+      "do": "Revoke after authorization, before the bearer token is used.",
+      "expect": {
+        "decision": "deny",
+        "reason": "status-revoked",
+        "effect": "none"
+      },
+      "basis": "external",
+      "note": "Record whether a bearer token was already released; once it is, the provider's token lifetime bounds exposure, not the status list."
+    },
+    {
+      "name": "revoked-after-token-released",
+      "do": "Revoke after the intermediary has already handed the bearer token to the agent or to the provider call.",
+      "expect": {
+        "decision": "revocation recorded, token already released",
+        "reason": "token-released",
+        "effect": "may still occur until the token expires"
+      },
+      "basis": "external",
+      "note": "Distinguish this from the case above, where the intermediary still holds the token and can withhold it. No effect after release needs an enforcement mechanism at the provider (short-lived token, introspection or revocation at the provider) or another component that can still prevent use. Log token_released true or false."
+    }
+  ],
+  "log": [
+    "reason",
+    "provider",
+    "scopes_requested",
+    "token_released"
+  ],
+  "format": "ietf127-wimse-scenario/1",
+  "log_line": {
+    "one JSON object per decision": [
+      "scenario",
+      "case",
+      "impl",
+      "hop",
+      "domain",
+      "txn_id",
+      "decision",
+      "reason",
+      "ts"
+    ],
+    "plus": "the scenario's own `log` fields"
+  },
+  "reasons": {
+    "status-revoked": "the status list says revoked (confirmed revocation)",
+    "status-stale": "the RP's cached list is past its ttl and a fresh one could not be fetched",
+    "status-unavailable": "no valid list and no cached copy (service down, invalid list)",
+    "status-grace": "allowed under a bounded low-value grace period (log on every use)",
+    "ok": "accepted"
+  },
+  "reason_mapping": "Implementations keep their own codes; state the mapping to these names once per implementation in the run notes. The point is that the three status refusals stay distinguishable in the log even when policy denies all three."
+}

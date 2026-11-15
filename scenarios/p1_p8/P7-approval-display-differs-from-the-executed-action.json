@@ -1,0 +1,65 @@
+{
+  "id": "P7",
+  "title": "Approval display differs from the executed action",
+  "proposed_by": "Arun Thallapelly (OmniArx)",
+  "drafts": [
+    "draft-thallapelly-oasnt-02",
+    "draft-thallapelly-oasnt-enforce-01",
+    "draft-le-agent-passport Open Issues (WebAuthn root receipt)"
+  ],
+  "setup": [
+    "A person approves one request on a mobile device; the token carries digests of the action, the text shown and the HTTP request."
+  ],
+  "cases": [
+    {
+      "name": "display-mismatch",
+      "do": "Action and request digests match what executes; the shown text described a different action. Use OASNT Appendix A.7.2 (R2). Inputs: verify at time 1800000000 (the vectors use a fixed clock, OASNT Appendix A; at today's clock the token is not yet valid, so a verifier that stops at the first failure never reaches the display check); key from A.1 enrolled, action from A.2 (V1), request from A.5 (V4); fresh replay state (R2 has the same jti as V5, so after V5 it is also refused as a replay); the verifier must hold the action.",
+      "expect": {
+        "decision": "deny",
+        "reason": "display-mismatch",
+        "effect": "none"
+      },
+      "basis": "external",
+      "note": "An enforcement point without a request-to-action mapping does not recompute the display digest (OASNT-ENFORCE Section 5.1), so accepting there is the expected result, not a failure. Reported by OmniArx: V5 accepted, R2 refused with display-mismatch as the only reason. Action binding alone would accept this token. The passport draft lists a WebAuthn-signed root receipt as an open issue; this run informs it."
+    },
+    {
+      "name": "display-match",
+      "do": "Positive control: the same inputs with the vector V5, whose shown text matches the action.",
+      "expect": {
+        "decision": "allow",
+        "reason": "ok",
+        "effect": "ran"
+      },
+      "basis": "external",
+      "note": "Run first and with fresh replay state. R2 shares the jti of V5, so after V5 it is also refused as a replay."
+    }
+  ],
+  "log": [
+    "reason",
+    "display_digest_expected",
+    "display_digest_presented"
+  ],
+  "format": "ietf127-wimse-scenario/1",
+  "log_line": {
+    "one JSON object per decision": [
+      "scenario",
+      "case",
+      "impl",
+      "hop",
+      "domain",
+      "txn_id",
+      "decision",
+      "reason",
+      "ts"
+    ],
+    "plus": "the scenario's own `log` fields"
+  },
+  "reasons": {
+    "status-revoked": "the status list says revoked (confirmed revocation)",
+    "status-stale": "the RP's cached list is past its ttl and a fresh one could not be fetched",
+    "status-unavailable": "no valid list and no cached copy (service down, invalid list)",
+    "status-grace": "allowed under a bounded low-value grace period (log on every use)",
+    "ok": "accepted"
+  },
+  "reason_mapping": "Implementations keep their own codes; state the mapping to these names once per implementation in the run notes. The point is that the three status refusals stay distinguishable in the log even when policy denies all three."
+}

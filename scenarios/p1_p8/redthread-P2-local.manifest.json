@@ -1,0 +1,24 @@
+{
+  "format": "ietf127-wimse-scenario/1",
+  "scenario": "P2",
+  "impl": "redthread",
+  "version": "0.7.584",
+  "clock": "simulated",
+  "status_ttl_s": 60,
+  "value": "high",
+  "chain": "root receipt (AS) -> A -> child receipt -> B",
+  "reasons": {
+    "revoked": "status-revoked"
+  },
+  "summary": {
+    "revoke-upstream": {
+      "t_last_acceptance_s": 50,
+      "t_first_refusal_s": 51,
+      "bound_s": 120
+    },
+    "before-effect": {
+      "effect": "none"
+    }
+  },
+  "lines": 122
+}

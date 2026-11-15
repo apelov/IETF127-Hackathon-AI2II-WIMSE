@@ -1,0 +1,1183 @@
+{
+  "schema": "mintid-trace-manifest/2",
+  "record": "revocation-trace-testnet-20261114T104257Z",
+  "derived": false,
+  "started_utc": "2026-11-14T10:42:57.756Z",
+  "source": {
+    "revision": "82c455ed09f8a99142117378a345a392d031f7dc",
+    "public_tags": [
+      "public-v2026-11-13.1"
+    ],
+    "tracked_changes": false,
+    "services_revision_stated": null,
+    "public_checkout": {
+      "commit": "dca3d605b7a1d559ef74c444498552f64c9c8285",
+      "tag": "public-v2026-11-13.1",
+      "basis": "mirror"
+    },
+    "source_revision": {
+      "revision": "82c455ed09f8a99142117378a345a392d031f7dc",
+      "basis": "checkout"
+    }
+  },
+  "stated": null,
+  "deployment": {
+    "target": "testnet",
+    "chain_id": "mintid-testnet-3",
+    "issuer_id": "7bf0b103ee565ba9b6c5c38bf77bce8c94f620083dfccecaeccfbd586716813d",
+    "verifier_id": "e8bc2290520bb2ee3c1d1ed672291c71e983cac9450a5fb7af3ece8d93ae6f3e",
+    "kyc_provider": "sandbox",
+    "endpoints": {
+      "issuer_url": "<testnet issuer endpoint>",
+      "verifier_url": "<testnet verifier endpoint>",
+      "rpc": "<testnet chain RPC endpoint>",
+      "relay": "<testnet relay endpoint>"
+    },
+    "build": {
+      "issuer": {
+        "source_revision": "89d6af3f4612",
+        "release": "public-v2026-11-11.1",
+        "signing_key_id": "ce96f48eae90d5fbe8aad4716fe9d2a3c8624a836114705facca9d680022d747"
+      },
+      "verifier": {
+        "engine_pin": "proof-core 0.6.0",
+        "sdk_version": "0.9.0",
+        "spec_revision": "SPEC-1 v3.7",
+        "state_vectors_version": "mintid-proofvector-1/h2",
+        "state_vectors_sha256": "36d36f371b3b4b0a1db995a4a1fb46f352ed5f5aacc28df5ca10c2a31d0ea495",
+        "conformance_suite_version": "1.0.0",
+        "source_revision": "89d6af3f4612",
+        "release": "public-v2026-11-11.1"
+      }
+    },
+    "services": {
+      "verifier": {
+        "source_revision": "89d6af3f4612",
+        "release": "public-v2026-11-11.1",
+        "basis": "build-info"
+      },
+      "issuer": {
+        "source_revision": "89d6af3f4612",
+        "release": "public-v2026-11-11.1",
+        "basis": "build-info"
+      }
+    },
+    "parameters": {
+      "A": 180,
+      "H": 30,
+      "K": 5,
+      "G": 60,
+      "cascade_spread_beats": 8
+    },
+    "max_root_age_seconds": 180,
+    "heartbeat_seconds": 30,
+    "max_height_lag": 100
+  },
+  "policy": {
+    "claim_policy": [
+      {
+        "claim": "human_backed",
+        "value": true
+      },
+      {
+        "claim": "pairwise_pseudonym",
+        "value": "e8bc2290520bb2ee3c1d1ed672291c71e983cac9450a5fb7af3ece8d93ae6f3e"
+      },
+      {
+        "claim": "assurance_grade",
+        "operator": ">=",
+        "value": "A2"
+      },
+      {
+        "claim": "counterparty_includes",
+        "value": "eip155:8453:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+      },
+      {
+        "claim": "delegated_scope_includes",
+        "value": "payments.initiate"
+      },
+      {
+        "claim": "category_in",
+        "value": "mcc:5812"
+      },
+      {
+        "claim": "geo_in",
+        "value": "iso3166-1:ES"
+      },
+      {
+        "claim": "transaction_limit",
+        "operator": ">=",
+        "value": "5000000 USDC"
+      },
+      {
+        "claim": "unexpired",
+        "value": true
+      },
+      {
+        "claim": "credential_active",
+        "value": true
+      }
+    ],
+    "issuer_policy": {
+      "accepted_issuer_ids": [
+        "7bf0b103ee565ba9b6c5c38bf77bce8c94f620083dfccecaeccfbd586716813d"
+      ]
+    },
+    "sha256": "bb83d24e40d8627dc0fba3ff51967d0ee5040d51112d73b207f05439272aa364",
+    "money": [
+      {
+        "claim": "transaction_limit",
+        "value": "5000000 USDC",
+        "minor_units": 5000000,
+        "unit": "USDC",
+        "exponent": 6,
+        "major_units": "5",
+        "text": "5 USDC (5000000, exponent 6)"
+      }
+    ]
+  },
+  "verifier_status": {
+    "before": {
+      "observed_unix": 1794652978,
+      "substrate": "ok",
+      "chain_height": 460850,
+      "root_epoch": 32817,
+      "root_height": 460843,
+      "root_age_seconds": 17,
+      "fresh": true,
+      "max_root_age_seconds": 180,
+      "heartbeat_seconds": 30,
+      "max_height_lag": 100
+    },
+    "after": {
+      "observed_unix": 1794653273,
+      "substrate": "ok",
+      "chain_height": 460987,
+      "root_epoch": 32827,
+      "root_height": 460983,
+      "root_age_seconds": 12,
+      "fresh": true,
+      "max_root_age_seconds": 180,
+      "heartbeat_seconds": 30,
+      "max_height_lag": 100
+    }
+  },
+  "decision_log_source": "not read (operator only: MINTID_VERIFIER_CONSOLE_PASSWORD)",
+  "paths": [
+    {
+      "path": "issuer",
+      "t0_unix": 1794653005.1283898,
+      "t0_definition": "the issuer's removal of the agent (revoke response)",
+      "bound_seconds": 185,
+      "bound_formula": "t0 + A + K",
+      "last_accepted": {
+        "utc": "2026-11-14T10:43:44.852Z",
+        "seconds_after_t0": 19.7,
+        "session_id": "747f4b671ca54164a6653e41b84ff0f4",
+        "accepted": true,
+        "reason_code": "accepted",
+        "chain_height_after": 460872,
+        "decision_log": null
+      },
+      "first_refused": {
+        "utc": "2026-11-14T10:43:48.276Z",
+        "seconds_after_t0": 23.1,
+        "session_id": "382bc2964c02d11320cf56bc6846520b",
+        "accepted": false,
+        "reason_code": "status_root_stale",
+        "chain_height_after": 460874,
+        "decision_log": null
+      },
+      "root_at_denial": {
+        "status_epoch": 32819,
+        "finalized_height": 460872,
+        "generated_at_unix": 1794653021,
+        "finalized_at_utc": null,
+        "emergency": false
+      },
+      "root_carrying_revocation": {
+        "status_epoch": 32819,
+        "finalized_height": 460872,
+        "generated_at_unix": 1794653021,
+        "finalized_at_utc": "2026-11-14T10:43:41.455Z",
+        "emergency": false
+      },
+      "refresh_refused_seconds_after_t0": 3.1,
+      "control_never_revoked": {
+        "last_accepted": {
+          "utc": "2026-11-14T10:43:42.149Z",
+          "seconds_after_t0": 17.0,
+          "session_id": "35828056ad08963692eb40cd177166a9",
+          "accepted": true,
+          "reason_code": "accepted",
+          "chain_height_after": 460871,
+          "decision_log": null
+        },
+        "first_refused": {
+          "utc": "2026-11-14T10:43:47.367Z",
+          "seconds_after_t0": 22.2,
+          "session_id": "727220b22e01523b4cc4e2c09db357e2",
+          "accepted": false,
+          "reason_code": "status_root_stale",
+          "chain_height_after": 460873,
+          "decision_log": null
+        },
+        "after_refresh": {
+          "utc": "2026-11-14T10:43:54.078Z",
+          "seconds_after_t0": 28.9,
+          "session_id": "0c77018a64e28d97ca8df2d54dc0d617",
+          "accepted": true,
+          "reason_code": "accepted",
+          "chain_height_after": 460876,
+          "decision_log": null
+        }
+      },
+      "attribution": {
+        "revoked": {
+          "agent": "agent_issuer",
+          "refresh": {
+            "observation": "refused",
+            "outcome": "credential_revoked",
+            "utc": "2026-11-14T10:43:28.221Z",
+            "seconds_after_t0": 3.1
+          }
+        },
+        "control": {
+          "agent": "sibling_control",
+          "refused": {
+            "utc": "2026-11-14T10:43:47.367Z",
+            "seconds_after_t0": 22.2,
+            "session_id": "727220b22e01523b4cc4e2c09db357e2",
+            "accepted": false,
+            "reason_code": "status_root_stale",
+            "chain_height_after": 460873,
+            "decision_log": null
+          },
+          "refresh": {
+            "observation": "refreshed",
+            "outcome": null,
+            "utc": "2026-11-14T10:43:51.138Z",
+            "seconds_after_t0": 26.0
+          },
+          "after_refresh": {
+            "utc": "2026-11-14T10:43:54.078Z",
+            "seconds_after_t0": 28.9,
+            "session_id": "0c77018a64e28d97ca8df2d54dc0d617",
+            "accepted": true,
+            "reason_code": "accepted",
+            "chain_height_after": 460876,
+            "decision_log": null
+          }
+        }
+      }
+    },
+    {
+      "path": "kill_switch",
+      "t0_unix": 1794653040.599251,
+      "t0_definition": "the recording of the nullifier on chain (block time of the relay's tx)",
+      "bound_seconds": 245,
+      "bound_formula": "t0 + G + A + K",
+      "last_accepted": {
+        "utc": "2026-11-14T10:44:15.147Z",
+        "seconds_after_t0": 14.5,
+        "session_id": "cd08a607c4e7d4875000b889101438a1",
+        "accepted": true,
+        "reason_code": "accepted",
+        "chain_height_after": 460886,
+        "decision_log": null
+      },
+      "first_refused": {
+        "utc": "2026-11-14T10:44:17.665Z",
+        "seconds_after_t0": 17.1,
+        "session_id": "e61c110a054d031aa242d3c6b0e11b0f",
+        "accepted": false,
+        "reason_code": "status_root_stale",
+        "chain_height_after": 460888,
+        "decision_log": null
+      },
+      "root_at_denial": {
+        "status_epoch": 32820,
+        "finalized_height": 460886,
+        "generated_at_unix": 1794653051,
+        "finalized_at_utc": null,
+        "emergency": false
+      },
+      "root_carrying_revocation": {
+        "status_epoch": 32820,
+        "finalized_height": 460886,
+        "generated_at_unix": 1794653051,
+        "finalized_at_utc": "2026-11-14T10:44:11.207Z",
+        "emergency": false
+      },
+      "refresh_refused_seconds_after_t0": 11.8,
+      "attribution": {
+        "revoked": {
+          "agent": "agent_kill_switch",
+          "refresh": {
+            "observation": "refused",
+            "outcome": "credential_revoked",
+            "utc": "2026-11-14T10:44:12.415Z",
+            "seconds_after_t0": 11.8
+          }
+        },
+        "control": null
+      }
+    },
+    {
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "t0_unix": 1794653081,
+      "t0_definition": "generation of the trigger root (the root carrying the principal's revocation)",
+      "bound_seconds": 395,
+      "bound_formula": "t_T + 7\u00b7H + A + K",
+      "last_accepted": {
+        "utc": "2026-11-14T10:47:46.945Z",
+        "seconds_after_t0": 185.9,
+        "session_id": "16e3d752086ffda6af9dc8cee50c0b3a",
+        "accepted": true,
+        "reason_code": "accepted",
+        "chain_height_after": 460984,
+        "decision_log": null
+      },
+      "first_refused": {
+        "utc": "2026-11-14T10:47:50.063Z",
+        "seconds_after_t0": 189.1,
+        "session_id": "e4265d40b9bc41d43c74c021627fd061",
+        "accepted": false,
+        "reason_code": "status_root_stale",
+        "chain_height_after": 460986,
+        "decision_log": null
+      },
+      "root_at_denial": {
+        "status_epoch": 32827,
+        "finalized_height": 460983,
+        "generated_at_unix": 1794653261,
+        "finalized_at_utc": null,
+        "emergency": false
+      },
+      "root_carrying_revocation": {
+        "status_epoch": 32821,
+        "finalized_height": 460898,
+        "generated_at_unix": 1794653081,
+        "finalized_at_utc": "2026-11-14T10:44:40.937Z",
+        "emergency": false
+      },
+      "refresh_refused_seconds_after_t0": 183.3,
+      "attribution": {
+        "revoked": {
+          "agent": "cascade_agent_1",
+          "refresh": {
+            "observation": "refused",
+            "outcome": "credential_revoked",
+            "utc": "2026-11-14T10:47:44.268Z",
+            "seconds_after_t0": 183.3
+          }
+        },
+        "control": null
+      }
+    },
+    {
+      "path": "cascade",
+      "agent": "cascade_agent_2",
+      "t0_unix": 1794653081,
+      "t0_definition": "generation of the trigger root (the root carrying the principal's revocation)",
+      "bound_seconds": 395,
+      "bound_formula": "t_T + 7\u00b7H + A + K",
+      "last_accepted": {
+        "utc": "2026-11-14T10:45:15.787Z",
+        "seconds_after_t0": 34.8,
+        "session_id": "2d0d91c091b7893d86a773bdf6c8aa26",
+        "accepted": true,
+        "reason_code": "accepted",
+        "chain_height_after": 460913,
+        "decision_log": null
+      },
+      "first_refused": {
+        "utc": "2026-11-14T10:45:21.763Z",
+        "seconds_after_t0": 40.8,
+        "session_id": "407ba816eaa899439b5816069cdb77c4",
+        "accepted": false,
+        "reason_code": "status_root_stale",
+        "chain_height_after": 460916,
+        "decision_log": null
+      },
+      "root_at_denial": {
+        "status_epoch": 32822,
+        "finalized_height": 460912,
+        "generated_at_unix": 1794653111,
+        "finalized_at_utc": null,
+        "emergency": false
+      },
+      "root_carrying_revocation": {
+        "status_epoch": 32821,
+        "finalized_height": 460898,
+        "generated_at_unix": 1794653081,
+        "finalized_at_utc": "2026-11-14T10:44:40.937Z",
+        "emergency": false
+      },
+      "refresh_refused_seconds_after_t0": 32.0,
+      "attribution": {
+        "revoked": {
+          "agent": "cascade_agent_2",
+          "refresh": {
+            "observation": "refused",
+            "outcome": "credential_revoked",
+            "utc": "2026-11-14T10:45:12.952Z",
+            "seconds_after_t0": 32.0
+          }
+        },
+        "control": null
+      }
+    }
+  ],
+  "decisions": [
+    {
+      "utc": "2026-11-14T10:43:22.263Z",
+      "path": "issuer",
+      "agent": "agent_issuer",
+      "attempt": "baseline",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:43:24.950Z",
+      "path": "issuer",
+      "agent": "sibling_control",
+      "attempt": "baseline",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:43:28.126Z",
+      "path": "issuer",
+      "agent": "sibling_control",
+      "attempt": "control_stale",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:43:30.913Z",
+      "path": "issuer",
+      "agent": "agent_issuer",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:43:35.163Z",
+      "path": "issuer",
+      "agent": "sibling_control",
+      "attempt": "control_stale",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:43:37.934Z",
+      "path": "issuer",
+      "agent": "agent_issuer",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:43:42.149Z",
+      "path": "issuer",
+      "agent": "sibling_control",
+      "attempt": "control_stale",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:43:44.852Z",
+      "path": "issuer",
+      "agent": "agent_issuer",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:43:47.367Z",
+      "path": "issuer",
+      "agent": "sibling_control",
+      "attempt": "control_stale",
+      "accepted": false,
+      "reason_code": "status_root_stale",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:43:48.276Z",
+      "path": "issuer",
+      "agent": "agent_issuer",
+      "attempt": "forced",
+      "accepted": false,
+      "reason_code": "status_root_stale",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:43:49.173Z",
+      "path": "issuer",
+      "agent": "agent_issuer",
+      "attempt": "forced_confirm",
+      "accepted": false,
+      "reason_code": "status_root_stale",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:43:54.078Z",
+      "path": "issuer",
+      "agent": "sibling_refreshed",
+      "attempt": "control_refreshed",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:43:57.270Z",
+      "path": "kill_switch",
+      "agent": "agent_kill_switch",
+      "attempt": "baseline",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:44:06.439Z",
+      "path": "kill_switch",
+      "agent": "agent_kill_switch",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:44:10.822Z",
+      "path": "kill_switch",
+      "agent": "agent_kill_switch",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:44:15.147Z",
+      "path": "kill_switch",
+      "agent": "agent_kill_switch",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:44:17.665Z",
+      "path": "kill_switch",
+      "agent": "agent_kill_switch",
+      "attempt": "forced",
+      "accepted": false,
+      "reason_code": "status_root_stale",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:44:18.863Z",
+      "path": "kill_switch",
+      "agent": "agent_kill_switch",
+      "attempt": "forced_confirm",
+      "accepted": false,
+      "reason_code": "status_root_stale",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:44:24.160Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "baseline",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:44:26.761Z",
+      "path": "cascade",
+      "agent": "cascade_agent_2",
+      "attempt": "baseline",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:44:48.841Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:44:51.851Z",
+      "path": "cascade",
+      "agent": "cascade_agent_2",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:44:56.855Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:44:59.854Z",
+      "path": "cascade",
+      "agent": "cascade_agent_2",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:45:04.866Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:45:07.946Z",
+      "path": "cascade",
+      "agent": "cascade_agent_2",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:45:12.844Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:45:15.787Z",
+      "path": "cascade",
+      "agent": "cascade_agent_2",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:45:20.777Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:45:21.763Z",
+      "path": "cascade",
+      "agent": "cascade_agent_2",
+      "attempt": "forced",
+      "accepted": false,
+      "reason_code": "status_root_stale",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:45:22.973Z",
+      "path": "cascade",
+      "agent": "cascade_agent_2",
+      "attempt": "forced_confirm",
+      "accepted": false,
+      "reason_code": "status_root_stale",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:45:27.924Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:45:32.977Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:45:38.027Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:45:42.958Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:45:47.951Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:45:52.975Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:45:57.899Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:46:02.757Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:46:07.753Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:46:12.652Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:46:17.740Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:46:22.644Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:46:27.531Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:46:32.448Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:46:37.360Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:46:42.140Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:46:47.250Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:46:52.253Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:46:57.243Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:47:02.168Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:47:07.096Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:47:11.961Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:47:17.060Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:47:22.146Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:47:27.155Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:47:32.246Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:47:37.236Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:47:42.155Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:47:46.945Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": true,
+      "reason_code": "accepted",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:47:50.063Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced",
+      "accepted": false,
+      "reason_code": "status_root_stale",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    },
+    {
+      "utc": "2026-11-14T10:47:50.987Z",
+      "path": "cascade",
+      "agent": "cascade_agent_1",
+      "attempt": "forced_confirm",
+      "accepted": false,
+      "reason_code": "status_root_stale",
+      "condition": null,
+      "root_epoch": null,
+      "root_height": null,
+      "root_age_seconds": null
+    }
+  ],
+  "files": {
+    "revocation-trace-testnet-20261114T104257Z.jsonl": "7090edc46994cbd039d281841043a68a41919188eb952a9b4da117b980182a32",
+    "revocation-trace-testnet-20261114T104257Z.md": "dd0dbdf619da23fd622ed707a19711b636f1bd56663edf4adbb1e0f5bea4cd5f"
+  }
+}

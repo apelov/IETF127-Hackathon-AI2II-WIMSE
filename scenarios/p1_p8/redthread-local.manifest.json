@@ -1,0 +1,182 @@
+{
+  "format": "ietf127-wimse-scenario/1",
+  "impl": "redthread",
+  "version": "0.7.584",
+  "clock": "simulated",
+  "files": {
+    "P1": "redthread-P1-local.jsonl",
+    "P2": "redthread-P2-local.jsonl",
+    "P3": "redthread-P3-local.jsonl",
+    "P4": "redthread-P4-local.jsonl",
+    "P5": "redthread-P5-local.jsonl",
+    "P6": "redthread-P6-local.jsonl"
+  },
+  "sha256": {
+    "redthread-P1-local.jsonl": "8a296088ddc17d8255c6708075ea216c859ee53e2c9afa350a4708134046688a",
+    "redthread-P2-local.jsonl": "3f4f9436ba1c1e01f5c7b47ad400ef9bfed36fa53a2f24495fa8f6174f4460f7",
+    "redthread-P3-local.jsonl": "00d23a57ef9542a5856de7aa419a600b18b12fbf1705817ff771d610c24cdae2",
+    "redthread-P4-local.jsonl": "df75a31c1f23c4c1c8d3be234c44f16ed1c3acae3a0a6d27e8182ccd21435992",
+    "redthread-P5-local.jsonl": "4c67da7c46481542f0f8d48539db874aa96640f84670babf2eba668ab261abbf",
+    "redthread-P6-local.jsonl": "39d197814178be946754423de1d505086682cab2aba06058170b61385c94fe3e"
+  },
+  "results": [
+    {
+      "scenario": "P1",
+      "case": "confirmed-revocation",
+      "observed": "deny: status-revoked",
+      "expected": "deny: status-revoked",
+      "match": true
+    },
+    {
+      "scenario": "P1",
+      "case": "expired-cache",
+      "observed": "deny: status-stale",
+      "expected": "deny: status-stale",
+      "match": true
+    },
+    {
+      "scenario": "P1",
+      "case": "service-unavailable",
+      "observed": "deny: status-unavailable",
+      "expected": "deny: status-unavailable",
+      "match": true
+    },
+    {
+      "scenario": "P1",
+      "case": "low-value-grace",
+      "observed": "deny: status-stale",
+      "expected": "allow then deny: status-grace then status-stale",
+      "match": true
+    },
+    {
+      "scenario": "P1",
+      "case": "one-element-in-chain",
+      "observed": "deny: status-unavailable",
+      "expected": "deny: status-unavailable",
+      "match": true
+    },
+    {
+      "scenario": "P2",
+      "case": "revoke-upstream",
+      "observed": "deny: status-revoked",
+      "expected": "deny: status-revoked",
+      "match": true
+    },
+    {
+      "scenario": "P2",
+      "case": "before-effect",
+      "observed": "deny: status-revoked",
+      "expected": "deny: status-revoked",
+      "match": true
+    },
+    {
+      "scenario": "P3",
+      "case": "wider-host",
+      "observed": "deny: attenuation:host",
+      "expected": "deny: attenuation:host",
+      "match": true
+    },
+    {
+      "scenario": "P3",
+      "case": "more-methods",
+      "observed": "deny: attenuation:methods",
+      "expected": "deny: attenuation:methods",
+      "match": true
+    },
+    {
+      "scenario": "P3",
+      "case": "longer-lifetime",
+      "observed": "deny: attenuation:exp",
+      "expected": "deny: attenuation:exp",
+      "match": true
+    },
+    {
+      "scenario": "P3",
+      "case": "dropped-tools",
+      "observed": "deny: attenuation:tools",
+      "expected": "deny: attenuation:tools",
+      "match": true
+    },
+    {
+      "scenario": "P3",
+      "case": "absent-means-default",
+      "observed": "allow: ok",
+      "expected": "allow: ok",
+      "match": true
+    },
+    {
+      "scenario": "P3",
+      "case": "unknown-member",
+      "observed": "deny: attenuation:unknown-member",
+      "expected": "deny: attenuation:unknown-member",
+      "match": true
+    },
+    {
+      "scenario": "P4",
+      "case": "per-rp-counting",
+      "observed": "deny: limit-aud-not-single",
+      "expected": "deny at issuance or at first RP: limit-aud-not-single",
+      "match": true
+    },
+    {
+      "scenario": "P4",
+      "case": "single-accounting-rp",
+      "observed": "deny: limit-exceeded",
+      "expected": "allow N, deny call N + 1: limit-exceeded",
+      "match": true
+    },
+    {
+      "scenario": "P4",
+      "case": "child-limit-wider",
+      "observed": "deny: attenuation:max_calls",
+      "expected": "deny: attenuation:max_calls",
+      "match": true
+    },
+    {
+      "scenario": "P5",
+      "case": "rewrite-authority",
+      "observed": "deny: signature-invalid",
+      "expected": "deny: signature-invalid",
+      "match": true
+    },
+    {
+      "scenario": "P5",
+      "case": "rewrite-path",
+      "observed": "deny: signature-invalid",
+      "expected": "deny: signature-invalid",
+      "match": true
+    },
+    {
+      "scenario": "P5",
+      "case": "authenticated-proxy-verifies",
+      "observed": "allow: ok",
+      "expected": "allow: ok",
+      "match": true
+    },
+    {
+      "scenario": "P5",
+      "case": "forwarded-headers-unauthenticated",
+      "observed": "deny: forwarded-target-uri-unauthenticated",
+      "expected": "deny: forwarded-target-uri-unauthenticated",
+      "match": true
+    },
+    {
+      "scenario": "P6",
+      "case": "build-changed",
+      "observed": "deny: build-mismatch",
+      "expected": "deny: build-mismatch",
+      "match": true
+    },
+    {
+      "scenario": "P6",
+      "case": "tool-swapped",
+      "observed": "deny: tool-digest-mismatch",
+      "expected": "deny: tool-digest-mismatch",
+      "match": true
+    }
+  ],
+  "not_run": {
+    "P7": "needs the OASNT verifier (Arun)",
+    "P8": "needs Cred in front of a bearer-only API (Kieran)"
+  }
+}

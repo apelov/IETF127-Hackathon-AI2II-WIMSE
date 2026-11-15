@@ -1,0 +1,103 @@
+{
+  "id": "P2",
+  "title": "Revocation after delegation, before effect",
+  "proposed_by": "Ben Le, extending Alexander's mid-transaction case and Iman Schrock's before-effect run",
+  "drafts": [
+    "draft-le-agent-passport Sections 'Chain Validation', 'Status and Revocation', 'Exposure After Revocation'"
+  ],
+  "setup": [
+    "Agent A (domain A) holds a root receipt and delegates to agent B with a child receipt.",
+    "B's call to the enforcing service E (domain B) succeeds once. E's protected operation is high value.",
+    "Status-list TTL at E: 60 s. B's passport and receipt are not revoked and not expired."
+  ],
+  "cases": [
+    {
+      "name": "revoke-upstream",
+      "do": "Revoke A's passport. B calls E again (same chain).",
+      "expect": {
+        "decision": "deny",
+        "reason": "status-revoked",
+        "effect": "none"
+      },
+      "basis": "-00",
+      "note": "Revoking a passport invalidates every chain in which its holder delegated."
+    },
+    {
+      "name": "before-effect",
+      "do": "Revoke A after E has authorized B's request but before the operation takes effect; E revalidates before effect.",
+      "expect": {
+        "decision": "deny",
+        "reason": "status-revoked",
+        "effect": "none"
+      },
+      "basis": "test-policy",
+      "note": "Iman's expected result: once the enforcing service sees the revocation, the protected operation produces no effect."
+    }
+  ],
+  "measure": {
+    "t_first_refusal_s": "time from the revocation being recorded at the issuer to E's first refusal",
+    "t_last_acceptance_s": "time from the revocation to E's last acceptance",
+    "bound_s": "min(remaining passport lifetime, the largest of three mechanisms; -01 'Exposure After Revocation'). For the Redthread verifier at high value the status mechanism is the status-list ttl plus the clock-skew allowance: 60 s + 60 s = 120 s. The low-value grace period is added only for low-value operations (zero here), and the controller and issuer-key bounds are smaller. A refusal before effect does not wait for the bound: the executor refetches every status list, so its before-effect result is 0 s after the revocation is recorded.",
+    "time_origin": "t = 0 is the moment the revocation is recorded at the issuer. MintID's cascade clock starts at the trigger root, about 14 s after the revoke response; keep each implementation's origin and native bounds beside its measurements.",
+    "time_kind": "Redthread figures are simulated seconds on a fake clock, not measurements."
+  },
+  "log": [
+    "reason",
+    "check",
+    "effect",
+    "t_since_revocation_ms",
+    "bound_s"
+  ],
+  "implementations_offered": [
+    {
+      "impl": "MintID (Marc Miro)",
+      "role": "verifier decisions at the enforcing hop",
+      "check": "zero-knowledge proof of non-revocation against a status commitment",
+      "proof_lifetime_s": 10,
+      "bounds_s": {
+        "issuer_revocation": 185,
+        "holder_self_revocation": 245
+      },
+      "observed_13_nov_one_run_s": {
+        "issuer_revocation": {
+          "last_acceptance": 19.7,
+          "first_refusal": 25.2
+        },
+        "holder_self_revocation": {
+          "last_acceptance": 14.6,
+          "first_refusal": 17.1
+        }
+      },
+      "note": "The bounds are what is promised; the 13 November figures are one run. Confirmed revocation and an expired commitment share one refusal code by design; the witness-refresh control attributes the refusal to revocation."
+    },
+    {
+      "impl": "Redthread (Ben Le)",
+      "role": "executor: connects the verifier decision to the protected operation",
+      "check": "draft-le-agent-passport verifier, every status list fetched fresh just before effect",
+      "note": "Logs one line at authorisation and one before effect, with `effect` ran or none; app/protected_op.py."
+    }
+  ],
+  "format": "ietf127-wimse-scenario/1",
+  "log_line": {
+    "one JSON object per decision": [
+      "scenario",
+      "case",
+      "impl",
+      "hop",
+      "domain",
+      "txn_id",
+      "decision",
+      "reason",
+      "ts"
+    ],
+    "plus": "the scenario's own `log` fields"
+  },
+  "reasons": {
+    "status-revoked": "the status list says revoked (confirmed revocation)",
+    "status-stale": "the RP's cached list is past its ttl and a fresh one could not be fetched",
+    "status-unavailable": "no valid list and no cached copy (service down, invalid list)",
+    "status-grace": "allowed under a bounded low-value grace period (log on every use)",
+    "ok": "accepted"
+  },
+  "reason_mapping": "Implementations keep their own codes; state the mapping to these names once per implementation in the run notes. The point is that the three status refusals stay distinguishable in the log even when policy denies all three."
+}
