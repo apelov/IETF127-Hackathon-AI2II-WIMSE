@@ -160,6 +160,8 @@ def verify_manifests(sdir: pathlib.Path) -> None:
             f"P2 revoke-upstream expected 50000ms last allow -> 51000ms first deny (simulated), got "
             f"{up_allow[-1].get('t_since_revocation_ms')} -> {up_deny[0].get('t_since_revocation_ms')}"
         )
+    if up_deny[0]["t_since_revocation_ms"] > int(up_allow[0]["bound_s"]) * 1000:
+        raise ValueError("P2 revoke-upstream first refusal exceeds bound_s")
     be_auth = [r for r in p2_rows if r["case"] == "before-effect" and r.get("check") == "authorize" and r.get("effect") == "pending"]
     be_recheck = [
         r for r in p2_rows
