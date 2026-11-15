@@ -10,7 +10,7 @@ from wimse import jwk_from_public
 
 KEYS = pathlib.Path(__file__).parent.parent / "keys"
 KEYS.mkdir(exist_ok=True)
-for name in ("peer", "rogue"):
+for name in ("peer", "rogue", "tts_a", "as_a", "as_b", "tts_b", "rich"):
     pem = KEYS / f"{name}.pem"
     if pem.exists():
         continue

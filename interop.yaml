@@ -1,7 +1,7 @@
 # Maurice is the implementation under test; its model-family provenance is unknown.
 # The client adapter was written mainly with OpenAI Codex; later edits (A6b request,
-# journal matching for mixed-credentials) were made by Anthropic Claude. The capture checker was
-# separately authored with OpenRouter Nemotron Ultra via claude-or.
+# journal matching for mixed-credentials) were made by Anthropic Claude. The capture checkers
+# were separately authored/verified across distinct model families (Nvidia Nemotron / Google Gemini).
 experiment: wimse-inbound-maurice
 env_checks:
   - name: prepared-local-maurice
@@ -20,12 +20,30 @@ peers:
     family: openai
     under_test: true
     start: .venv/bin/python peers/driver.py --journal-out {bundle}/decision-journal.jsonl
-capture: {interface: loopback, filter: "tcp port 5050 or tcp port 47999"}
+  - name: chain-stack
+    path: .
+    family: unknown-maurice
+    under_test: true
+    build: .venv/bin/python setup/build_server.py
+    binaries: [bin/maurice]
+    start: .venv/bin/python setup/run_chain_servers.py
+    ready: {command: ".venv/bin/python setup/check_chain_ready.py", timeout_s: 30}
+  - name: wimse-chain-client
+    path: .
+    family: openai
+    under_test: true
+    start: .venv/bin/python peers/chain_driver.py --with-maurice --with-p1-p8 --journal-out {bundle}/chain-journal.jsonl
+capture: {interface: loopback, filter: "tcp port 5050 or tcp port 5051 or tcp port 5060 or tcp port 5061 or tcp port 5062 or tcp port 5063 or tcp port 5064 or tcp port 47999"}
 cells:
   - name: inbound
     server: maurice
     clients: [wimse-client]
     checkers: [observes-wimse]
+    timeout_s: 120
+  - name: chain
+    server: chain-stack
+    clients: [wimse-chain-client]
+    checkers: [observes-chain, observes-p1-p8]
     timeout_s: 120
 checkers:
   - name: observes-wimse
@@ -37,3 +55,21 @@ checkers:
       - {input: checkers/negatives/unrelated.pcap, replaces: "{capture}"}
       - {input: checkers/negatives/request_only.pcap, replaces: "{capture}"}
       - {input: checkers/negatives/forbidden_fetch.pcap, replaces: "{capture}"}
+  - name: observes-chain
+    family: nvidia
+    observes_capture: true
+    command: .venv/bin/python checkers/observes_chain.py {capture}
+    inputs: []
+    negatives:
+      - {input: checkers/negatives/chain_unrelated.pcap, replaces: "{capture}"}
+      - {input: checkers/negatives/chain_request_only.pcap, replaces: "{capture}"}
+      - {input: checkers/negatives/chain_leaked_txn.pcap, replaces: "{capture}"}
+  - name: observes-p1-p8
+    family: nvidia
+    observes_capture: true
+    command: .venv/bin/python checkers/observes_p1_p8.py {capture}
+    inputs: []
+    negatives:
+      - {input: checkers/negatives/p1_p8_unrelated.pcap, replaces: "{capture}"}
+      - {input: checkers/negatives/p1_p8_request_only.pcap, replaces: "{capture}"}
+      - {input: checkers/negatives/p1_p8_missing_before_effect.pcap, replaces: "{capture}"}

@@ -188,3 +188,253 @@ def send(req: Req, case=None, timeout=15) -> Resp:
     out = Resp(r.status, {k.lower(): v for k, v in r.getheaders()}, r.read())
     c.close()
     return out
+
+
+# --- WP01: Txn-Token, Identity-Chaining, and Verification Primitives ---
+
+def parse_jwt(token: str) -> tuple[dict, dict, bytes, bytes]:
+    parts = token.split(".")
+    if len(parts) != 3 or not parts[0] or not parts[1] or not parts[2]:
+        raise ValueError("jwt-malformed")
+    try:
+        header = json.loads(b64u_dec(parts[0]).decode("utf-8"))
+        claims = json.loads(b64u_dec(parts[1]).decode("utf-8"))
+        sig = b64u_dec(parts[2])
+    except Exception as exc:
+        raise ValueError("jwt-malformed") from exc
+    if not isinstance(header, dict) or not isinstance(claims, dict):
+        raise ValueError("jwt-malformed")
+    return header, claims, f"{parts[0]}.{parts[1]}".encode("ascii"), sig
+
+
+def _pub_from_jwk(pub_jwk: dict):
+    kty = pub_jwk.get("kty")
+    if kty == "EC" and pub_jwk.get("crv") == "P-256":
+        x = int.from_bytes(b64u_dec(pub_jwk["x"]), "big")
+        y = int.from_bytes(b64u_dec(pub_jwk["y"]), "big")
+        return ec.EllipticCurvePublicNumbers(x, y, ec.SECP256R1()).public_key()
+    if kty == "OKP" and pub_jwk.get("crv") == "Ed25519":
+        return ed25519.Ed25519PublicKey.from_public_bytes(b64u_dec(pub_jwk["x"]))
+    raise ValueError("unsupported-jwk")
+
+
+def verify_raw_sig(pub_jwk: dict, data: bytes, sig: bytes) -> bool:
+    try:
+        pub = _pub_from_jwk(pub_jwk)
+        if isinstance(pub, ec.EllipticCurvePublicKey):
+            if len(sig) != 64:
+                return False
+            from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
+            r = int.from_bytes(sig[:32], "big")
+            s = int.from_bytes(sig[32:], "big")
+            der = encode_dss_signature(r, s)
+            pub.verify(der, data, ec.ECDSA(hashes.SHA256()))
+            return True
+        pub.verify(sig, data)
+        return True
+    except Exception:
+        return False
+
+
+def verify_jwt(token: str, jwks: dict, *, expected_typ: str | None = None,
+               expected_aud: str | None = None, now: int | None = None) -> dict:
+    header, claims, signing_input, sig = parse_jwt(token)
+    alg = header.get("alg")
+    if alg not in ("ES256", "EdDSA", "Ed25519"):
+        raise ValueError("alg-unsupported")
+    if expected_typ is not None and header.get("typ") != expected_typ:
+        raise ValueError("typ-mismatch")
+    keys = jwks.get("keys", []) if "keys" in jwks else [jwks]
+    kid = header.get("kid")
+    candidates = [k for k in keys if not kid or k.get("kid") == kid] or keys
+    if not any(verify_raw_sig(k, signing_input, sig) for k in candidates):
+        raise ValueError("sig-invalid")
+    now = int(now if now is not None else time.time())
+    exp = claims.get("exp")
+    if not isinstance(exp, (int, float)) or exp <= now:
+        raise ValueError("token-expired")
+    iat = claims.get("iat")
+    if iat is not None and (not isinstance(iat, (int, float)) or iat > now + 60):
+        raise ValueError("iat-invalid")
+    if expected_aud is not None:
+        aud = claims.get("aud")
+        ok = (aud == expected_aud) if isinstance(aud, str) else (isinstance(aud, list) and expected_aud in aud)
+        if not ok:
+            raise ValueError("aud-mismatch")
+    return claims
+
+
+def issue_txn_token(tts_key, *, kid: str, iss: str, aud: str, txn: str, sub: str,
+                    scope: str, req_wl: str, tctx: dict | None = None, ttl: int = 120,
+                    now: int | None = None, typ: str = "txntoken+jwt", drop: tuple = ()) -> str:
+    now = int(now if now is not None else time.time())
+    header = {"alg": "ES256", "kid": kid, "typ": typ}
+    claims = {
+        "iss": iss,
+        "aud": aud,
+        "txn": txn,
+        "sub": sub,
+        "scope": scope,
+        "req_wl": req_wl,
+        "iat": now,
+        "exp": now + ttl,
+        "tctx": tctx if tctx is not None else {},
+    }
+    for d in drop:
+        claims.pop(d, None)
+    return jwt(header, claims, tts_key)
+
+
+def issue_chain_grant(as_a_key, *, kid: str, iss: str, aud: str, sub: str, scope: str,
+                      txn: str, tctx: dict | None = None, ttl: int = 60, now: int | None = None) -> str:
+    now = int(now if now is not None else time.time())
+    header = {"alg": "ES256", "kid": kid, "typ": "jwt-chg+jwt"}
+    claims = {
+        "iss": iss,
+        "aud": aud,
+        "sub": sub,
+        "scope": scope,
+        "txn": txn,
+        "tctx": tctx if tctx is not None else {},
+        "iat": now,
+        "exp": now + ttl,
+        "jti": b64u(os.urandom(16)),
+    }
+    return jwt(header, claims, as_a_key)
+
+
+def issue_access_token(as_b_key, *, kid: str, iss: str, aud: str | list[str], sub: str, scope: str,
+                       txn: str, tctx: dict | None = None, ttl: int = 120, now: int | None = None) -> str:
+    now = int(now if now is not None else time.time())
+    header = {"alg": "ES256", "kid": kid, "typ": "at+jwt"}
+    claims = {
+        "iss": iss,
+        "aud": aud,
+        "sub": sub,
+        "scope": scope,
+        "txn": txn,
+        "tctx": tctx if tctx is not None else {},
+        "iat": now,
+        "exp": now + ttl,
+        "jti": b64u(os.urandom(16)),
+    }
+    return jwt(header, claims, as_b_key)
+
+
+def _valid_wimse_id(sub: str) -> str | None:
+    if not isinstance(sub, str) or not sub.startswith("wimse://"):
+        return None
+    u = urllib.parse.urlsplit(sub)
+    if u.scheme != "wimse" or not u.hostname or u.port is not None or u.username or u.password or u.query or u.fragment:
+        return None
+    if not u.path or u.path == "/":
+        return None
+    raw_lower = u.path.lower()
+    if "/./" in raw_lower or "/../" in raw_lower or raw_lower.endswith("/.") or raw_lower.endswith("/..") or "%2e" in raw_lower or "%2f" in raw_lower:
+        return None
+    return u.hostname.lower()
+
+
+def verify_wimse_proof(method: str, path_and_query: str, headers: dict[str, str], body: bytes,
+                       trust_jwks: dict[str, dict], *, expected_aud: str,
+                       seen_nonces: set[str] | None = None, now: int | None = None) -> tuple[bool, int, str, dict | None]:
+    now = int(now if now is not None else time.time())
+    lower = {k.lower(): v for k, v in headers.items()}
+    wit = lower.get("workload-identity-token")
+    if not wit:
+        return False, 401, "proof-missing", None
+    try:
+        _, unverified_claims, _, _ = parse_jwt(wit)
+    except ValueError:
+        return False, 400, "wit-invalid", None
+    sub = unverified_claims.get("sub", "")
+    td = _valid_wimse_id(sub)
+    if not td:
+        return False, 400, "identifier-invalid", None
+    if td not in trust_jwks:
+        return False, 400, "untrusted-trust-domain", None
+    try:
+        wit_claims = verify_jwt(wit, trust_jwks[td], expected_typ="wit+jwt", now=now)
+    except ValueError as exc:
+        return False, 400, str(exc), None
+    cnf_jwk = (wit_claims.get("cnf") or {}).get("jwk")
+    if not isinstance(cnf_jwk, dict):
+        return False, 400, "cnf-missing", None
+
+    has_sig = "signature-input" in lower and "signature" in lower
+    auth_hdr = lower.get("authorization", "")
+    has_wpt = auth_hdr.lower().startswith("wpt ")
+
+    if not has_sig and not has_wpt:
+        return False, 401, "proof-missing", None
+
+    if has_sig:
+        sig_in = lower["signature-input"]
+        sig_val = lower["signature"]
+        if "," in sig_in and sig_in.count(f'tag="{TAG}"') > 1:
+            return False, 400, "multiple-wimse-signatures", None
+        if ";" not in sig_in or "=" not in sig_in:
+            return False, 400, "proof-invalid", None
+        label, params = sig_in.split("=", 1)
+        label = label.strip()
+        if ";keyid=" in params or f'tag="{TAG}"' not in params or ";wimse-sign-response" in params:
+            return False, 400, "proof-invalid", None
+        if f';wimse-aud="{expected_aud}"' not in params:
+            return False, 400, "aud-mismatch", None
+        comp_part = params.split(")", 1)[0].lstrip("(")
+        comps = [c.strip('"') for c in comp_part.split() if c.strip('"')]
+        for req_c in ("@method", "@path", "@query", "workload-identity-token"):
+            if req_c not in comps:
+                return False, 400, "proof-invalid", None
+        if "txn-token" in lower and "txn-token" not in comps:
+            return False, 400, "proof-invalid", None
+        if body:
+            expected_digest = f"sha-256=:{base64.b64encode(hashlib.sha256(body).digest()).decode()}:"
+            if lower.get("content-digest") != expected_digest or "content-digest" not in comps:
+                return False, 400, "digest-mismatch", None
+        import re
+        m_nonce = re.search(r';nonce="([^"]+)"', params)
+        if m_nonce and seen_nonces is not None:
+            nonce = m_nonce.group(1)
+            if nonce in seen_nonces:
+                return False, 400, "replay", None
+            seen_nonces.add(nonce)
+        u = urllib.parse.urlsplit(path_and_query)
+        values = {"@method": method.upper(), "@path": u.path, "@query": "?" + u.query, **lower}
+        try:
+            base_bytes = _base(comps, values, params)
+            m_sig = re.search(rf"{re.escape(label)}=:([A-Za-z0-9+/=]+):", sig_val)
+            if not m_sig:
+                return False, 400, "proof-invalid", None
+            raw_s = base64.b64decode(m_sig.group(1))
+        except Exception:
+            return False, 400, "proof-invalid", None
+        if not verify_raw_sig(cnf_jwk, base_bytes, raw_s):
+            return False, 400, "proof-invalid", None
+        return True, 200, "accept", {"peer_id": sub, "wit_claims": wit_claims, "mechanism": "http-sig"}
+
+    # WPT verification
+    wpt_token = auth_hdr[4:].strip()
+    try:
+        wpt_hdr, wpt_claims, _, _ = parse_jwt(wpt_token)
+        cnf_alg = cnf_jwk.get("alg")
+        wpt_alg = wpt_hdr.get("alg")
+        if cnf_alg and wpt_alg != cnf_alg and not ({cnf_alg, wpt_alg} <= {"Ed25519", "EdDSA"}):
+            return False, 401, "alg-mismatch", None
+        verify_jwt(wpt_token, cnf_jwk, expected_typ="wpt+jwt", expected_aud=expected_aud, now=now)
+    except ValueError:
+        return False, 401, "proof-invalid", None
+    expected_wth = b64u(hashlib.sha256(wit.encode()).digest())
+    if wpt_claims.get("wth") != expected_wth:
+        return False, 401, "proof-invalid", None
+    if "txn-token" in lower:
+        expected_tth = b64u(hashlib.sha256(lower["txn-token"].encode()).digest())
+        if wpt_claims.get("tth") != expected_tth:
+            return False, 401, "proof-invalid", None
+    if seen_nonces is not None and wpt_claims.get("jti"):
+        jti = wpt_claims["jti"]
+        if jti in seen_nonces:
+            return False, 401, "replay", None
+        seen_nonces.add(jti)
+    return True, 200, "accept", {"peer_id": sub, "wit_claims": wit_claims, "mechanism": "wpt"}
+
