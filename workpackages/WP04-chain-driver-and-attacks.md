@@ -14,7 +14,7 @@ Depends on: WP02, WP03.
 ## Deliverables
 
 1. Create `chain_cases.json` defining the 19 cases and their expected wire/journal outcomes:
-   - `B_CHAIN`: End-to-end 6-hop normal path (`TTS-A` $\rightarrow$ `Maurice :5050` $\rightarrow$ `AS-A :5051` $\rightarrow$ `AS-B :5061` $\rightarrow$ `RICH :5062` $\rightarrow$ `TTS-B :5061` $\rightarrow$ `File Tool :5063`). Expects status `200` on every hop, identical `txn` ID in all Domain A & Domain B journal entries, and `"$4.2M"` summary returned.
+   - `B_CHAIN`: End-to-end 3-Agent cross-domain + intra-domain call chain (`TTS-A :5051` $\rightarrow$ `Agent 1: Maurice :5050` $\rightarrow$ `AS-A :5051` $\rightarrow$ `AS-B :5061` $\rightarrow$ `Agent 2: RICH Coordinator :5060` $\rightarrow$ `TTS-B :5061` [initial `Txn-Token`, `files:read files:list`] $\rightarrow$ `Agent 3: RICH Research Sub-Agent :5062` $\rightarrow$ `TTS-B :5061` [narrowed replacement `Txn-Token`, `files:read`] $\rightarrow$ `File Tool :5063`). Expects status `200` on every hop, identical `txn` ID across all Domain A & Domain B journal entries, and `"$4.2M"` summary returned.
    - `C5`: Txn-Token swapped after signing HTTP-Sig (`File Tool` & `Maurice` reject `400`, `reason="proof-invalid"`).
    - `C6`: Foreign Txn-Token (`aud="maurice.ietf127.example"` presented to Domain B `File Tool` $\rightarrow$ `403`, `reason="txn-token-invalid"`).
    - `C7`: Prompt injection data (`Q3.pdf` tells agent to read `salaries.xlsx` $\rightarrow$ `File Tool` rejects `salaries.xlsx` read with `403`, `reason="not-authorized"` while `Q3.pdf` succeeds).
@@ -45,7 +45,7 @@ Do **not** modify any other files.
 ## Constraints / invariants
 
 - Every HTTP request sent during a case MUST include `X-Test-Case: <case_id>`.
-- In `B_CHAIN`, verify that all hops log the exact same `txn` UUID and that no raw `txntoken+jwt` from Domain A ever appears in any request to ports `5061`, `5062`, or `5063`.
+- In `B_CHAIN`, verify that all hops (`Agent 1`, `Agent 2`, `Agent 3`, `File Tool`, and the token services) log the exact same `txn` UUID and that no raw `txntoken+jwt` from Domain A ever appears in any request to ports `5060`, `5061`, `5062`, or `5063`.
 - Commit locally when `Verify:` passes; never push.
 
 ## Verification
