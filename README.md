@@ -16,8 +16,17 @@ The AI2II `wire` harness is vendored directly in `wire/`, and `reproduce.sh` aut
 
 ## Live Capture Setup (with Local AgentMaurice)
 
-Requirements: Python 3 with `cryptography`, `tshark`, and a Maurice instance with
-the target agent and workflow in `setup/target.json`.
+To re-run the live packet captures against a local **AgentMaurice** instance:
+
+1. **Install AgentMaurice** (`~/.local/bin/maurice`, no Docker or account required; supports macOS Apple Silicon, Linux `x86_64`/`arm64`, Windows `x64`) by following [https://agentmaurice.ai/en/install.md](https://agentmaurice.ai/en/install.md), or give your AI coding agent this prompt:
+
+   ```text
+   Install Maurice by following https://agentmaurice.ai/en/install.md, then verify that you can use it.
+   ```
+
+2. Ensure `/etc/hosts` maps the test trust domain to loopback (`127.0.0.1 maurice.ietf127.example`), generate the ephemeral test keys, and patch the WIMSE configuration:
+
+Requirements: Python 3 with `cryptography` and `PyYAML`, `tshark` (Wireshark CLI), and `maurice` on `PATH` with the target agent and workflow in `setup/target.json`.
 
 ```sh
 python3 setup/gen_keys.py

@@ -81,6 +81,11 @@ PY
 
 if [ "${1:-}" = "--live" ]; then
     echo "=== [LIVE] Running live loopback capture via AI2II wire harness ==="
+    if ! command -v maurice >/dev/null 2>&1; then
+        echo "ERROR: 'maurice' binary not found on PATH." >&2
+        echo "Install Maurice by following https://agentmaurice.ai/en/install.md, then verify that you can use it." >&2
+        exit 1
+    fi
     OUT_DIR="$(mktemp -d /tmp/wimse-repro.XXXXXX)"
     .venv/bin/python -m wire run interop.yaml --cell inbound --out "$OUT_DIR"
     .venv/bin/python -m wire verify-bundle "$OUT_DIR/inbound"

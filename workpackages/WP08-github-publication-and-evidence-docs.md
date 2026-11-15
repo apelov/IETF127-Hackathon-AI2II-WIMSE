@@ -33,7 +33,7 @@ Depends on: WP06, WP07.
    - Table of every committed `.pcap` file (`validation/bundle-*/**/capture.pcap` and `checkers/negatives/*.pcap`), its packet count, SHA-256 hash, and `tshark` one-liner to inspect it.
    - Table of every committed `.jsonl` decision journal and manifest (`decision-journal.jsonl`, `chain-journal.jsonl`, `redthread-P1..P6-local.jsonl`, `revocation-trace-testnet-20261114T104257Z.jsonl`, `redthread-P2-mintid-sandbox-negative.jsonl`), original partner archives in `scenarios/p1_p8/originals/`, and a link to `scenarios/p1_p8/PARTNER_COORDINATION_SUMMARY.md` (which records the sanitized technical summary of the partner coordination emails without publishing raw private correspondence).
    - Output of `PYTHONPATH=. .venv/bin/python -m wire summarize validation` and `./reproduce.sh`.
-3. **Update `README.md`** to link prominently to `SCENARIOS_AND_AUTHORS.md`, `EVIDENCE.md`, and `VERIFY.md`, and ensure all PCAPs and evidence bundles in `validation/` and `scenarios/p1_p8/` are tracked in git (while `keys/*.pem`, `.venv/`, and `bin/maurice` remain git-ignored).
+3. **Update `README.md`** to link prominently to `SCENARIOS_AND_AUTHORS.md`, `EVIDENCE.md`, and `VERIFY.md`, preserve the AgentMaurice installation instructions (`Install Maurice by following https://agentmaurice.ai/en/install.md, then verify that you can use it.`), and ensure all PCAPs and evidence bundles in `validation/` and `scenarios/p1_p8/` are tracked in git (while `keys/*.pem`, `.venv/`, and `bin/maurice` remain git-ignored).
 
 ## Owns (touch only these)
 
