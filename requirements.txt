@@ -1,2 +1,2 @@
-cryptography>=46,<51
-PyYAML>=6,<7
+cryptography>=42.0.0
+PyYAML>=6.0.1

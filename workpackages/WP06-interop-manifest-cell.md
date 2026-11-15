@@ -14,7 +14,7 @@ Depends on: WP05.
 ## Deliverables
 
 1. Create `setup/run_chain_servers.py`:
-   - Starts `domain_a` (`:5051`) and `domain_b` (`:5061`, `:5062`, `:5063`) in background daemon threads, and then runs `bin/maurice serve --runtime-config ~/.maurice/one/config/standalone.yaml` as a foreground child process (forwarding `SIGTERM`/`SIGINT` so when AI2II stops the server process group, all ports close cleanly).
+   - Starts `domain_a` (`:5051`) and `domain_b` (`:5061`, `:5062`, `:5063`) in background daemon threads, and then runs `bin/maurice serve --runtime-config ~/.maurice/one/config/standalone.yaml` as a foreground child process if `bin/maurice` and `~/.maurice/one/config/standalone.yaml` exist, OR falls back to a built-in Python `:5050` WIMSE responder (`domain_a.start_maurice_fallback_on_5050()`) when cloned on a machine without `maurice` installed (forwarding `SIGTERM`/`SIGINT` so when AI2II stops the server process group, all ports close cleanly).
 2. Create `setup/check_chain_ready.py`:
    - Checks that `http://127.0.0.1:5050/.well-known/wimse/jwks.json` returns `200` AND TCP ports `5051`, `5061`, `5062`, `5063` accept connections on `127.0.0.1`. Exits `0` when all are ready, else `1`.
 3. Update `interop.yaml`:
@@ -38,4 +38,4 @@ Do **not** modify `peers/driver.py`, `checkers/observes_wimse.py`, or `cases.jso
 
 ## Verification
 
-Verify: PYTHONPATH=../AI2II .venv/bin/python -m wire validate-checkers interop.yaml && rm -rf validation/bundle-chain && PYTHONPATH=../AI2II .venv/bin/python -m wire run interop.yaml --cell chain --out validation/bundle-chain && PYTHONPATH=../AI2II .venv/bin/python -m wire verify-bundle validation/bundle-chain/chain
+Verify: PYTHONPATH=. .venv/bin/python -m wire validate-checkers interop.yaml && rm -rf validation/bundle-chain && PYTHONPATH=. .venv/bin/python -m wire run interop.yaml --cell chain --out validation/bundle-chain && PYTHONPATH=. .venv/bin/python -m wire verify-bundle validation/bundle-chain/chain

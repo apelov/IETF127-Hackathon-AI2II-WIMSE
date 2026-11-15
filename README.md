@@ -4,7 +4,17 @@ This harness sends 34 WIMSE inbound cases to a local Maurice instance. `cases.js
 the expected outcome for both the client driver and the packet checker. The keys in
 `keys/` are throwaway test keys and are ignored by Git.
 
-## Setup
+## Quick Reproduction (Fresh Git Clone)
+
+Anyone cloning this repository can verify all committed PCAP captures, AI2II evidence bundles (`SHA256SUMS` + `verdict.json`), negative mutant PCAP rejections, and `P1–P8` partner manifests with a single command (requires only Python 3 and `tshark`):
+
+```sh
+./reproduce.sh
+```
+
+The AI2II `wire` harness is vendored directly in `wire/`, and `reproduce.sh` automatically creates `.venv` (installing `requirements.txt`) and generates ephemeral test keys in `keys/` if missing.
+
+## Live Capture Setup (with Local AgentMaurice)
 
 Requirements: Python 3 with `cryptography`, `tshark`, and a Maurice instance with
 the target agent and workflow in `setup/target.json`.
@@ -52,7 +62,7 @@ cases against `bin/maurice` (sha256 `36f92fe8...`), the independent checker
 it rejects all three negatives. Evidence: `validation/bundle-inbound/inbound/`.
 
 ```sh
-PYTHONPATH=../AI2II .venv/bin/python -m wire run interop.yaml --cell inbound --out validation/bundle-inbound
+PYTHONPATH=. .venv/bin/python -m wire run interop.yaml --cell inbound --out validation/bundle-inbound
 ```
 
 Port 5050 must be free (stop any running Maurice) and the tree must be committed.

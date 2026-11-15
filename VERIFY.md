@@ -30,9 +30,9 @@ Do not trust this file. Re-run the commands and read the evidence.
 git status --short                       # must be empty for dirty=false
 lsof -nP -iTCP:5050 -sTCP:LISTEN         # must print nothing
 rm -rf validation/bundle-inbound
-PYTHONPATH=../AI2II .venv/bin/python -m wire run interop.yaml --cell inbound --out validation/bundle-inbound
-PYTHONPATH=../AI2II .venv/bin/python -m wire verify-bundle validation/bundle-inbound/inbound
-PYTHONPATH=../AI2II .venv/bin/python -m wire validate-checkers interop.yaml
+PYTHONPATH=. .venv/bin/python -m wire run interop.yaml --cell inbound --out validation/bundle-inbound
+PYTHONPATH=. .venv/bin/python -m wire verify-bundle validation/bundle-inbound/inbound
+PYTHONPATH=. .venv/bin/python -m wire validate-checkers interop.yaml
 ```
 
 Offline checks on the saved evidence:
