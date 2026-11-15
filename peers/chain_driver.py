@@ -154,7 +154,7 @@ def run_b_chain(with_maurice: bool) -> tuple[bool, list[str], list[dict]]:
         )
         req_m = w.http_sig(
             "POST",
-            "http://127.0.0.1:5050/v1/agents/dbsccjan18nkaiapu9v0/workflows/text-stats/executions",
+            "http://127.0.0.1:5050/api/v2/agents/dbsccjan18nkaiapu9v0/workflows/text-stats/executions",
             b'{"inputs": {"text": "hello wimse"}}',
             wit_m,
             wkey_m,
@@ -712,7 +712,7 @@ def run_d2(with_maurice: bool) -> tuple[bool, list[str], list[dict]]:
         )
         req_m = w.wpt_request(
             "POST",
-            "http://127.0.0.1:5050/v1/agents/dbsccjan18nkaiapu9v0/workflows/text-stats/executions",
+            "http://127.0.0.1:5050/api/v2/agents/dbsccjan18nkaiapu9v0/workflows/text-stats/executions",
             b'{"inputs": {"text": "hello wimse"}}',
             wit,
             wkey,
