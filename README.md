@@ -11,6 +11,7 @@ This repository contains the complete implementation, loopback packet captures (
   - **Suite 3 (`chain` cell + partner traces):** Extended partner scenarios `P1–P8` (`ietf127-wimse-scenario/1`) — live `P2/P7/P8` HTTP execution on `:5064` plus full trace verification of Redthread `P1–P6`, MintID live `mintid-testnet-3` non-revocation proofs, OmniArx `P7` approval display vectors, and Cred `P8` pre-release vs post-release bearer revocation boundaries.
 - **[`EVIDENCE.md`](EVIDENCE.md)** — Exact SHA-256 digests, packet counts, and `tshark` one-liners for all committed `.pcap` captures, negative PCAP mutants, and `.jsonl` journals.
 - **[`scenarios/p1_p8/PARTNER_COORDINATION_SUMMARY.md`](scenarios/p1_p8/PARTNER_COORDINATION_SUMMARY.md)** — Sanitized technical summary of the multi-party design and trace-verification discussions across `P1–P8`.
+- **[`workpackages/WP09-live-emilia-and-mintid-testnet.md`](workpackages/WP09-live-emilia-and-mintid-testnet.md)** — **Future TODO specification** for cloning `emilia-protocol` (Redthread) and `mintid` (`deploy/networks.json` `testnet` profile: `issuer`, `verifier`, `relay`, `rpc.testnet.mintid.net:443`) to run `P1–P6` and positive/negative `P2` ZK non-revocation proofs live end-to-end.
 - **[`VERIFY.md`](VERIFY.md)** — Detailed manual walkthrough for inspecting individual cases and logs.
 
 ---
