@@ -44,6 +44,9 @@ WP01 (Txn-Token & Chaining Crypto Primitives in peers/wimse.py + setup/gen_keys.
                 │
                 ▼
               WP06 (AI2II Manifest Integration: add `chain` and `p1-p8` cells to interop.yaml)
+                │
+                ▼
+              WP08 (GitHub Publication: SCENARIOS_AND_AUTHORS.md, EVIDENCE.md, commit all PCAPs & bundles)
 ```
 
 | WP | File | Tier | Depends On | Owns | Summary |
@@ -55,3 +58,4 @@ WP01 (Txn-Token & Chaining Crypto Primitives in peers/wimse.py + setup/gen_keys.
 | **[WP05](file:///Users/apelov/Code/IETF127-Hackathon/WIMSE/workpackages/WP05-chain-wire-checker.md)** | `WP05-chain-wire-checker.md` | `mini-code` | `WP04` | `checkers/observes_chain.py`, `checkers/make_chain_negatives.py` | Independent wire checker (must be run with a non-driver model family, e.g. Nemotron/Gemini) that inspects `capture.pcap` across ports `5050,5051,5061,5062,5063`, verifies Domain A `Txn-Token` never crosses to `:5061/:5062/:5063`, and rejects 3 negatives. |
 | **[WP07](file:///Users/apelov/Code/IETF127-Hackathon/WIMSE/workpackages/WP07-extended-scenarios-p1-p8.md)** | `WP07-extended-scenarios-p1-p8.md` | `mini-code` | `WP03`, `WP04` | `scenarios/p1_p8/**`, `peers/p2_p7_p8_executor.py`, `checkers/observes_p1_p8.py` | Integrate `P1–P8` (`ietf127-wimse-scenario/1`): Redthread `P1–P6` (22 cases, 120 s bound, `before-effect` 0 s / 51 s simulated), MintID `P2` (10 s proof, 185 s/245 s bounds, 13 Nov & 14 Nov traces + witness-refresh attribution), OmniArx `P7` (`V5` / `R2` at `1800000000`), Cred `P8` (`token_released` before vs after use), and an independent cross-family checker. |
 | **[WP06](file:///Users/apelov/Code/IETF127-Hackathon/WIMSE/workpackages/WP06-interop-manifest-cell.md)** | `WP06-interop-manifest-cell.md` | `mini-code` | `WP05`, `WP07` | `interop.yaml`, `setup/run_chain_servers.py` | Wire the `chain` and `p1-p8` cells into `interop.yaml` alongside `inbound` so `python -m wire run interop.yaml` produces full AI2II PASS bundles. |
+| **[WP08](file:///Users/apelov/Code/IETF127-Hackathon/WIMSE/workpackages/WP08-github-publication-and-evidence-docs.md)** | `WP08-github-publication-and-evidence-docs.md` | `mini-code` | `WP06`, `WP07` | `SCENARIOS_AND_AUTHORS.md`, `EVIDENCE.md`, `README.md`, `validation/**` | Document all scenarios, authors (Pelov, Schrock, Le/Redthread, Miro/MintID, Thallapelly/OmniArx, Sweeney/Cred), drafts, AI model families, and track all PCAPs, JSONL traces, and AI2II bundles in git for GitHub publication. |

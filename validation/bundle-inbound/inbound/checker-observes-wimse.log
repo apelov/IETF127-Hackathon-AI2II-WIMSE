@@ -1,0 +1,251 @@
+CHECK A2 ref=IN-1 title='WIT + HTTP-sig, granted workload' step=1 status=200 expected=[200]
+CHECK A3 ref=IN-16 title='wimse-sign-response=true is never a 200' step=1 status=501 expected=[501]
+CHECK A4 ref=IN-2 title='WIT + WPT, granted workload' step=1 status=200 expected=[200]
+CHECK A5 ref=IN-3 title='WIT without proof' step=1 status=401 expected=[401]
+CHECK A6a ref=IN-14 title='WIT + HTTP-sig + X-API-Key' step=1 status=400 expected=[400]
+CHECK A6b ref=IN-14 title='WIT + WPT and Bearer credentials' step=1 status=401 expected=[400, 401]
+CHECK A12a ref=KAT-4 title='Ed25519 key, cnf.jwk.alg=Ed25519, HTTP-sig' step=1 status=200 expected=[200]
+CHECK A12b ref=KAT-4 title='Ed25519 key, cnf.jwk.alg=EdDSA, HTTP-sig' step=1 status=200 expected=[200]
+CHECK A12c ref=KAT-4 title='Ed25519 key, cnf.jwk.alg=Ed25519, WPT' step=1 status=200 expected=[200]
+CHECK A12d ref=KAT-4 title='Ed25519 key, cnf.jwk.alg=EdDSA, WPT' step=1 status=200 expected=[200]
+CHECK A13a ref=ID-1 title='identifier with no path' step=1 status=400 expected=[400]
+CHECK A13b ref=ID-1 title='identifier with ./ segment' step=1 status=400 expected=[400]
+CHECK A13c ref=ID-1 title='identifier with ../ segment' step=1 status=400 expected=[400]
+CHECK A13d ref=ID-1 title='identifier with %2E%2E segment' step=1 status=400 expected=[400]
+CHECK A13e ref=ID-1 title='identifier with port' step=1 status=400 expected=[400]
+CHECK A13f ref=ID-1 title='identifier with query' step=1 status=400 expected=[400]
+CHECK A13g ref=ID-1 title='identifier with fragment' step=1 status=400 expected=[400]
+CHECK A13h ref=ID-1 title='identifier with userinfo' step=1 status=400 expected=[400]
+CHECK A13i ref=ID-2 title='Peer.Ietf127.Example/a%7Eb matches grant .../a~b' step=1 status=200 expected=[200]
+CHECK A13j ref=ID-2 title='/a%2Fb does not match grant /a/b' step=1 status=403 expected=[403]
+CHECK C2 ref=stolen WIT title='genuine WIT, request signed with another key' step=1 status=400 expected=[400]
+CHECK C3 ref=IN-9 title='replay of a signed request' step=1 status=200 expected=[200]
+CHECK C3 ref=IN-9 title='replay of a signed request' step=2 status=400 expected=[400]
+CHECK C4 ref=IN-8 title='request signed for RICH sent to Maurice' step=1 status=400 expected=[400]
+CHECK C4b ref=IN-8 title='wimse-aud differs by a trailing slash' step=1 status=400 expected=[400]
+CHECK C11 ref=IN-5 title='WIT from an issuer not in trust:' step=1 status=400 expected=[400]
+CHECK C12 ref=IN-7 title='iss is an attacker JWKS URL, no fetch' step=1 status=400 expected=[400]
+CHECK C12b ref=IN-7 title='iss is an attacker URL, trust entry without iss allowlist, no fetch' step=1 status=403 expected=[400, 403]
+CHECK IN4 ref=IN-4 title='expired WIT' step=1 status=400 expected=[400]
+CHECK IN6 ref=IN-6 title='WIT iss not in allowlist' step=1 status=400 expected=[400]
+CHECK IN10 ref=IN-10 title='body modified after signing' step=1 status=400 expected=[400]
+CHECK IN11 ref=IN-11 title='two signatures with the WIMSE tag' step=1 status=400 expected=[400]
+CHECK IN12 ref=IN-12 title='signature carries keyid' step=1 status=400 expected=[400]
+CHECK IN13 ref=IN-13 title='WPT alg differs from cnf.jwk.alg' step=1 status=401 expected=[401]
+CHECK IN15 ref=IN-15 title='valid identity, no grant' step=1 status=403 expected=[403]
+SUMMARY cases=34 errors=0
+--- negative: checkers/negatives/unrelated.pcap replaces {capture}
+FAIL: empty capture (no packets)
+FAIL A2: expected 1 step(s), got 0
+FAIL A3: expected 1 step(s), got 0
+FAIL A4: expected 1 step(s), got 0
+FAIL A5: expected 1 step(s), got 0
+FAIL A6a: expected 1 step(s), got 0
+FAIL A6b: expected 1 step(s), got 0
+FAIL A12a: expected 1 step(s), got 0
+FAIL A12b: expected 1 step(s), got 0
+FAIL A12c: expected 1 step(s), got 0
+FAIL A12d: expected 1 step(s), got 0
+FAIL A13a: expected 1 step(s), got 0
+FAIL A13b: expected 1 step(s), got 0
+FAIL A13c: expected 1 step(s), got 0
+FAIL A13d: expected 1 step(s), got 0
+FAIL A13e: expected 1 step(s), got 0
+FAIL A13f: expected 1 step(s), got 0
+FAIL A13g: expected 1 step(s), got 0
+FAIL A13h: expected 1 step(s), got 0
+FAIL A13i: expected 1 step(s), got 0
+FAIL A13j: expected 1 step(s), got 0
+FAIL C2: expected 1 step(s), got 0
+FAIL C3: expected 2 step(s), got 0
+FAIL C4: expected 1 step(s), got 0
+FAIL C4b: expected 1 step(s), got 0
+FAIL C11: expected 1 step(s), got 0
+FAIL C12: expected 1 step(s), got 0
+FAIL C12b: expected 1 step(s), got 0
+FAIL IN4: expected 1 step(s), got 0
+FAIL IN6: expected 1 step(s), got 0
+FAIL IN10: expected 1 step(s), got 0
+FAIL IN11: expected 1 step(s), got 0
+FAIL IN12: expected 1 step(s), got 0
+FAIL IN13: expected 1 step(s), got 0
+FAIL IN15: expected 1 step(s), got 0
+FAIL A2: no requests found in capture
+FAIL A3: no requests found in capture
+FAIL A4: no requests found in capture
+FAIL A5: no requests found in capture
+FAIL A6a: no requests found in capture
+FAIL A6b: no requests found in capture
+FAIL A12a: no requests found in capture
+FAIL A12b: no requests found in capture
+FAIL A12c: no requests found in capture
+FAIL A12d: no requests found in capture
+FAIL A13a: no requests found in capture
+FAIL A13b: no requests found in capture
+FAIL A13c: no requests found in capture
+FAIL A13d: no requests found in capture
+FAIL A13e: no requests found in capture
+FAIL A13f: no requests found in capture
+FAIL A13g: no requests found in capture
+FAIL A13h: no requests found in capture
+FAIL A13i: no requests found in capture
+FAIL A13j: no requests found in capture
+FAIL C2: no requests found in capture
+FAIL C3: no requests found in capture
+FAIL C4: no requests found in capture
+FAIL C4b: no requests found in capture
+FAIL C11: no requests found in capture
+FAIL C12: no requests found in capture
+FAIL C12b: no requests found in capture
+FAIL IN4: no requests found in capture
+FAIL IN6: no requests found in capture
+FAIL IN10: no requests found in capture
+FAIL IN11: no requests found in capture
+FAIL IN12: no requests found in capture
+FAIL IN13: no requests found in capture
+FAIL IN15: no requests found in capture
+SUMMARY cases=34 errors=69
+--- negative: checkers/negatives/request_only.pcap replaces {capture}
+FAIL stream 0: unpaired request for case 'A2' (no response)
+FAIL stream 1: unpaired request for case 'A3' (no response)
+FAIL stream 2: unpaired request for case 'A4' (no response)
+FAIL stream 3: unpaired request for case 'A5' (no response)
+FAIL stream 4: unpaired request for case 'A6a' (no response)
+FAIL stream 5: unpaired request for case 'A6b' (no response)
+FAIL stream 6: unpaired request for case 'A12a' (no response)
+FAIL stream 7: unpaired request for case 'A12b' (no response)
+FAIL stream 8: unpaired request for case 'A12c' (no response)
+FAIL stream 9: unpaired request for case 'A12d' (no response)
+FAIL stream 10: unpaired request for case 'A13a' (no response)
+FAIL stream 11: unpaired request for case 'A13b' (no response)
+FAIL stream 12: unpaired request for case 'A13c' (no response)
+FAIL stream 13: unpaired request for case 'A13d' (no response)
+FAIL stream 14: unpaired request for case 'A13e' (no response)
+FAIL stream 15: unpaired request for case 'A13f' (no response)
+FAIL stream 16: unpaired request for case 'A13g' (no response)
+FAIL stream 17: unpaired request for case 'A13h' (no response)
+FAIL stream 18: unpaired request for case 'A13i' (no response)
+FAIL stream 19: unpaired request for case 'A13j' (no response)
+FAIL stream 20: unpaired request for case 'C2' (no response)
+FAIL stream 21: unpaired request for case 'C3' (no response)
+FAIL stream 22: unpaired request for case 'C3' (no response)
+FAIL stream 23: unpaired request for case 'C4' (no response)
+FAIL stream 24: unpaired request for case 'C4b' (no response)
+FAIL stream 25: unpaired request for case 'C11' (no response)
+FAIL stream 26: unpaired request for case 'C12' (no response)
+FAIL stream 27: unpaired request for case 'C12b' (no response)
+FAIL stream 28: unpaired request for case 'IN4' (no response)
+FAIL stream 29: unpaired request for case 'IN6' (no response)
+FAIL stream 30: unpaired request for case 'IN10' (no response)
+FAIL stream 31: unpaired request for case 'IN11' (no response)
+FAIL stream 32: unpaired request for case 'IN12' (no response)
+FAIL stream 33: unpaired request for case 'IN13' (no response)
+FAIL stream 34: unpaired request for case 'IN15' (no response)
+FAIL: no complete HTTP request/response exchanges found on port 5050
+FAIL A2: expected 1 step(s), got 0
+FAIL A3: expected 1 step(s), got 0
+FAIL A4: expected 1 step(s), got 0
+FAIL A5: expected 1 step(s), got 0
+FAIL A6a: expected 1 step(s), got 0
+FAIL A6b: expected 1 step(s), got 0
+FAIL A12a: expected 1 step(s), got 0
+FAIL A12b: expected 1 step(s), got 0
+FAIL A12c: expected 1 step(s), got 0
+FAIL A12d: expected 1 step(s), got 0
+FAIL A13a: expected 1 step(s), got 0
+FAIL A13b: expected 1 step(s), got 0
+FAIL A13c: expected 1 step(s), got 0
+FAIL A13d: expected 1 step(s), got 0
+FAIL A13e: expected 1 step(s), got 0
+FAIL A13f: expected 1 step(s), got 0
+FAIL A13g: expected 1 step(s), got 0
+FAIL A13h: expected 1 step(s), got 0
+FAIL A13i: expected 1 step(s), got 0
+FAIL A13j: expected 1 step(s), got 0
+FAIL C2: expected 1 step(s), got 0
+FAIL C3: expected 2 step(s), got 0
+FAIL C4: expected 1 step(s), got 0
+FAIL C4b: expected 1 step(s), got 0
+FAIL C11: expected 1 step(s), got 0
+FAIL C12: expected 1 step(s), got 0
+FAIL C12b: expected 1 step(s), got 0
+FAIL IN4: expected 1 step(s), got 0
+FAIL IN6: expected 1 step(s), got 0
+FAIL IN10: expected 1 step(s), got 0
+FAIL IN11: expected 1 step(s), got 0
+FAIL IN12: expected 1 step(s), got 0
+FAIL IN13: expected 1 step(s), got 0
+FAIL IN15: expected 1 step(s), got 0
+FAIL A2: no requests found in capture
+FAIL A3: no requests found in capture
+FAIL A4: no requests found in capture
+FAIL A5: no requests found in capture
+FAIL A6a: no requests found in capture
+FAIL A6b: no requests found in capture
+FAIL A12a: no requests found in capture
+FAIL A12b: no requests found in capture
+FAIL A12c: no requests found in capture
+FAIL A12d: no requests found in capture
+FAIL A13a: no requests found in capture
+FAIL A13b: no requests found in capture
+FAIL A13c: no requests found in capture
+FAIL A13d: no requests found in capture
+FAIL A13e: no requests found in capture
+FAIL A13f: no requests found in capture
+FAIL A13g: no requests found in capture
+FAIL A13h: no requests found in capture
+FAIL A13i: no requests found in capture
+FAIL A13j: no requests found in capture
+FAIL C2: no requests found in capture
+FAIL C3: no requests found in capture
+FAIL C4: no requests found in capture
+FAIL C4b: no requests found in capture
+FAIL C11: no requests found in capture
+FAIL C12: no requests found in capture
+FAIL C12b: no requests found in capture
+FAIL IN4: no requests found in capture
+FAIL IN6: no requests found in capture
+FAIL IN10: no requests found in capture
+FAIL IN11: no requests found in capture
+FAIL IN12: no requests found in capture
+FAIL IN13: no requests found in capture
+FAIL IN15: no requests found in capture
+SUMMARY cases=34 errors=104
+--- negative: checkers/negatives/forbidden_fetch.pcap replaces {capture}
+FAIL: capture contains TCP traffic to forbidden port 47999 (violates C12/C12b no-fetch requirement)
+CHECK A2 ref=IN-1 title='WIT + HTTP-sig, granted workload' step=1 status=200 expected=[200]
+CHECK A3 ref=IN-16 title='wimse-sign-response=true is never a 200' step=1 status=501 expected=[501]
+CHECK A4 ref=IN-2 title='WIT + WPT, granted workload' step=1 status=200 expected=[200]
+CHECK A5 ref=IN-3 title='WIT without proof' step=1 status=401 expected=[401]
+CHECK A6a ref=IN-14 title='WIT + HTTP-sig + X-API-Key' step=1 status=400 expected=[400]
+CHECK A6b ref=IN-14 title='WIT + WPT and Bearer credentials' step=1 status=400 expected=[400, 401]
+CHECK A12a ref=KAT-4 title='Ed25519 key, cnf.jwk.alg=Ed25519, HTTP-sig' step=1 status=200 expected=[200]
+CHECK A12b ref=KAT-4 title='Ed25519 key, cnf.jwk.alg=EdDSA, HTTP-sig' step=1 status=200 expected=[200]
+CHECK A12c ref=KAT-4 title='Ed25519 key, cnf.jwk.alg=Ed25519, WPT' step=1 status=200 expected=[200]
+CHECK A12d ref=KAT-4 title='Ed25519 key, cnf.jwk.alg=EdDSA, WPT' step=1 status=200 expected=[200]
+CHECK A13a ref=ID-1 title='identifier with no path' step=1 status=400 expected=[400]
+CHECK A13b ref=ID-1 title='identifier with ./ segment' step=1 status=400 expected=[400]
+CHECK A13c ref=ID-1 title='identifier with ../ segment' step=1 status=400 expected=[400]
+CHECK A13d ref=ID-1 title='identifier with %2E%2E segment' step=1 status=400 expected=[400]
+CHECK A13e ref=ID-1 title='identifier with port' step=1 status=400 expected=[400]
+CHECK A13f ref=ID-1 title='identifier with query' step=1 status=400 expected=[400]
+CHECK A13g ref=ID-1 title='identifier with fragment' step=1 status=400 expected=[400]
+CHECK A13h ref=ID-1 title='identifier with userinfo' step=1 status=400 expected=[400]
+CHECK A13i ref=ID-2 title='Peer.Ietf127.Example/a%7Eb matches grant .../a~b' step=1 status=200 expected=[200]
+CHECK A13j ref=ID-2 title='/a%2Fb does not match grant /a/b' step=1 status=403 expected=[403]
+CHECK C2 ref=stolen WIT title='genuine WIT, request signed with another key' step=1 status=400 expected=[400]
+CHECK C3 ref=IN-9 title='replay of a signed request' step=1 status=200 expected=[200]
+CHECK C3 ref=IN-9 title='replay of a signed request' step=2 status=400 expected=[400]
+CHECK C4 ref=IN-8 title='request signed for RICH sent to Maurice' step=1 status=400 expected=[400]
+CHECK C4b ref=IN-8 title='wimse-aud differs by a trailing slash' step=1 status=400 expected=[400]
+CHECK C11 ref=IN-5 title='WIT from an issuer not in trust:' step=1 status=400 expected=[400]
+CHECK C12 ref=IN-7 title='iss is an attacker JWKS URL, no fetch' step=1 status=400 expected=[400]
+CHECK C12b ref=IN-7 title='iss is an attacker URL, trust entry without iss allowlist, no fetch' step=1 status=403 expected=[400, 403]
+CHECK IN4 ref=IN-4 title='expired WIT' step=1 status=400 expected=[400]
+CHECK IN6 ref=IN-6 title='WIT iss not in allowlist' step=1 status=400 expected=[400]
+CHECK IN10 ref=IN-10 title='body modified after signing' step=1 status=400 expected=[400]
+CHECK IN11 ref=IN-11 title='two signatures with the WIMSE tag' step=1 status=400 expected=[400]
+CHECK IN12 ref=IN-12 title='signature carries keyid' step=1 status=400 expected=[400]
+CHECK IN13 ref=IN-13 title='WPT alg differs from cnf.jwk.alg' step=1 status=401 expected=[401]
+CHECK IN15 ref=IN-15 title='valid identity, no grant' step=1 status=403 expected=[403]
+SUMMARY cases=34 errors=1

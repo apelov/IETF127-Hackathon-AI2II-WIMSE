@@ -1,0 +1,35 @@
+CASE A2 [IN-1] PASS :: WIT + HTTP-sig, granted workload :: step=1 status=200 want=[200] type=- reason=accept want_reason=['accept'] ok
+CASE A3 [IN-16] PASS :: wimse-sign-response=true is never a 200 :: step=1 status=501 want=[501] type=wimse-signed-response-unsupported reason=signed-response-unsupported want_reason=['signed-response-unsupported'] ok
+CASE A4 [IN-2] PASS :: WIT + WPT, granted workload :: step=1 status=200 want=[200] type=- reason=accept want_reason=['accept'] ok
+CASE A5 [IN-3] PASS :: WIT without proof :: step=1 status=401 want=[401] type=about:blank reason=proof-missing want_reason=['proof-missing'] ok
+CASE A6a [IN-14] PASS :: WIT + HTTP-sig + X-API-Key :: step=1 status=400 want=[400] type=wimse-signature-invalid reason=mixed-credentials want_reason=['mixed-credentials'] ok
+CASE A6b [IN-14] PASS :: WIT + WPT and Bearer credentials :: step=1 status=401 want=[400, 401] type=about:blank reason=mixed-credentials want_reason=['mixed-credentials'] ok
+CASE A12a [KAT-4] PASS :: Ed25519 key, cnf.jwk.alg=Ed25519, HTTP-sig :: step=1 status=200 want=[200] type=- reason=accept want_reason=['accept'] ok
+CASE A12b [KAT-4] PASS :: Ed25519 key, cnf.jwk.alg=EdDSA, HTTP-sig :: step=1 status=200 want=[200] type=- reason=accept want_reason=['accept'] ok
+CASE A12c [KAT-4] PASS :: Ed25519 key, cnf.jwk.alg=Ed25519, WPT :: step=1 status=200 want=[200] type=- reason=accept want_reason=['accept'] ok
+CASE A12d [KAT-4] PASS :: Ed25519 key, cnf.jwk.alg=EdDSA, WPT :: step=1 status=200 want=[200] type=- reason=accept want_reason=['accept'] ok
+CASE A13a [ID-1] PASS :: identifier with no path :: step=1 status=400 want=[400] type=wimse-signature-invalid reason=identifier-invalid want_reason=['identifier-invalid'] ok
+CASE A13b [ID-1] PASS :: identifier with ./ segment :: step=1 status=400 want=[400] type=wimse-signature-invalid reason=identifier-invalid want_reason=['identifier-invalid'] ok
+CASE A13c [ID-1] PASS :: identifier with ../ segment :: step=1 status=400 want=[400] type=wimse-signature-invalid reason=identifier-invalid want_reason=['identifier-invalid'] ok
+CASE A13d [ID-1] PASS :: identifier with %2E%2E segment :: step=1 status=400 want=[400] type=wimse-signature-invalid reason=identifier-invalid want_reason=['identifier-invalid'] ok
+CASE A13e [ID-1] PASS :: identifier with port :: step=1 status=400 want=[400] type=wimse-signature-invalid reason=identifier-invalid want_reason=['identifier-invalid', 'untrusted-trust-domain'] ok
+CASE A13f [ID-1] PASS :: identifier with query :: step=1 status=400 want=[400] type=wimse-signature-invalid reason=identifier-invalid want_reason=['identifier-invalid'] ok
+CASE A13g [ID-1] PASS :: identifier with fragment :: step=1 status=400 want=[400] type=wimse-signature-invalid reason=identifier-invalid want_reason=['identifier-invalid'] ok
+CASE A13h [ID-1] PASS :: identifier with userinfo :: step=1 status=400 want=[400] type=wimse-signature-invalid reason=identifier-invalid want_reason=['identifier-invalid', 'untrusted-trust-domain'] ok
+CASE A13i [ID-2] PASS :: Peer.Ietf127.Example/a%7Eb matches grant .../a~b :: step=1 status=200 want=[200] type=- reason=accept want_reason=['accept'] ok
+CASE A13j [ID-2] PASS :: /a%2Fb does not match grant /a/b :: step=1 status=403 want=[403] type=about:blank reason=not-authorized want_reason=['not-authorized'] ok
+CASE C2 [stolen WIT] PASS :: genuine WIT, request signed with another key :: step=1 status=400 want=[400] type=wimse-signature-invalid reason=proof-invalid want_reason=['proof-invalid'] ok
+CASE C3 [IN-9] PASS :: replay of a signed request :: step=1 status=200 want=[200] type=- reason=accept want_reason=['accept'] ok; step=2 status=400 want=[400] type=wimse-signature-invalid reason=replay want_reason=['replay'] ok
+CASE C4 [IN-8] PASS :: request signed for RICH sent to Maurice :: step=1 status=400 want=[400] type=wimse-signature-invalid reason=audience-mismatch want_reason=['audience-mismatch'] ok
+CASE C4b [IN-8] PASS :: wimse-aud differs by a trailing slash :: step=1 status=400 want=[400] type=wimse-signature-invalid reason=audience-mismatch want_reason=['audience-mismatch'] ok
+CASE C11 [IN-5] PASS :: WIT from an issuer not in trust: :: step=1 status=400 want=[400] type=wimse-signature-invalid reason=untrusted-trust-domain want_reason=['untrusted-trust-domain'] ok
+CASE C12 [IN-7] PASS :: iss is an attacker JWKS URL, no fetch :: step=1 status=400 want=[400] type=wimse-signature-invalid reason=issuer-not-allowed want_reason=['issuer-not-allowed'] ok
+CASE C12b [IN-7] PASS :: iss is an attacker URL, trust entry without iss allowlist, no fetch :: step=1 status=403 want=[400, 403] type=about:blank reason=not-authorized want_reason=['not-authorized', 'issuer-not-allowed', 'wit-invalid'] ok
+CASE IN4 [IN-4] PASS :: expired WIT :: step=1 status=400 want=[400] type=wimse-signature-invalid reason=wit-expired want_reason=['wit-expired'] ok
+CASE IN6 [IN-6] PASS :: WIT iss not in allowlist :: step=1 status=400 want=[400] type=wimse-signature-invalid reason=issuer-not-allowed want_reason=['issuer-not-allowed'] ok
+CASE IN10 [IN-10] PASS :: body modified after signing :: step=1 status=400 want=[400] type=wimse-signature-invalid reason=digest-mismatch want_reason=['digest-mismatch'] ok
+CASE IN11 [IN-11] PASS :: two signatures with the WIMSE tag :: step=1 status=400 want=[400] type=wimse-signature-invalid reason=proof-invalid want_reason=- ok
+CASE IN12 [IN-12] PASS :: signature carries keyid :: step=1 status=400 want=[400] type=wimse-signature-invalid reason=proof-invalid want_reason=- ok
+CASE IN13 [IN-13] PASS :: WPT alg differs from cnf.jwk.alg :: step=1 status=401 want=[401] type=about:blank reason=proof-invalid want_reason=- ok
+CASE IN15 [IN-15] PASS :: valid identity, no grant :: step=1 status=403 want=[403] type=about:blank reason=not-authorized want_reason=['not-authorized'] ok
+SUMMARY total=34 failed=0 []
