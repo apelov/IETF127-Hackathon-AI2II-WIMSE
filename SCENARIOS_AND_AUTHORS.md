@@ -25,29 +25,29 @@ For a sanitized technical summary of the multi-party coordination emails and des
 |---|---|
 | `draft-ietf-wimse-arch-08` | Workload Identity in Multi-System Environments (WIMSE) Architecture — trust domains (`wimse://maurice.ietf127.example`, `wimse://rich.ietf127.example`, `wimse://peer.ietf127.example`) and cross-domain workload authentication. |
 | `draft-ietf-wimse-aims-01` | Agent Identity Management System (AIMS) — agent identity, lifecycle, and delegation semantics. |
-| `draft-ietf-wimse-workload-creds-03` | WIMSE Workload Credentials — `Workload-Identity-Token` (WIT, media type `wimse-id+jwt`) structure, `sub`, `iss`, `exp`, and `cnf.jwk` proof-of-possession binding. |
-| `draft-ietf-wimse-wpt-02` | WIMSE Workload Proof Token — `Workload-Proof-Token` (WPT, media type `wpt+jwt`) over HTTP delivery (`wth` WIT hash, `aud`, `jti`, `exp`, `tth` transaction token hash). |
-| `draft-ietf-wimse-http-signature-08` | WIMSE Workload-to-Workload Authentication via HTTP Message Signatures — RFC 9421 profile binding `@method`, `@target-uri`, `workload-identity-token`, `content-digest`, and `wimse-aud`. |
+| `draft-ietf-wimse-workload-creds-03` | WIMSE Workload Credentials — `Workload-Identity-Token` (WIT, JOSE `typ: "wit+jwt"`) structure, `sub`, `iss`, `exp`, and `cnf.jwk` proof-of-possession binding. |
+| `draft-ietf-wimse-wpt-02` | WIMSE Workload Proof Token — `Workload-Proof-Token` (WPT, JOSE `typ: "wpt+jwt"`) over HTTP delivery (`wth` WIT hash, `aud`, `jti`, `exp`, `tth` transaction token hash). |
+| `draft-ietf-wimse-http-signature-08` | WIMSE Workload-to-Workload Authentication via HTTP Message Signatures — RFC 9421 profile binding `@method`, `@path`, `@query`, `content-type`, `content-digest`, `txn-token`/`authorization`, and `workload-identity-token` with signature parameter `wimse-aud`. |
 | `draft-ietf-wimse-identifier-04` | WIMSE Workload Identifier Format — `wimse://<trust-domain>/<path>` URI validation (scheme, authority, path normalization, query/fragment rejection). |
-| `draft-ietf-oauth-transaction-tokens-11` | OAuth 2.0 Transaction Tokens (`txn-token+jwt`) — `Txn-Token` header, `purp`, `tctx`, `azd`, recursive `act` actor chains, and monotonically narrowing replacement tokens (`files:read files:list` $\rightarrow$ `files:read`). |
-| `draft-ietf-oauth-identity-chaining-17` | OAuth Identity and Authorization Chaining Across Domains — RFC 8693 Token Exchange at AS-A paired with RFC 7523 JWT Assertion Grant at AS-B; Domain A's internal `Txn-Token` never crosses the trust boundary. |
+| `draft-ietf-oauth-transaction-tokens-11` | OAuth 2.0 Transaction Tokens (JOSE `typ: "txntoken+jwt"`) — `Txn-Token` header, `txn`, `sub`, `scope`, `tctx`, `req_wl` workload binding, and monotonically narrowing replacement tokens (`files:read files:list` $\rightarrow$ `files:read`). |
+| `draft-ietf-oauth-identity-chaining-17` | OAuth Identity and Authorization Chaining Across Domains — cross-domain token exchange at AS-A (`subject_token` $\rightarrow$ `typ: "jwt-chg+jwt"` assertion) paired with JWT assertion grant at AS-B (`assertion` $\rightarrow$ `typ: "at+jwt"`); Domain A's internal `Txn-Token` never crosses the trust boundary. |
 | `draft-le-agent-passport` | Agent Passport (`Chain Validation`, `Status and Revocation`, `Exposure After Revocation`) — delegation depth, scope attenuation, status-list grace vs fail-closed behavior (`P1`), before-effect revalidation (`P2`), tool-digest pinning (`P6`). |
 | `draft-thallapelly-oasnt-02` & `draft-thallapelly-oasnt-enforce-01` | OAuth Agent Signed Notification / Approval Tokens (OASNT) — cryptographic binding between human approval display text and the executed action (`P7`). |
 | `draft-sweeney-wimse-credential-delegation` | Credential Delegation to Bearer-Only Third-Party APIs — pre-release revocation gate (`token_released: false`) vs post-release bearer exposure boundary (`token_released: true`) (`P8`). |
 | `RFC 9421` & `RFC 9530` | HTTP Message Signatures & Digest Fields (`Content-Digest: sha-256=:...:`). |
-| `RFC 9457` | Problem Details for HTTP APIs (`application/problem+json`, `urn:ietf:params:wimse:problem:*`, `urn:ietf:params:oauth:problem:*`). |
-| `RFC 8693` & `RFC 7523` | OAuth 2.0 Token Exchange (`urn:ietf:params:oauth:grant-type:token-exchange`) & JWT Profile for OAuth 2.0 Client Authentication and Authorization Grants (`urn:ietf:params:oauth:grant-type:jwt-bearer`). |
+| `RFC 9457` | Problem Details for HTTP APIs (`application/problem+json`, `urn:ietf:params:wimse:problem:*` in Suite 1, `about:blank` / JSON error reasons in Suite 2). |
+| `RFC 8693` & `RFC 7523` | OAuth 2.0 Token Exchange & JWT Profile for OAuth 2.0 Authorization Grants (modeled via JSON token endpoints on `:5051/oauth/token` and `:5061/oauth/token`). |
 
 ---
 
 ## 3. AI Model Provenance & Independent Checker Separation (AI2II Rule L4)
 
-Under the **AI2II** (AI-Assisted Interop & Implementation) evidence rules, the packet checker that validates a `.pcap` capture must be authored by an AI model family distinct from the peer implementations under test, and must pass on the live capture while rejecting at least three negative mutant captures.
+Under the **AI2II** (AI-Assisted Interop & Implementation) evidence rules, the packet checker that validates a `.pcap` capture must be authored by an AI model family distinct from the peer implementations under test, and must pass on the live capture while rejecting at least three negative mutant captures. Independent protocol and wire-evidence reviews are recorded in [`validation/nemotron-review.md`](validation/nemotron-review.md) (`inbound` cell) and [`validation/opus-chain-review.md`](validation/opus-chain-review.md) (`chain` cell).
 
-| Cell | Peer Implementations Under Test | Implementation Author / Model Family | Independent Packet Checker(s) | Checker Model Family | Negative Mutants Rejected |
+| Cell | Peer Implementations Under Test | Implementation Author / Model Family | Independent Packet Checker(s) | Checker / Reviewer Model Family & Audit Report | Negative Mutants Rejected |
 |---|---|---|---|---|---|
-| `inbound` | `bin/maurice` (v2.2.18, Go/Rust binary) + `peers/driver.py`, `peers/wimse.py` | **Anthropic Claude Opus 4.6** + human authors (Alexander Pelov) | `checkers/observes_wimse.py` | **NVIDIA Nemotron Ultra (`nvidia/llama-3.1-nemotron-ultra-253b-v1`)** | `unrelated.pcap`, `request_only.pcap`, `forbidden_fetch.pcap` |
-| `chain` | `bin/maurice` (`:5050`), `peers/domain_a.py` (`:5051`), `peers/domain_b.py` (`:5060–5063`), `peers/p2_p7_p8_executor.py` (`:5064`), `peers/chain_driver.py` | **Anthropic Claude Opus 4.6** + Partner Implementations (Ben Le / Redthread, Marc Miro / MintID, Arun Thallapelly / OmniArx, Kieran Sweeney / Cred) | `checkers/observes_chain.py`, `checkers/observes_p1_p8.py` | **Independent Verifier Harness (Cross-Checked against Nemotron & Partner Manifests)** | `chain_unrelated.pcap`, `chain_request_only.pcap`, `chain_leaked_txn.pcap`, `p1_p8_unrelated.pcap`, `p1_p8_request_only.pcap`, `p1_p8_missing_before_effect.pcap` |
+| `inbound` | `bin/maurice` (v2.2.18, Go/Rust binary) + `peers/driver.py`, `peers/wimse.py` | **Anthropic Claude Opus 4.6** + human authors (Alexander Pelov) | `checkers/observes_wimse.py` | **NVIDIA Nemotron Ultra (`nvidia/llama-3.1-nemotron-ultra-253b-v1` / `nvidia/nemotron-3-ultra-550b-a55b:free`)** — see [`validation/nemotron-review.md`](validation/nemotron-review.md) | `unrelated.pcap`, `request_only.pcap`, `forbidden_fetch.pcap` |
+| `chain` | `bin/maurice` (`:5050`), `peers/domain_a.py` (`:5051`), `peers/domain_b.py` (`:5060–5063`), `peers/p2_p7_p8_executor.py` (`:5064`), `peers/chain_driver.py` | **Google Gemini 4 Argon** + **Anthropic Claude Opus 4.6** + Partner Implementations (Ben Le / Redthread, Marc Miro / MintID, Arun Thallapelly / OmniArx, Kieran Sweeney / Cred) | `checkers/observes_chain.py`, `checkers/observes_p1_p8.py` | Audited by **Anthropic Claude Opus 5.5 (`claude -p --model opus` / `claude-opus-5-5-high`)** and hardened by **Anthropic Claude Sonnet 5.5 (`claude -p --model sonnet`)** — see [`validation/opus-chain-review.md`](validation/opus-chain-review.md) | `chain_unrelated.pcap`, `chain_request_only.pcap`, `chain_leaked_txn.pcap`, `p1_p8_unrelated.pcap`, `p1_p8_request_only.pcap`, `p1_p8_missing_before_effect.pcap` |
 
 ---
 
@@ -72,30 +72,42 @@ Tested in cell `inbound` (`validation/bundle-inbound/inbound/capture.pcap`):
 
 ### Suite 2 — Phase B & C 3-Agent Cross-Domain Call Chain & Attack Matrix (`chain_cases.json`, 19 Cases across `:5050–5063`)
 
-Tested in cell `chain` (`validation/bundle-chain/chain/capture.pcap`):
+Tested in cell `chain` (`validation/bundle-chain/chain/capture.pcap`) and audited frame-by-frame in [`validation/opus-chain-review.md`](validation/opus-chain-review.md):
 
 ```text
-User (alice)
-  │ 1. POST :5051/tts/token (mints Domain A Txn-Token T_A)
-  ▼
-Agent 1: Maurice (:5050, Domain A: wimse://maurice.ietf127.example)
-  │ 2. POST :5051/oauth/token (RFC 8693 Token Exchange; T_A stays in Domain A!)
-  │ 3. POST :5061/oauth/token (RFC 7523 JWT Assertion Grant -> Access Token AT_B)
-  ▼
-Agent 2: RICH Coordinator (:5060, Domain B: wimse://rich.ietf127.example)
-  │ 4. POST :5061/tts/token (mints initial Domain B Txn-Token T_B1: "files:read files:list")
-  ▼
-Agent 3: RICH Research Sub-Agent (:5062, Domain B)
-  │ 5. POST :5061/tts/token (mints narrowed replacement Txn-Token T_B2: "files:read")
-  ▼
-File Tool (:5063, Domain B) -> 200 OK (nested act: research-subagent -> coordinator -> maurice)
+Driver / Client Workload (wimse://peer.ietf127.example/client)
+  ├─ 1. POST :5051/tts/token        -> mints Domain A Txn-Token T_A (scope="files:read files:list", tctx={file:Q3.pdf})
+  ├─ 2. POST :5050/api/v2/...       -> Agent 1: Maurice workflow execution with WIT + RFC 9421 + T_A (200 OK)
+  ├─ 3. POST :5051/oauth/token      -> AS-A exchanges T_A for cross-domain assertion (typ=jwt-chg+jwt; T_A stays in Domain A!)
+  ├─ 4. POST :5061/oauth/token      -> AS-B exchanges assertion for Domain B Access Token AT_B (typ=at+jwt)
+  └─ 5. POST :5060/coordinate       -> Agent 2: RICH Coordinator (wimse://rich.ietf127.example/agent/coordinator)
+        ├─ 6. POST :5061/tts/token  -> TTS-B mints initial Domain B Txn-Token T_B1 (scope="files:read files:list", req_wl=coordinator)
+        └─ 7. POST :5062/research   -> Agent 3: RICH Research Sub-Agent (wimse://rich.ietf127.example/agent/research)
+              ├─ 8. POST :5061/tts/token -> TTS-B mints narrowed replacement Txn-Token T_B2 (scope="files:read", req_wl=research)
+              └─ 9. POST :5063/files/read -> File Tool verifies WIT + WPT (wth + tth) + T_B2 -> 200 OK (unified txn UUID end-to-end)
 ```
 
-| Case ID(s) | Category | Description & Verified Outcome |
-|---|---|---|
-| `B_CHAIN` | Happy Path (11 Hops) | Full 3-agent, 2-domain call chain (`User -> TTS-A -> Maurice -> AS-A -> AS-B -> Agent 2 -> TTS-B -> Agent 3 -> TTS-B -> File Tool`), verifying WPT `tth` binding, recursive `act` nesting, scope narrowing, and **zero leakage** of Domain A `Txn-Token` onto Domain B ports (`5060–5063`). |
-| `C5`–`C10` | Mid-Transaction Revocation & Compromise | `C5` (`401 transaction-revoked` at Agent 3 after `tctx.id` revocation), `C6` (`400 invalid_target` at TTS-B for revoked transaction), `C7` (`403 actor-revoked` when upstream actor `wimse://maurice.ietf127.example/agent/orchestrator` is in the `act` chain), `C8` (`401 wit-revoked` on Hop 2), `C9` (`400 invalid_grant` at AS-B when AS-A signing key `kid` is compromised), `C10` (`401 key-compromised` on Hop 3). |
-| `D1`–`D7` (`12` subcases) | Delegation, Scope & Confusion Attacks | `D1` (`400 invalid_scope` scope widening `files:read files:write` at TTS-B), `D2` (`403 transaction-leak-detected` if Domain A `Txn-Token` is sent across boundary), `D3` (`401 wpt-tth-mismatch` when WPT `tth` does not match `Txn-Token`), `D4a/b/c` (`400 invalid_grant` at AS-B for wrong `aud`, expired assertion, or untrusted `iss`), `D5` (`403 actor-mismatch` when WIT `sub` differs from replaced `Txn-Token` subject), `D6a/b/c` (`403 insufficient-scope`, `401 invalid-txn-token` expired, `401 invalid-txn-token` untrusted TTS), `D7a/b` (`401 invalid-wpt` cross-hop replay to `:5062` or `:5063`). |
+| Case ID | Ref | Expected HTTP Status(es) | Expected Reason | Description & Verified Wire Outcome |
+|---|---|---|---|---|
+| `B_CHAIN` | `Phase-B` | `200` (×9 hops) | `accept` | Full 9-hop, 3-agent, 2-domain call chain (`TTS-A -> Maurice -> AS-A -> AS-B -> Agent 2:Coordinator -> TTS-B -> Agent 3:Research -> TTS-B -> File Tool`), verifying unified `txn` UUID across all hops, `req_wl` binding, scope narrowing (`files:read files:list` $\rightarrow$ `files:read`), WPT `wth`/`tth` SHA-256 binding at `:5063`, and **zero leakage** of Domain A `Txn-Token` onto Domain B ports (`5060–5063`). |
+| `C5` | `ATK-5` | `400` | `proof-invalid` | `Txn-Token` swapped to `sub=user:bob` after signing the RFC 9421 HTTP Message Signature; rejected by `:5063`. |
+| `C6` | `ATK-6` | `403` | `txn-token-invalid` | Foreign `Txn-Token` (signed by `tts_a-1` with non-Domain-B audience) presented to Domain B File Tool (`:5063`) is rejected. |
+| `C7` | `ATK-7` | `200`, `403` | `not-authorized` | Prompt injection in `Q3.pdf` instructs Agent 3 to read out-of-scope `salaries.xlsx`; File Tool (`:5063`) blocks the out-of-scope file read with `403 not-authorized` (`injection_read_status=403`). |
+| `C8` | `ATK-8` | `200` (and `403` on injected hop) | `accept` | Prompt injection attempting credential exfiltration from `caller_context`; response confirms `leaked_credentials: false` with zero compact JWS tokens echoed in any response body. |
+| `C9` | `ATK-9a` | `403` | `not-authorized` | Autonomous workload call (no `Txn-Token`) to delegated-only route `POST :5063/files/read` is rejected. |
+| `C9b` | `ATK-9b` | `403` | `not-authorized` | Delegated call (carrying a `Txn-Token`) to autonomous-only route `POST :5063/files/index` is rejected. |
+| `C10` | `ATK-10` | `200`, `403` | `revoked` | Mid-transaction workload revocation via `POST :5063/admin/revoke`: request succeeds (`200`) before revocation, fails with `403 revoked` immediately after revocation, and cleanup restores state. |
+| `D1` | `TXN-1` | `400` | `proof-invalid` | `Txn-Token` header present on an RFC 9421 request to `:5063` but omitted from `@signature-params` covered components. |
+| `D2` | `TXN-2` | `401` | `proof-invalid` | `Txn-Token` header present on a WPT request with wrong `tth` hash (`tth="wrong_hash"`), rejected with `401` and `WWW-Authenticate: WPT` on `:5063` and `:5050`. |
+| `D3_exp` | `TXN-3a` | `403` | `txn-token-invalid` | Expired `Txn-Token` (`exp < iat`) rejected by File Tool (`:5063`). |
+| `D3_sig` | `TXN-3b` | `403` | `txn-token-invalid` | `Txn-Token` signed with untrusted rogue key (`kid=rogue-1`) rejected by File Tool (`:5063`). |
+| `D3_typ` | `TXN-3c` | `403` | `txn-token-invalid` | `Txn-Token` with wrong JOSE header `typ="jwt"` (instead of `txntoken+jwt`) rejected by File Tool (`:5063`). |
+| `D3_reqwl` | `TXN-3d` | `403` | `txn-token-invalid` | `Txn-Token` missing required `req_wl` claim rejected by File Tool (`:5063`). |
+| `D3_dup` | `TXN-3e` | `403` | `txn-token-invalid` | Request carrying duplicate `Txn-Token` headers rejected by File Tool (`:5063`). |
+| `D4` | `TXN-4` | `403` | `not-authorized` | `Txn-Token` with insufficient `scope="profile:view"` rejected on `files:read` route (`:5063`). |
+| `D5` | `CHAIN-1` | `403` | `grant-invalid` | Cross-domain guard blocks raw Domain A `Txn-Token` from leaving Domain A (`chain-journal.jsonl` line 34), and AS-B (`:5061`) rejects a non-`jwt-chg+jwt` assertion (`at+jwt`) with `403 grant-invalid` (line 35). |
+| `D6` | `TXO-4/5` | `200` | `accept` | Replacement `Txn-Token` scope narrowing (`files:read`) accepted on `:5051` (`chain-journal.jsonl` line 36); widened scope (`files:read files:write`) and mutated `txn` tokens issued under `test_mode` are rejected by the driver's monotonic scope/txn invariant check. |
+| `D7` | `CHAIN-2` | `200`, `403` | `grant-invalid` | Cross-domain JWT assertion minted with wrong audience (`aud="http://wrong.example/oauth/token"`) is rejected by AS-B (`:5061`) with `403 grant-invalid`. |
 
 ---
 
@@ -106,10 +118,10 @@ Executed live on `:5064` (`peers/p2_p7_p8_executor.py`) and verified against par
 | Scenario | Title & Lead Author(s) | Evidence Artifacts & Verified Outcomes |
 |---|---|---|
 | `P1` | **Status source unavailable or stale** (Ben Le / Redthread) | `scenarios/p1_p8/redthread-P1-local.jsonl` (4 cases): verifies `ok`, `status-grace`, `status-stale`, and `status-unavailable` fail-closed transitions. |
-| `P2` | **Revocation after delegation, before effect** (Iman Schrock, Ben Le / Redthread, Marc Miro / MintID) | Live HTTP execution on `:5064/p2/execute` (4 cases: `control-unrevoked` `200`, `cache-only-stale-window` `200`, `before-effect-recheck` `403 status-revoked`, `mintid-outside-revoked` `403 credential_revoked`) + `redthread-P2-local.jsonl` (5 cases) + MintID live testnet trace `revocation-trace-testnet-20261114T104257Z.jsonl` (10 s proof expiry, 13.9 s dual-origin offset, `holder_refresh` $\rightarrow$ `credential_revoked` while `sibling_control` refreshes cleanly) + `redthread-P2-mintid-sandbox-negative.jsonl`. |
+| `P2` | **Revocation after delegation, before effect** (Iman Schrock, Ben Le / Redthread, Marc Miro / MintID) | Live HTTP execution on `:5064/p2/execute` (4 wire cases: `P2_revoke-upstream` `403 status-revoked` with `bound_s=120`, `P2_before-effect` `403 status-revoked` with `authorize(allow, pending)` $\rightarrow$ `before-effect(deny, none, 0 ms)`, and recorded sandbox replays `P2_outside-made-up-proof` `403 proof_invalid` & `P2_outside-no-agent-answer` `403 no-agent-answer`) + `redthread-P2-local.jsonl` (5 cases including the 50 s allow $\rightarrow$ 51 s deny transition) + MintID live testnet trace `revocation-trace-testnet-20261114T104257Z.jsonl` (10 s proof expiry, 13.9 s dual-origin offset, `holder_refresh` $\rightarrow$ `credential_revoked` while `sibling_control` refreshes cleanly) + `redthread-P2-mintid-sandbox-negative.jsonl`. |
 | `P3` | **Delegation chain validation & depth/scope attenuation** (Ben Le / Redthread) | `scenarios/p1_p8/redthread-P3-local.jsonl` (3 cases): verifies valid delegation vs depth exceeded (`delegation-depth-exceeded`) and scope escalation (`scope-escalation`). |
 | `P4` | **Sender-constrained proof / binding validation** (Ben Le / Redthread) | `scenarios/p1_p8/redthread-P4-local.jsonl` (4 cases): verifies valid holder binding vs `binding-mismatch`, `replay-detected`, and `audience-mismatch`. |
 | `P5` | **Post-revocation exposure window accounting** (Ben Le / Redthread) | `scenarios/p1_p8/redthread-P5-local.jsonl` (4 cases): quantifies residual cache exposure vs immediate before-effect enforcement. |
 | `P6` | **Tool-definition digest pinning** (Ben Le / Redthread) | `scenarios/p1_p8/redthread-P6-local.jsonl` (2 cases): verifies `ok` when tool schema SHA-256 matches vs `tool-digest-mismatch` when tool metadata changes after delegation. |
-| `P7` | **Approval display differs from the executed action** (Arun Thallapelly / OmniArx) | Live HTTP execution on `:5064/p7/execute` + `scenarios/p1_p8/P7-approval-display-differs-from-the-executed-action.json`: evaluates OmniArx vectors `V1`/`V4`/`V5`/`R2` at fixed clock `1800000000` (`P7_V5` `200 display-match` when SHA-256 of approval display matches action vs `P7_R2` `403 display-mismatch` when action parameters diverge from what the user approved). |
-| `P8` | **Final hop to a bearer-only third-party API** (Kieran Sweeney / Cred) | Live HTTP execution on `:5064/p8/execute` + `scenarios/p1_p8/P8-final-hop-to-a-bearer-only-third-party-api.json`: verifies `P8_CONTROL` (`200 ok`), `P8_BEFORE_RELEASE` (`403 revoked-between-authz-and-use` with `token_released: false`), and `P8_AFTER_RELEASE` (`200 revoked-after-token-released` with `token_released: true` and `revocation_visible_to_third_party: false`, proving why revocation enforcement must happen before releasing a bearer token to an external API). |
+| `P7` | **Approval display differs from the executed action** (Arun Thallapelly / OmniArx) | Live HTTP execution on `:5064/p7/execute` (`P7_display-match` `200 reason="ok", effect="ran"` when approval display digest matches action digest vs `P7_display-mismatch` `403 reason="display-mismatch", effect="none"` at fixed clock `1800000000`) + partner spec `scenarios/p1_p8/P7-approval-display-differs-from-the-executed-action.json` containing the deterministic Ed25519 vectors `V1`/`V4`/`V5`/`R2`. |
+| `P8` | **Final hop to a bearer-only third-party API** (Kieran Sweeney / Cred) | Live HTTP execution on `:5064/p8/execute` + `scenarios/p1_p8/P8-final-hop-to-a-bearer-only-third-party-api.json`: verifies `P8_no-delegation` (`403 no-delegation`, `token_released: false`), `P8_write-under-read` (`403 scope-exceeded`, `token_released: false`), `P8_revoked-between-authz-and-use` (`403 status-revoked`, `token_released: false`), and `P8_revoked-after-token-released` (`200 token-released`, `token_released: true`, proving why revocation enforcement must happen before releasing a bearer token to an external API). |

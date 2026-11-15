@@ -217,7 +217,11 @@ def verify_capture(capture_path: pathlib.Path) -> None:
     for pkt in packets:
         layers = pkt.get("_source", {}).get("layers", {})
         tcp = layers.get("tcp", {})
+        if isinstance(tcp, list):
+            tcp = tcp[0] if tcp else {}
         http = layers.get("http", {})
+        if isinstance(http, list):
+            http = http[-1]
         if not isinstance(http, dict):
             continue
         sid = _first_str(tcp.get("tcp.stream", ""))
@@ -229,6 +233,7 @@ def verify_capture(capture_path: pathlib.Path) -> None:
             streams[sid]["resps"].append(http)
 
     observed: dict[str, tuple[int, dict]] = {}
+    errors = 0
     for sid, sr in streams.items():
         for idx, req in enumerate(sr["reqs"]):
             case_id = None
@@ -236,16 +241,21 @@ def verify_capture(capture_path: pathlib.Path) -> None:
                 if line.lower().startswith("x-test-case:"):
                     case_id = line.split(":", 1)[1].strip()
                     break
-            if not case_id:
+            if not case_id or case_id not in EXPECTED_LIVE_CASES:
+                continue
+            if case_id in observed:
+                print(f"FAIL {case_id}: duplicate X-Test-Case on stream {sid}", file=sys.stderr)
+                errors += 1
                 continue
             if idx >= len(sr["resps"]):
-                raise ValueError(f"Case {case_id} on stream {sid} has request without response")
+                print(f"FAIL {case_id}: request on stream {sid} has no response", file=sys.stderr)
+                errors += 1
+                continue
             resp = sr["resps"][idx]
             status = _extract_status(resp)
             body = _decode_body(resp)
             observed[case_id] = (status, body)
 
-    errors = 0
     for case_id, exp in EXPECTED_LIVE_CASES.items():
         if case_id not in observed:
             print(f"FAIL {case_id}: missing from capture", file=sys.stderr)

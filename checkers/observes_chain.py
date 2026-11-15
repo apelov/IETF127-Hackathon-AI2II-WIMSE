@@ -11,6 +11,7 @@ Usage:
 """
 import argparse
 import base64
+import hashlib
 import json
 import pathlib
 import subprocess
@@ -94,6 +95,17 @@ def _decode_body(http_layer: dict) -> dict:
             return {}
 
 
+def _jwt_header(token: str) -> dict:
+    parts = token.strip().split(".")
+    if len(parts) < 2:
+        return {}
+    b64 = parts[0] + "=" * (-len(parts[0]) % 4)
+    try:
+        return json.loads(base64.urlsafe_b64decode(b64).decode("utf-8"))
+    except Exception:
+        return {}
+
+
 def _jwt_payload(token: str) -> dict:
     parts = token.strip().split(".")
     if len(parts) < 2:
@@ -103,6 +115,10 @@ def _jwt_payload(token: str) -> dict:
         return json.loads(base64.urlsafe_b64decode(b64).decode("utf-8"))
     except Exception:
         return {}
+
+
+def _b64url_sha256(token: str) -> str:
+    return base64.urlsafe_b64encode(hashlib.sha256(token.strip().encode("ascii")).digest()).rstrip(b"=").decode("ascii")
 
 
 def verify_capture(capture_path: pathlib.Path) -> None:
@@ -145,6 +161,8 @@ def verify_capture(capture_path: pathlib.Path) -> None:
     case_statuses: dict[str, list[int]] = defaultdict(list)
     b_chain_txns: set[str] = set()
     b_chain_ports: set[int] = set()
+    b_chain_wpt_bound = False
+    d2_www_auth_ok = False
     errors = 0
 
     for sid, sr in streams.items():
@@ -153,18 +171,39 @@ def verify_capture(capture_path: pathlib.Path) -> None:
             uri = _first_str(req.get("http.request.uri", ""))
             case_id = None
             txn_headers = []
+            wit_header = None
+            wpt_header = None
             for line in req_lines:
                 ll = line.lower()
                 if ll.startswith("x-test-case:"):
                     case_id = line.split(":", 1)[1].strip()
                 elif ll.startswith("txn-token:"):
                     txn_headers.append(line.split(":", 1)[1].strip())
+                elif ll.startswith("workload-identity-token:"):
+                    wit_header = line.split(":", 1)[1].strip()
+                elif ll.startswith("workload-proof-token:"):
+                    wpt_header = line.split(":", 1)[1].strip()
+                elif ll.startswith("authorization:"):
+                    auth_val = line.split(":", 1)[1].strip()
+                    if auth_val.upper().startswith("WPT "):
+                        wpt_header = auth_val[4:].strip()
 
             # Cross-domain isolation check on all requests to Domain B ports
             if dstport in DOMAIN_B_PORTS:
                 for tok in txn_headers:
+                    hdr = _jwt_header(tok)
                     payload = _jwt_payload(tok)
-                    if payload.get("aud") == "maurice.ietf127.example":
+                    is_domain_a_tok = (
+                        payload.get("aud") == "maurice.ietf127.example"
+                        or (
+                            case_id != "C6"
+                            and (
+                                hdr.get("kid") == "tts_a-1"
+                                or "maurice.ietf127.example" in str(payload.get("iss", ""))
+                            )
+                        )
+                    )
+                    if is_domain_a_tok:
                         print(
                             f"FAIL: Domain A Txn-Token leaked to Domain B port {dstport} on stream {sid}",
                             file=sys.stderr,
@@ -188,12 +227,52 @@ def verify_capture(capture_path: pathlib.Path) -> None:
             _, _, resp = sr["resps"][idx]
             status = _extract_status(resp)
             case_statuses[case_id].append(status)
+            resp_body = _decode_body(resp)
 
             if case_id == "B_CHAIN":
                 b_chain_ports.add(dstport)
-                resp_body = _decode_body(resp)
                 if isinstance(resp_body, dict) and resp_body.get("txn"):
                     b_chain_txns.add(str(resp_body["txn"]))
+                for tok in txn_headers:
+                    tp = _jwt_payload(tok)
+                    if tp.get("txn"):
+                        b_chain_txns.add(str(tp["txn"]))
+                if dstport == 5063 and wit_header and wpt_header and txn_headers:
+                    wpt_p = _jwt_payload(wpt_header)
+                    if (
+                        wpt_p.get("wth") == _b64url_sha256(wit_header)
+                        and wpt_p.get("tth") == _b64url_sha256(txn_headers[0])
+                    ):
+                        b_chain_wpt_bound = True
+                    else:
+                        print(
+                            f"FAIL B_CHAIN: WPT wth/tth SHA-256 binding mismatch on stream {sid}",
+                            file=sys.stderr,
+                        )
+                        errors += 1
+
+            elif case_id == "D2" and status == 401:
+                www_auth = _first_str(resp.get("http.www_authenticate", ""))
+                if not www_auth:
+                    for line in _extract_lines(resp, "http.response.line"):
+                        if line.lower().startswith("www-authenticate:"):
+                            www_auth = line.split(":", 1)[1].strip()
+                            break
+                if "WPT" in www_auth:
+                    d2_www_auth_ok = True
+
+            elif case_id in ("C7", "C8"):
+                if isinstance(resp_body, dict) and resp_body.get("leaked_credentials") is True:
+                    print(f"FAIL {case_id}: leaked_credentials=True on stream {sid}", file=sys.stderr)
+                    errors += 1
+                if dstport == 5062 and "eyJ" in json.dumps(resp_body):
+                    print(f"FAIL {case_id}: compact JWS leaked in response body on stream {sid}", file=sys.stderr)
+                    errors += 1
+
+    c10_seq = case_statuses.get("C10", [])
+    if c10_seq and (403 not in c10_seq or c10_seq.index(200) > c10_seq.index(403)):
+        print(f"FAIL C10: expected 200 accept before 403 revoked, got {c10_seq}", file=sys.stderr)
+        errors += 1
 
     for cid, spec in cases.items():
         observed = case_statuses.get(cid, [])
@@ -211,13 +290,19 @@ def verify_capture(capture_path: pathlib.Path) -> None:
             continue
         print(f"CHECK {cid} ref={spec['ref']} statuses={observed}")
 
-    # Verify B_CHAIN 3-agent ports and unified txn UUID
-    required_b_ports = {5051, 5060, 5061, 5062, 5063}
+    # Verify B_CHAIN 3-agent ports, WPT binding, and unified txn UUID
+    required_b_ports = {5050, 5051, 5060, 5061, 5062, 5063}
     if not required_b_ports.issubset(b_chain_ports):
         print(
             f"FAIL B_CHAIN: missing expected multi-agent hop ports {required_b_ports - b_chain_ports}",
             file=sys.stderr,
         )
+        errors += 1
+    if not b_chain_wpt_bound:
+        print("FAIL B_CHAIN: missing verified WPT wth/tth SHA-256 binding on :5063", file=sys.stderr)
+        errors += 1
+    if not d2_www_auth_ok:
+        print("FAIL D2: missing WWW-Authenticate: WPT challenge on 401 response", file=sys.stderr)
         errors += 1
     if len(b_chain_txns) != 1:
         print(
