@@ -1,7 +1,7 @@
 # WP08 — Public GitHub Documentation, Author Attribution, and Evidence Catalog
 
 Tier: mini-code
-Inputs: workpackages/README.md, README.md, cases.json, chain_cases.json, scenarios/p1_p8/P2-revocation-after-delegation-before-effect.json, scenarios/p1_p8/P7-approval-display-differs-from-the-executed-action.json, scenarios/p1_p8/P8-final-hop-to-a-bearer-only-third-party-api.json, scenarios/p1_p8/revocation-trace-testnet-20261114T104257Z.md
+Inputs: workpackages/README.md, README.md, cases.json, chain_cases.json, scenarios/p1_p8/PARTNER_COORDINATION_SUMMARY.md, scenarios/p1_p8/P2-revocation-after-delegation-before-effect.json, scenarios/p1_p8/P7-approval-display-differs-from-the-executed-action.json, scenarios/p1_p8/P8-final-hop-to-a-bearer-only-third-party-api.json, scenarios/p1_p8/revocation-trace-testnet-20261114T104257Z.md
 
 Create `SCENARIOS_AND_AUTHORS.md`, `EVIDENCE.md`, and update `README.md` and `.gitignore` so the repository is ready to publish to GitHub with complete author/implementation attribution, Internet-Draft citations, and all PCAPs, JSONL decision journals, and AI2II evidence bundles tracked in git.
 
@@ -31,7 +31,7 @@ Depends on: WP06, WP07.
      - **Suite 3:** Extended Scenarios `P1–P8` (`ietf127-wimse-scenario/1`: Redthread `P1–P6`, MintID `P2` testnet & sandbox runs, OmniArx `P7`, Cred `P8`).
 2. **Create `EVIDENCE.md`** (generated/verified against the actual files in `validation/` and `scenarios/p1_p8/`):
    - Table of every committed `.pcap` file (`validation/bundle-*/**/capture.pcap` and `checkers/negatives/*.pcap`), its packet count, SHA-256 hash, and `tshark` one-liner to inspect it.
-   - Table of every committed `.jsonl` decision journal and manifest (`decision-journal.jsonl`, `chain-journal.jsonl`, `redthread-P1..P6-local.jsonl`, `revocation-trace-testnet-20261114T104257Z.jsonl`), its line count, and SHA-256 hash.
+   - Table of every committed `.jsonl` decision journal and manifest (`decision-journal.jsonl`, `chain-journal.jsonl`, `redthread-P1..P6-local.jsonl`, `revocation-trace-testnet-20261114T104257Z.jsonl`, `redthread-P2-mintid-sandbox-negative.jsonl`), original partner archives in `scenarios/p1_p8/originals/`, and a link to `scenarios/p1_p8/PARTNER_COORDINATION_SUMMARY.md` (which records the sanitized technical summary of the partner coordination emails without publishing raw private correspondence).
    - Output of `PYTHONPATH=../AI2II .venv/bin/python -m wire summarize validation`.
 3. **Update `README.md`** to link prominently to `SCENARIOS_AND_AUTHORS.md`, `EVIDENCE.md`, and `VERIFY.md`, and ensure all PCAPs and evidence bundles in `validation/` and `scenarios/p1_p8/` are tracked in git (while `keys/*.pem`, `.venv/`, and `bin/maurice` remain git-ignored).
 
