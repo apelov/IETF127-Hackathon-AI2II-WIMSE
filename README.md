@@ -14,6 +14,31 @@ Anyone cloning this repository can verify all committed PCAP captures, AI2II evi
 
 The AI2II `wire` harness is vendored directly in `wire/`, and `reproduce.sh` automatically creates `.venv` (installing `requirements.txt`) and generates ephemeral test keys in `keys/` if missing.
 
+## Exploring Captures in Wireshark (`dissectors/wimse.lua`)
+
+A custom Lua post-dissector in `dissectors/wimse.lua` automatically binds loopback ports `5050–5064` to HTTP, tags packets with `[Case: <ID>]` in the Info column, and base64url-decodes WIMSE `Workload-Identity-Token` (WIT), `Workload-Proof-Token` (WPT), OAuth `Txn-Token`, `Authorization: Bearer` tokens, and RFC 9421 `Signature-Input` parameters into a collapsible **IETF WIMSE & OAuth Agent Call Chain** protocol tree.
+
+To install it permanently into your personal Wireshark Lua plugins directory (macOS / Linux):
+
+```sh
+mkdir -p ~/.local/lib/wireshark/plugins
+cp dissectors/wimse.lua ~/.local/lib/wireshark/plugins/wimse.lua
+```
+
+Or pass it on demand to `wireshark` or `tshark`:
+
+```sh
+wireshark -X lua_script:dissectors/wimse.lua validation/bundle-inbound/inbound/capture.pcap
+tshark -X lua_script:dissectors/wimse.lua -r validation/bundle-inbound/inbound/capture.pcap -Y 'wimse.test_case == "A4"' -O wimse
+```
+
+Useful Wireshark display filters:
+- `wimse.test_case == "A4"` — filter by scenario/case ID (`A2`, `C12`, `B_CHAIN`, etc.)
+- `wimse.wit.sub contains "peer.ietf127.example"` — filter by workload identity URI
+- `wimse.wpt.wth` — show requests carrying a WPT proof
+- `wimse.sig.wimse_aud` — show requests signed with RFC 9421 HTTP Message Signatures
+- `wimse.txn.id == "<uuid>"` — trace a single transaction ID across all agent hops (`Agent 1 -> Agent 2 -> Agent 3 -> Tool`)
+
 ## Live Capture Setup (with Local AgentMaurice)
 
 To re-run the live packet captures against a local **AgentMaurice** instance:
