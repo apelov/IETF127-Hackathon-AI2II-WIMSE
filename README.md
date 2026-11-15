@@ -4,6 +4,7 @@ This repository contains the complete implementation, loopback packet captures (
 
 ## Key Documentation Index
 
+- **[`TEST_RESULTS_SUMMARY.md`](TEST_RESULTS_SUMMARY.md)** — Executive summary table of all tested suites, implementations, scenarios, and results (**85/85 passing cases + 9/9 rejected negative PCAP mutants**).
 - **[`SCENARIOS_AND_AUTHORS.md`](SCENARIOS_AND_AUTHORS.md)** — Complete contributor & implementation table (**AgentMaurice**, **RICH**, **Redthread Security**, **MintID**, **OmniArx**, **Cred**), normative Internet-Drafts & RFCs, AI model provenance table (AI2II Rule L4), and full catalog of all 3 test suites:
   - **Suite 1 (`inbound` cell):** 34 WIMSE inbound cases (`A2–A13j`, `C2–C12b`, `IN4–IN15`) against local **AgentMaurice** (`:5050`).
   - **Suite 2 (`chain` cell):** 19 3-Agent, 2-Domain call-chain (`Agent 1: Maurice -> Agent 2: RICH Coordinator -> Agent 3: RICH Research Sub-Agent -> File Tool`) and mid-transaction revocation / attack cases (`B_CHAIN`, `C5–C10`, `D1–D7`) across `:5050–5063`.
