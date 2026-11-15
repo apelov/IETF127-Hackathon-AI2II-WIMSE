@@ -46,7 +46,15 @@ from a passing run, and negative captures that it demonstrably rejects.
 
 ## Current local state (2026-11-14)
 
-Maurice PID 83273 started at 12:15, before `standalone.yaml` was patched at 12:38.
-The A2/A4/A5 baseline returned `untrusted-trust-domain` rather than the expected
-outcomes. Restart that instance to load the test trust configuration, then rerun
-the full driver and capture checker. No full-suite verdict has been recorded yet.
+AI2II cell `inbound` **PASS** at commit `801b463` (clean tree): the driver passed 34/34
+cases against `bin/maurice` (sha256 `36f92fe8...`), the independent checker
+`checkers/observes_wimse.py` (Nemotron Ultra) reported 0 errors on the run's capture, and
+it rejects all three negatives. Evidence: `validation/bundle-inbound/inbound/`.
+
+```sh
+PYTHONPATH=../AI2II .venv/bin/python -m wire run interop.yaml --cell inbound --out validation/bundle-inbound
+```
+
+Port 5050 must be free (stop any running Maurice) and the tree must be committed.
+Maurice journals mixed-credential rejections (A6a/A6b) without a WIT fingerprint, so the
+driver matches those entries by reason within the request's journal window.

@@ -35,6 +35,20 @@ def payload(http):
         return None
 
 
+def _collect_duplicates(pairs):
+    result = {}
+    for k, v in pairs:
+        if k in result:
+            existing = result[k]
+            if isinstance(existing, list):
+                existing.append(v)
+            else:
+                result[k] = [existing, v]
+        else:
+            result[k] = v
+    return result
+
+
 def packets(capture):
     proc = subprocess.run(
         ["tshark", "-r", str(capture), "-d", "tcp.port==5050,http", "-Y", "http", "-T", "json"],
@@ -42,7 +56,9 @@ def packets(capture):
     )
     if proc.returncode:
         raise ValueError(proc.stderr.strip() or "tshark could not read capture")
-    return json.loads(proc.stdout)
+    if not proc.stdout.strip():
+        return []
+    return json.loads(proc.stdout, object_pairs_hook=_collect_duplicates)
 
 
 def exchanges(capture):
@@ -71,9 +87,25 @@ def exchanges(capture):
     return streams
 
 
+def check_no_fetch(capture, ids):
+    ports = {CASES[cid]["no_fetch_port"] for cid in ids if CASES[cid].get("no_fetch_port")}
+    if not ports:
+        return []
+    flt = " or ".join(f"tcp.dstport == {p}" for p in sorted(ports))
+    proc = subprocess.run(
+        ["tshark", "-r", str(capture), "-Y", flt, "-T", "fields", "-e", "tcp.dstport"],
+        capture_output=True, text=True,
+    )
+    if proc.returncode:
+        return [proc.stderr.strip() or "tshark failed checking no_fetch_port"]
+    if proc.stdout.strip():
+        return [f"capture contains TCP traffic to forbidden port ({proc.stdout.split()[0]})"]
+    return []
+
+
 def check(capture, ids):
     seen = {cid: [] for cid in ids}
-    errors = []
+    errors = check_no_fetch(capture, ids)
     for stream, exchange in exchanges(capture).items():
         reqs, resps = exchange["requests"], exchange["responses"]
         if not reqs or not resps:
@@ -84,12 +116,15 @@ def check(capture, ids):
             continue
         for req, resp in zip(reqs, resps):
             cid = req["case"]
+            is_test_route = req["method"] == "POST" and bool(
+                re.fullmatch(r"/api/v2/agents/[^/]+/workflows/[^/]+/executions", req["uri"] or "")
+            )
+            if not cid and not is_test_route:
+                continue
             if cid not in seen:
                 errors.append(f"stream {stream}: unknown or absent case {cid!r}")
                 continue
-            if req["method"] != "POST" or not re.fullmatch(
-                r"/api/v2/agents/[^/]+/workflows/[^/]+/executions", req["uri"] or ""
-            ):
+            if not is_test_route:
                 errors.append(f"{cid}: unexpected method or route")
             seen[cid].append(resp)
     for cid in ids:

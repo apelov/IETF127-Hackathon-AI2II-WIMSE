@@ -1,5 +1,6 @@
 # Maurice is the implementation under test; its model-family provenance is unknown.
-# The client adapter was written with OpenAI Codex; the capture checker was
+# The client adapter was written mainly with OpenAI Codex; later edits (A6b request,
+# journal matching for mixed-credentials) were made by Anthropic Claude. The capture checker was
 # separately authored with OpenRouter Nemotron Ultra via claude-or.
 experiment: wimse-inbound-maurice
 env_checks:
