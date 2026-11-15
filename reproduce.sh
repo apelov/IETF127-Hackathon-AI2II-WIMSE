@@ -8,13 +8,17 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
-echo "=== [1/5] Preparing Python virtual environment (.venv) ==="
-if [ ! -x ".venv/bin/python" ]; then
-    python3 -m venv .venv
-    .venv/bin/pip install --upgrade pip -q
-    .venv/bin/pip install -r requirements.txt -q
-fi
+export PYTHONNOUSERSITE=1
 export PYTHONPATH="$ROOT"
+
+echo "=== [1/6] Preparing Python virtual environment (.venv) ==="
+if [ ! -x ".venv/bin/python" ]; then
+    PYTHON_CMD="python3"
+    if [ -x "/opt/homebrew/bin/python3" ]; then
+        PYTHON_CMD="/opt/homebrew/bin/python3"
+    fi
+    $PYTHON_CMD -m venv .venv --system-site-packages || python3 -m venv .venv
+fi
 
 echo "=== [2/5] Ensuring ephemeral WIMSE test keys exist ==="
 .venv/bin/python setup/gen_keys.py
@@ -62,6 +66,17 @@ if command -v tshark >/dev/null 2>&1; then
             echo "     Rejected negative mutant as expected: $neg"
         fi
     done
+
+    echo "  -> Checking Suite 4 (observes_payment.py on validation/bundle-payment/payment/capture.pcap)"
+    .venv/bin/python checkers/observes_payment.py validation/bundle-payment/payment/capture.pcap
+    for neg in checkers/negatives/payment_unrelated.pcap checkers/negatives/payment_request_only.pcap checkers/negatives/payment_tampered_digest.pcap; do
+        if .venv/bin/python checkers/observes_payment.py "$neg" >/dev/null 2>&1; then
+            echo "ERROR: negative mutant $neg unexpectedly passed observes_payment.py!" >&2
+            exit 1
+        else
+            echo "     Rejected negative mutant as expected: $neg"
+        fi
+    done
 else
     echo "  [WARN] tshark not found on PATH; skipping live tshark dissection check."
 fi
@@ -99,6 +114,9 @@ assert sb_manifest["results"]["made-up-proof"]["outside"]["reason"] == "proof_in
 assert sb_manifest["results"]["no-agent-answer"]["outside"]["reason"] == "no-agent-answer"
 print(f"  -> Redthread+MintID sandbox negative-control manifest verified ({len(sb_lines)} JSONL records)")
 PY
+
+echo "=== [6/6] Running Anton's AEP Offline Verifier on Handover Bundle ==="
+.venv/bin/python aep/verifier.py --handover handover
 
 if [ "${1:-}" = "--live" ]; then
     echo "=== [LIVE] Running live loopback capture via AI2II wire harness ==="

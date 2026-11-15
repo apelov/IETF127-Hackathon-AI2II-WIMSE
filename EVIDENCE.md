@@ -13,12 +13,14 @@ Running `PYTHONPATH=. .venv/bin/python -m wire summarize validation` produces:
 ```text
 PASS	inbound	458453327d36	validation/bundle-inbound/inbound
 PASS	chain	8f8441e4af00	validation/bundle-chain/chain
+PASS	payment	opena2a-wims	validation/bundle-payment/payment
 ```
 
 | Cell | Verdict | Bundle Path | `verdict.json` SHA-256 | Independent Audit Report | Secrets Present? |
 |---|---|---|---|---|---|
 | `inbound` | **PASS** | [`validation/bundle-inbound/inbound/`](validation/bundle-inbound/inbound/) | `1d342023567c6f53994ebee7fd6a33225f4018782c840c6fcb14d36617caed2d` | [`validation/nemotron-review.md`](validation/nemotron-review.md) (`nvidia/nemotron-3-ultra-550b-a55b:free`) | `false` |
 | `chain` | **PASS** | [`validation/bundle-chain/chain/`](validation/bundle-chain/chain/) | `937ea8a9728c6d35d79535eeab4603b97a269900a312dc75601e9b472f364d44` | [`validation/nemotron-p1-p8-review.md`](validation/nemotron-p1-p8-review.md) (`nvidia/nemotron-3-ultra-550b-a55b:free`) · [`validation/gemini-p1-p8-review.md`](validation/gemini-p1-p8-review.md) (`gemini-4-argon`) · [`validation/opus-chain-review.md`](validation/opus-chain-review.md) (`claude -p --model opus`) | `false` |
+| `payment` | **PASS** | [`validation/bundle-payment/payment/`](validation/bundle-payment/payment/) | `adf295230ba85f27c9bc0a396775a629c86e0dbb568cbd37bc783003b903a8b7` | [`handover/aep/aep_verification_report.md`](handover/aep/aep_verification_report.md) (Anton's AEP Offline Verifier) · [`checkers/observes_payment.py`](checkers/observes_payment.py) (Independent L4 Wire Checker) | `false` |
 
 ---
 
@@ -30,6 +32,7 @@ PASS	chain	8f8441e4af00	validation/bundle-chain/chain
 |---|---|---:|---:|---|---|
 | [`validation/bundle-inbound/inbound/capture.pcap`](validation/bundle-inbound/inbound/capture.pcap) | Suite 1: 34 WIMSE inbound cases (`A2–A13j`, `C2–C12b`, `IN4–IN15`) on loopback `:5050` & `:47999` | 536 | 72 | `85442bc4bb3051bcdcad88e63aebc0fb47502c062dac52c6c6da3cad344cad56` | `tshark -X lua_script:dissectors/wimse.lua -r validation/bundle-inbound/inbound/capture.pcap -Y http` |
 | [`validation/bundle-chain/chain/capture.pcap`](validation/bundle-chain/chain/capture.pcap) | Suite 2 & 3: 19 3-agent cross-domain call-chain cases (`:5050–5063`) + 10 live `P2/P7/P8` cases (`:5064`) | 824 | 106 (53 exchanges; 104 with default `tshark -Y http`) | `fdad7743ec8a69288cef24bfccab1a2740a2f10e8b7063d2426fdbe067f2ca88` | `tshark -X lua_script:dissectors/wimse.lua -r validation/bundle-chain/chain/capture.pcap -Y 'wimse.test_case == "B_CHAIN"' -O wimse` |
+| [`validation/bundle-payment/payment/capture.pcap`](validation/bundle-payment/payment/capture.pcap) (and [`handover/wimse_ai2ii/capture_scenario1.pcap`](handover/wimse_ai2ii/capture_scenario1.pcap)) | Suite 4: Harbor -> Northbank cross-domain WIMSE payment (`POST /api/transfer` on `:5070`) | 7 | 2 (1 full HTTP request/response exchange) | `5137fd90c2236088d563eb3d89ed89a65858f07249415c3ed8a38d90edbac3a5` | `tshark -r validation/bundle-payment/payment/capture.pcap -Y http` |
 
 ### 2.2 Negative Mutant Captures (Rejected by Independent Checkers)
 
@@ -46,6 +49,9 @@ Every independent checker is verified to exit non-zero on each of its negative P
 | [`checkers/negatives/p1_p8_unrelated.pcap`](checkers/negatives/p1_p8_unrelated.pcap) | `observes_p1_p8.py` | Non-WIMSE traffic on loopback | 3 | `1281856404dbd4572ae0de3970160c91d5458493fa2239c7134f566e23c51fe3` |
 | [`checkers/negatives/p1_p8_request_only.pcap`](checkers/negatives/p1_p8_request_only.pcap) | `observes_p1_p8.py` | `P2/P7/P8` requests on `:5064` with all HTTP responses stripped | 70 | `cb3bbef9651ff7199b3f9c3b317474aa218ffa78fb9f5d8034b35ebbdd5b5975` |
 | [`checkers/negatives/p1_p8_missing_before_effect.pcap`](checkers/negatives/p1_p8_missing_before_effect.pcap) | `observes_p1_p8.py` | Truncated to frames 1–20 so `P2_before-effect` response and `P2_outside-made-up-proof` / `P2_outside-no-agent-answer` before-effect revocation checks are missing | 20 | `726aef5de0bbd2ed2730abe582719f7ae926ad0c74a54f3dde5b4b0c582f6913` |
+| [`checkers/negatives/payment_unrelated.pcap`](checkers/negatives/payment_unrelated.pcap) | `observes_payment.py` | Non-payment traffic on loopback (no HTTP on port 5070) | 3 | `4d0fb85b5d12272031126f252573033c8396cb8eec4b6b35c3e3ae22973730ef` |
+| [`checkers/negatives/payment_request_only.pcap`](checkers/negatives/payment_request_only.pcap) | `observes_payment.py` | Cross-domain payment request only; Northbank 200 OK settlement response stripped | 6 | `6a64f8737704ed12394cc58eb69e822dcdb3b2e66680dc1df1d8afb90b5ca745` |
+| [`checkers/negatives/payment_tampered_digest.pcap`](checkers/negatives/payment_tampered_digest.pcap) | `observes_payment.py` | Request missing mandatory WIMSE WIT token and RFC 9421 signature | 7 | `d1615b5e927b7468aa67c346fa3dbff3489b69d085f5abcc785a933e44ddd920` |
 
 ---
 

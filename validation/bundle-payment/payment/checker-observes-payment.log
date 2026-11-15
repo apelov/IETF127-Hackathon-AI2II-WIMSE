@@ -1,0 +1,9 @@
+Checker observes_payment: pcap=capture.pcap
+  found_request  : True
+  valid_wit      : True
+  valid_sig      : True
+  valid_txn      : True
+  valid_payload  : True
+  found_response : True
+  valid_status   : True
+PASS: Cross-domain WIMSE payment wire exchange verified under AI2II Rule L4

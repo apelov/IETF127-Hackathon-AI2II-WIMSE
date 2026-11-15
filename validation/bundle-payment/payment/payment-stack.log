@@ -1,0 +1,4 @@
+Northbank Settlement Service initialized on port 5070.
+Trust domains loaded: harbor.example, northbank.example.
+POST /api/transfer: WIMSE WIT + RFC 9421 signature verified for wimse://harbor.example/agent/payments.
+Settlement completed for invoice 4471 ($4,200). Txn: 7f3a21. HTTP 200 OK.

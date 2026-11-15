@@ -1,0 +1,30 @@
+{
+  "aap_version": "1.0",
+  "grant_id": "aap-grant-4472-3c8b90",
+  "issuer": "https://opena2a.harbor.example",
+  "agent_id": "wimse://harbor.example/agent/payments",
+  "atx_credential_digest": "sha256:23e8f3be69b00174ac9c91e0be3ab157f75c25af5b1cbc46527dd2d8a4e371b2",
+  "scope": "payments:transfer",
+  "intent": {
+    "description": "pay invoice #4472, amount $150",
+    "invoice_id": "4472",
+    "amount": 150,
+    "currency": "USD",
+    "intent_hash": "sha256:bd02a1d6fee433081e22684ffa78465920ef842e2859743397e262559a4fef91"
+  },
+  "validity": {
+    "issued_at": "2026-11-15T18:22:27Z",
+    "expires_at": "2026-11-15T22:22:27Z",
+    "lifetime_seconds": 14400
+  },
+  "allowed_tools": [
+    "transfer"
+  ],
+  "status": "ACTIVE",
+  "signature": {
+    "signer": "https://opena2a.harbor.example",
+    "kid": "opena2a-1",
+    "alg": "ES256",
+    "value": "X8e66okOTARcPpvNE1qvaD2LfthKyipALbumQgE5YoVJ_JKfASVDxft1_FXFYCaWq7MQnD_3Tf3N1M9bsGtgyg"
+  }
+}

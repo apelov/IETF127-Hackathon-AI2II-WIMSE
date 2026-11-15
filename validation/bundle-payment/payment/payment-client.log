@@ -1,0 +1,8 @@
+OpenA2A Gatekeeper: ATX credential verified for Harbor Autonomous Payment Agent.
+AAP grant aap-grant-4471-7f3a21 active for invoice 4471 ($4,200).
+Tool call transfer() matches declared AAP intent -> ALLOWED.
+WIMSE client: Minted WIT and RFC 9421 HTTP signature.
+Dispatched POST /api/transfer to Northbank (:5070) -> HTTP 200 settled.
+AEP record_4471_paid.aep generated and signed.
+Scenario 2: Malicious secrets.read tool call intercepted and contained by OpenA2A -> STOPPED.
+Zero outbound network calls made to Northbank. AEP record_4472_stopped.aep generated.

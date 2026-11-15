@@ -1,0 +1,31 @@
+{
+  "aap_version": "1.0",
+  "grant_id": "aap-grant-4471-7f3a21",
+  "issuer": "https://opena2a.harbor.example",
+  "agent_id": "wimse://harbor.example/agent/payments",
+  "atx_credential_digest": "sha256:23e8f3be69b00174ac9c91e0be3ab157f75c25af5b1cbc46527dd2d8a4e371b2",
+  "scope": "payments:transfer",
+  "intent": {
+    "description": "pay invoice #4471 for supplier ACME Corp, max $4,500",
+    "invoice_id": "4471",
+    "supplier": "supplier_acme_iban_xxx",
+    "max_amount": 4500,
+    "currency": "USD",
+    "intent_hash": "sha256:52cd9467f88952c885964f928533ee5e50c5760f6e2a3e7b488fec20b299e796"
+  },
+  "validity": {
+    "issued_at": "2026-11-15T18:22:27Z",
+    "expires_at": "2026-11-15T22:22:27Z",
+    "lifetime_seconds": 14400
+  },
+  "allowed_tools": [
+    "transfer"
+  ],
+  "status": "ACTIVE",
+  "signature": {
+    "signer": "https://opena2a.harbor.example",
+    "kid": "opena2a-1",
+    "alg": "ES256",
+    "value": "GsPD5sx4M4cXul9zLUxJqvZAedhNqG6cmHKLfCsBEuDeYjBaddtQZtvnz-kR_EXpXfKUQZiU5_C3Zzn__mEtAg"
+  }
+}

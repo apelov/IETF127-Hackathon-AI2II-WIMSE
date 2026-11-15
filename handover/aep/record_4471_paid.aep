@@ -1,0 +1,38 @@
+{
+  "aep_version": "1.0",
+  "record_id": "aep-rec-4471-settled",
+  "status": "PAID",
+  "timestamp": "2026-11-15T18:22:27Z",
+  "agent_identity": {
+    "agent_id": "wimse://harbor.example/agent/payments",
+    "atx_digest": "sha256:23e8f3be69b00174ac9c91e0be3ab157f75c25af5b1cbc46527dd2d8a4e371b2"
+  },
+  "authorization": {
+    "aap_grant_id": "aap-grant-4471-7f3a21",
+    "intent_hash": "sha256:52cd9467f88952c885964f928533ee5e50c5760f6e2a3e7b488fec20b299e796"
+  },
+  "cross_domain_evidence": {
+    "protocol": "WIMSE-AI2II",
+    "source_domain": "wimse://harbor.example",
+    "destination_domain": "wimse://northbank.example",
+    "endpoint": "/api/transfer",
+    "wimse_txn": "7f3a21",
+    "settlement_status": "settled",
+    "pcap_file": "capture_scenario1.pcap"
+  },
+  "executed_action": {
+    "tool": "transfer",
+    "parameters": {
+      "to": "supplier_acme_iban_xxx",
+      "amount": 4200,
+      "invoice": "4471"
+    }
+  },
+  "receipt": "nb-rcpt-7f3a21-4471",
+  "signature": {
+    "signer": "https://opena2a.harbor.example",
+    "kid": "opena2a-1",
+    "alg": "ES256",
+    "value": "Nfz0qje3Xi4b-heYH1umcuMjYXVzJqYWV8xP58Qw-za9Qs0E5xEW9o4mL8Dst10PO2yUPsL13SUTvI1Xw6_CjQ"
+  }
+}
