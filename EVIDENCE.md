@@ -20,7 +20,7 @@ PASS	payment	opena2a-wims	validation/bundle-payment/payment
 |---|---|---|---|---|---|
 | `inbound` | **PASS** | [`validation/bundle-inbound/inbound/`](validation/bundle-inbound/inbound/) | `1d342023567c6f53994ebee7fd6a33225f4018782c840c6fcb14d36617caed2d` | [`validation/nemotron-review.md`](validation/nemotron-review.md) (`nvidia/nemotron-3-ultra-550b-a55b:free`) | `false` |
 | `chain` | **PASS** | [`validation/bundle-chain/chain/`](validation/bundle-chain/chain/) | `937ea8a9728c6d35d79535eeab4603b97a269900a312dc75601e9b472f364d44` | [`validation/nemotron-p1-p8-review.md`](validation/nemotron-p1-p8-review.md) (`nvidia/nemotron-3-ultra-550b-a55b:free`) · [`validation/gemini-p1-p8-review.md`](validation/gemini-p1-p8-review.md) (`gemini-4-argon`) · [`validation/opus-chain-review.md`](validation/opus-chain-review.md) (`claude -p --model opus`) | `false` |
-| `payment` | **PASS** | [`validation/bundle-payment/payment/`](validation/bundle-payment/payment/) | `adf295230ba85f27c9bc0a396775a629c86e0dbb568cbd37bc783003b903a8b7` | [`handover/aep/aep_verification_report.md`](handover/aep/aep_verification_report.md) (Anton's AEP Offline Verifier) · [`checkers/observes_payment.py`](checkers/observes_payment.py) (Independent L4 Wire Checker) | `false` |
+| `payment` | **PASS** | [`validation/bundle-payment/payment/`](validation/bundle-payment/payment/) | `adf295230ba85f27c9bc0a396775a629c86e0dbb568cbd37bc783003b903a8b7` | [`handover/aep/aep_verification_report.md`](handover/aep/aep_verification_report.md) (AEP Prototype Offline Verifier - Internal Simulation) · [`checkers/observes_payment.py`](checkers/observes_payment.py) (Independent L4 Wire Checker) | `false` |
 
 ---
 

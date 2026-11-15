@@ -115,7 +115,7 @@ assert sb_manifest["results"]["no-agent-answer"]["outside"]["reason"] == "no-age
 print(f"  -> Redthread+MintID sandbox negative-control manifest verified ({len(sb_lines)} JSONL records)")
 PY
 
-echo "=== [6/6] Running Anton's AEP Offline Verifier on Handover Bundle ==="
+echo "=== [6/6] Running AEP Prototype Verifier (Internal Simulation) on Handover Bundle ==="
 .venv/bin/python aep/verifier.py --handover handover
 
 if [ "${1:-}" = "--live" ]; then

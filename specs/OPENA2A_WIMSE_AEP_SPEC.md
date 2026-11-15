@@ -54,7 +54,7 @@ A fictional enterprise (**Harbor**) deploys an autonomous payment agent (`Harbor
 | **OpenA2A Guard** | `https://opena2a.harbor.example` | Validates ATX credential, mints 4h AAP grant, compares tool calls with intent | Abdel Fane |
 | **WIMSE / AI2II** | `wimse://harbor.example` $\rightarrow$ `wimse://northbank.example` | Cross-domain token exchange & signed wire transport | Alexander Pelov |
 | **Northbank** | `wimse://northbank.example/api/transfer` | Financial endpoint settling supplier payments | Alexander / Mock |
-| **AEP Verifier** | Offline | Verifies `.aep` evidence packages citing ATX digest | Anton |
+| **AEP Verifier** | Offline | Verifies `.aep` (ZIP) evidence packages citing ATX digest via `eatf-verifier` | Anton |
 
 ---
 
@@ -79,7 +79,7 @@ A fictional enterprise (**Harbor**) deploys an autonomous payment agent (`Harbor
      - Status: `PAID`
      - Cites ATX digest: `atx_digest = "sha256:8b4f..."`
      - Cites AAP grant ID & WIMSE transaction UUID `7f3a21`.
-   - Anton's AEP verifier checks `record_4471.aep` offline $\rightarrow$ **PASS**.
+   - AEP verifier checks `record_4471.aep` offline (planned with `eatf-verifier`).
 
 ---
 
@@ -104,7 +104,7 @@ A fictional enterprise (**Harbor**) deploys an autonomous payment agent (`Harbor
      - Status: `STOPPED`
      - Reason: `intent-mismatch: secrets.read not permitted under AAP grant #4472`
      - Cites ATX digest and attempted tool call.
-   - Anton's AEP verifier checks `record_4472_blocked.aep` offline $\rightarrow$ **PASS (Confirmed Contained)**.
+   - AEP verifier checks `record_4472_blocked.aep` offline (planned with `eatf-verifier`).
 
 ---
 
@@ -127,7 +127,7 @@ handover/
 └── aep/
     ├── record_4471_paid.aep         # Signed AEP package for successful payment
     ├── record_4472_stopped.aep      # Signed AEP package for blocked prompt injection
-    └── aep_verification_report.md   # Anton's offline verifier output
+    └── aep_verification_report.md   # Offline verifier report (Simulation; official eatf-verifier run pending)
 ```
 
 ---
