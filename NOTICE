@@ -1,0 +1,41 @@
+IETF 127 Hackathon: WIMSE interop scenarios for agent call chains
+Copyright 2026 Alexander Pelov
+
+Licensing
+---------
+Work by Alexander Pelov in this repository is available under either the
+Apache License 2.0 (LICENSE-APACHE) or the MIT License (LICENSE-MIT), at your
+option. This covers the harness, peers, checkers, vendored wire/ runner,
+dissector, work packages, documentation, and the captures, journals and
+evidence bundles produced by this harness.
+
+Third-party contributions (not relicensed)
+------------------------------------------
+The following were provided by other parties and remain credited to them.
+They are included for interoperability evidence. They are NOT covered by the
+licences above; the terms of each contributor apply, and reuse should be
+confirmed with them.
+
+  Redthread Security (Ben Le), draft-le-agent-passport:
+    scenarios/p1_p8/redthread-*.jsonl, redthread-*.manifest.json
+    scenarios/p1_p8/protected_op.py, run_local.py, run_mintid_sandbox.py,
+    mintid_outside.py (outside-verifier hook design)
+    scenarios/p1_p8/originals/redthread-*.zip
+
+  MintID (Marc Miro i Rierola):
+    scenarios/p1_p8/revocation-trace-testnet-20261114T104257Z.*
+
+  Scenario definitions (ietf127-wimse-scenario/1), with the contributors
+  named in each file and in SCENARIOS_AND_AUTHORS.md:
+    scenarios/p1_p8/P2-*.json  (Ben Le, Iman Schrock / EMILIA Protocol,
+                                Marc Miro / MintID)
+    scenarios/p1_p8/P7-*.json  (OmniArx)
+    scenarios/p1_p8/P8-*.json  (Cred)
+
+  Iman Schrock (EMILIA Protocol): before-effect test design for P2. Credit
+  for test design only; no EMILIA Protocol code is included.
+
+Not included
+------------
+bin/maurice (the AgentMaurice binary) and generated keys/ are not tracked and
+are not covered by these licences.

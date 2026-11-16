@@ -195,8 +195,8 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
     bullets2 = [
         ("AI2II Rule L4 (Zero Log Trust)", "Packet checkers inspect ONLY raw .pcap bytes via tshark. Zero reliance on application logs."),
         ("Wireshark Dissector (dissectors/wimse.lua)", "Custom Lua dissector visually decodes WIT, WPT, Txn-Tokens, and RFC 9421 signatures in Wireshark GUI."),
-        ("Live Testnet Integration (WP09)", "Verified live against MintID Tendermint RPC (:443/status) and Verifier (verifier.testnet.mintid.net)."),
-        ("Multi-Partner Revocation", "Simulated clock bounds (Redthread), live ZK witness refreshes (MintID), display match (OmniArx)."),
+        ("Live Testnet Probes (WP09)", "3 live endpoint probes (MintID RPC, verifier status/build-info). Live positive and revoked-agent P2 cases: NOT RUN (mocked)."),
+        ("Multi-Partner Revocation", "Simulated-clock bounds (Redthread), recorded MintID testnet trace, OmniArx vectors (reported externally)."),
         ("4 Independent AI Family Audits", "Full code and PCAP verification by Claude Opus, Gemini, NVIDIA Nemotron, and Mistral Vibe."),
     ]
     for b_title, b_desc in bullets2:
@@ -240,9 +240,9 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
         ("Suite 1: Inbound Matrix", "34/34", "✅ PASS"),
         ("Suite 2: 9-Hop Chain & Attacks", "19/19", "✅ PASS"),
         ("Suite 3: Partner Manifests", "32/32", "✅ PASS"),
-        ("Suite 4: Live Partner Testnet", "7/7", "✅ PASS"),
+        ("Suite 4: Live probes (4 hook cases mocked)", "3/3", "✅ PASS"),
         ("Negative Control Mutants", "9/9", "🛡️ REJ"),
-        ("TOTAL REPRODUCIBILITY", "92/92", "100% PASS"),
+        ("Live positive/revoked P2", "0/2", "NOT RUN"),
     ]
     for row_idx, (name, count, res) in enumerate(scores):
         for col_idx, val in enumerate((name, count, res)):

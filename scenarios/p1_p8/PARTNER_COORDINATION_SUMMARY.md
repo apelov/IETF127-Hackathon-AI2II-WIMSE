@@ -8,7 +8,7 @@ This document summarizes the technical coordination, scenario definitions (`form
 
 | Participant | Organization / Project | Contributions |
 |---|---|---|
-| **Iman Schrock** | Interop Coordinator & Reviewer | Scenario synthesis (`P1–P8`), cross-vendor bound & manifest verification, time-origin alignment |
+| **Iman Schrock** | EMILIA Protocol (interop reviewer; `P2` before-effect test design, no EMILIA runtime integration) | Scenario synthesis (`P1–P8`), cross-vendor bound & manifest verification, time-origin alignment |
 | **Ben Le** | Redthread Security (`v0.7.584` / `v0.7.586`) | `P1–P6` verifier & `ProtectedOperation` executor (`protected_op.py`), `run_local.py`, `P2`/`P7`/`P8` JSON revisions, live MintID sandbox outside-verifier runner (`run_mintid_sandbox.py`) |
 | **Marc Miro i Rierola** | MintID (`public-v2026-11-13.1` / `public-v2026-11-11.1`) | `P2` live testnet revocation traces (`issuer`, `kill_switch`, `cascade`) on `mintid-testnet-3`, witness-refresh attribution control, SPEC-1 R18 verifier notes |
 | **Arun Thallapelly** | OmniArx | `P7` test vectors (`V1`, `V4`, `V5`, `R2`) at fixed clock `1800000000` (`A.1` key, `A.2` action, `A.5` request, fresh replay state) |

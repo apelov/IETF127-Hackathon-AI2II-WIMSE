@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # setup/clone_partners.sh
-# Idempotent cloning and validation of emilia-protocol + MintID testnet configuration
+# Validation of the MintID testnet configuration and endpoint health.
+# Redthread Security (Ben Le) is a separate project from EMILIA Protocol. Its code is NOT cloned
+# here: no public source location exists yet, so the committed copies in scenarios/p1_p8/ are used.
 
 set -euo pipefail
 
@@ -8,11 +10,8 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "${ROOT}"
 
 # Configuration
-EMILIA_REPO="https://github.com/emiliaprotocol/emilia-protocol"
-EMILIA_TAG="v0.7.586"
 MINTID_NETWORKS_JSON="deploy/networks.json"
 EXTERNAL_DIR="external"
-EMILIA_DIR="${EXTERNAL_DIR}/emilia-protocol"
 HEALTH_CHECK_TIMEOUT=5
 HEALTH_CHECK_RETRIES=2
 
@@ -26,28 +25,6 @@ warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 err()  { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 
 mkdir -p "${EXTERNAL_DIR}"
-
-clone_emilia() {
-    if [[ -d "${EMILIA_DIR}/.git" ]]; then
-        log "emilia-protocol already cloned at ${EMILIA_DIR}; checking repository status..."
-    elif [[ -f "${EMILIA_DIR}/app/rp_policy.py" ]]; then
-        log "emilia-protocol sources present at ${EMILIA_DIR}."
-    else
-        log "Attempting to clone emilia-protocol (${EMILIA_REPO})..."
-        if git clone --depth 1 "${EMILIA_REPO}" "${EMILIA_DIR}" 2>/dev/null; then
-            log "Successfully cloned emilia-protocol."
-        else
-            warn "Direct git clone failed (network/auth restricted). Falling back to unpacked partner modules if available..."
-            # Check if partner archive exists in scenarios/p1_p8/originals/
-            mkdir -p "${EMILIA_DIR}/app" "${EMILIA_DIR}/tests" "${EMILIA_DIR}/docs/hackathon/ietf127"
-            if [[ -f "scenarios/p1_p8/protected_op.py" ]]; then
-                cp scenarios/p1_p8/protected_op.py "${EMILIA_DIR}/app/"
-                cp scenarios/p1_p8/run_local.py "${EMILIA_DIR}/docs/hackathon/ietf127/"
-                cp scenarios/p1_p8/run_mintid_sandbox.py "${EMILIA_DIR}/docs/hackathon/ietf127/" 2>/dev/null || true
-            fi
-        fi
-    fi
-}
 
 validate_networks_json() {
     local networks_file="${ROOT}/${MINTID_NETWORKS_JSON}"
@@ -124,7 +101,6 @@ run_health_checks() {
 
 main() {
     log "=== WP09 Partner Setup & Testnet Health Check ==="
-    clone_emilia
     validate_networks_json
     run_health_checks
     log "Partner setup complete. Mode: ${MINTID_MODE}"

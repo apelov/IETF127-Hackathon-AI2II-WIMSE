@@ -88,13 +88,14 @@ def verify_live_endpoints(networks: dict) -> tuple[int, int, str]:
     return cases_checked, errors, mode
 
 
-def verify_executor_outside_hooks(verifier_url: str, mode: str) -> tuple[int, int]:
+def verify_executor_outside_hooks(verifier_url: str, mode: str) -> tuple[int, int, int]:
     sys.path.insert(0, str(SCENARIOS_DIR))
     sys.path.insert(0, str(ROOT / "peers"))
     import mintid_outside
     from protected_op import ProtectedOperation
 
-    cases_checked = 0
+    cases_checked = 0  # cases that exercised the live verifier
+    mocked = 0  # cases answered by fixed in-process responses (not live)
     errors = 0
 
     class MockSimulatedVerifier:
@@ -115,8 +116,11 @@ def verify_executor_outside_hooks(verifier_url: str, mode: str) -> tuple[int, in
     op1 = ProtectedOperation(MockSimulatedVerifier(), lambda r: "ran", None, outside=outside_made_up)
     res1 = op1.run({}, "high", {}, "txn-live-1")
     if res1["decision"] == "deny" and res1["effect"] == "none" and res1["reason"] == "proof_invalid":
-        cases_checked += 1
-        print("CHECK LIVE_OUTSIDE_MADE_UP decision=deny reason=proof_invalid effect=none")
+        if mode == "LIVE":
+            cases_checked += 1
+        else:
+            mocked += 1
+        print(f"CHECK {'LIVE' if mode == 'LIVE' else 'MOCKED'}_OUTSIDE_MADE_UP decision=deny reason=proof_invalid effect=none")
     else:
         errors += 1
         print(f"FAIL LIVE_OUTSIDE_MADE_UP expected deny/proof_invalid/none, got {res1}", file=sys.stderr)
@@ -129,39 +133,42 @@ def verify_executor_outside_hooks(verifier_url: str, mode: str) -> tuple[int, in
     op2 = ProtectedOperation(MockSimulatedVerifier(), lambda r: "ran", None, outside=outside_no_answer)
     res2 = op2.run({}, "high", {}, "txn-live-2")
     if res2["decision"] == "deny" and res2["effect"] == "none" and res2["reason"] == "no-agent-answer":
-        cases_checked += 1
-        print("CHECK LIVE_OUTSIDE_NO_ANSWER decision=deny reason=no-agent-answer effect=none")
+        if mode == "LIVE":
+            cases_checked += 1
+        else:
+            mocked += 1
+        print(f"CHECK {'LIVE' if mode == 'LIVE' else 'MOCKED'}_OUTSIDE_NO_ANSWER decision=deny reason=no-agent-answer effect=none")
     else:
         errors += 1
         print(f"FAIL LIVE_OUTSIDE_NO_ANSWER expected deny/no-agent-answer/none, got {res2}", file=sys.stderr)
 
-    # Case 3: positive revoked must result in status_root_stale -> 403 / effect: none
+    # Case 3 (MOCKED): revoked must result in status_root_stale -> 403 / effect: none
     outside_revoked = lambda: mintid_outside.CheckResult(
         False, "status_root_stale", {"session_id": "test-revoked"}
     )
     op3 = ProtectedOperation(MockSimulatedVerifier(), lambda r: "ran", None, outside=outside_revoked)
     res3 = op3.run({}, "high", {}, "txn-live-3")
     if res3["decision"] == "deny" and res3["effect"] == "none" and res3["reason"] == "status_root_stale":
-        cases_checked += 1
-        print("CHECK LIVE_OUTSIDE_REVOKED decision=deny reason=status_root_stale effect=none")
+        mocked += 1  # fixed response; the live revoked-agent case has NOT been run
+        print("CHECK MOCKED_OUTSIDE_REVOKED decision=deny reason=status_root_stale effect=none (fixed response, not run live)")
     else:
         errors += 1
         print(f"FAIL LIVE_OUTSIDE_REVOKED expected deny/status_root_stale/none, got {res3}", file=sys.stderr)
 
-    # Case 4: positive unrevoked must result in accepted -> 200 / effect: ran
+    # Case 4 (MOCKED): unrevoked must result in accepted -> 200 / effect: ran
     outside_unrevoked = lambda: mintid_outside.CheckResult(
         True, "accepted", {"session_id": "test-unrevoked"}
     )
     op4 = ProtectedOperation(MockSimulatedVerifier(), lambda r: "ran", None, outside=outside_unrevoked)
     res4 = op4.run({}, "high", {}, "txn-live-4")
     if res4["decision"] == "allow" and res4["effect"] == "ran" and res4["reason"] == "accepted":
-        cases_checked += 1
-        print("CHECK LIVE_OUTSIDE_UNREVOKED decision=allow reason=accepted effect=ran")
+        mocked += 1  # fixed response; the live positive (valid-agent) case has NOT been run
+        print("CHECK MOCKED_OUTSIDE_UNREVOKED decision=allow reason=accepted effect=ran (fixed response, not run live)")
     else:
         errors += 1
         print(f"FAIL LIVE_OUTSIDE_UNREVOKED expected allow/accepted/ran, got {res4}", file=sys.stderr)
 
-    return cases_checked, errors
+    return cases_checked, mocked, errors
 
 
 def main():
@@ -175,12 +182,12 @@ def main():
 
     print(f"=== [WP09] Live Partner & Testnet Verification ({verifier_url}) ===")
     ep_cases, ep_errors, mode = verify_live_endpoints(networks)
-    hook_cases, hook_errors = verify_executor_outside_hooks(verifier_url, mode)
+    hook_cases, hook_mocked, hook_errors = verify_executor_outside_hooks(verifier_url, mode)
 
     total_cases = ep_cases + hook_cases
     total_errors = ep_errors + hook_errors
 
-    print(f"SUMMARY cases={total_cases} errors={total_errors} mode={mode}")
+    print(f"SUMMARY live_cases={total_cases} mocked_cases={hook_mocked} errors={total_errors} mode={mode}")
     sys.exit(1 if total_errors > 0 else 0)
 
 

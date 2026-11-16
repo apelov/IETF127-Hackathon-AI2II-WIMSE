@@ -11,7 +11,7 @@ This repository contains the complete implementation, loopback packet captures (
   - **Suite 3 (`chain` cell + partner traces):** Extended partner scenarios `P1–P8` (`ietf127-wimse-scenario/1`) — live `P2/P7/P8` HTTP execution on `:5064` plus full trace verification of Redthread `P1–P6`, MintID live `mintid-testnet-3` non-revocation proofs, OmniArx `P7` approval display vectors, and Cred `P8` pre-release vs post-release bearer revocation boundaries.
 - **[`EVIDENCE.md`](EVIDENCE.md)** — Exact SHA-256 digests, packet counts, and `tshark` one-liners for all committed `.pcap` captures, negative PCAP mutants, and `.jsonl` journals.
 - **[`scenarios/p1_p8/PARTNER_COORDINATION_SUMMARY.md`](scenarios/p1_p8/PARTNER_COORDINATION_SUMMARY.md)** — Sanitized technical summary of the multi-party design and trace-verification discussions across `P1–P8`.
-- **[`workpackages/WP09-live-emilia-and-mintid-testnet.md`](workpackages/WP09-live-emilia-and-mintid-testnet.md)** — **Future TODO specification** for cloning `emilia-protocol` (Redthread) and `mintid` (`deploy/networks.json` `testnet` profile: `issuer`, `verifier`, `relay`, `rpc.testnet.mintid.net:443`) to run `P1–P6` and positive/negative `P2` ZK non-revocation proofs live end-to-end.
+- **[`workpackages/WP09-live-redthread-and-mintid-testnet.md`](workpackages/WP09-live-redthread-and-mintid-testnet.md)** — **Future TODO specification** for running Redthread (source location to be provided by Ben Le) and `mintid` (`deploy/networks.json` `testnet` profile: `issuer`, `verifier`, `relay`, `rpc.testnet.mintid.net:443`) to run `P1–P6` and positive/negative `P2` ZK non-revocation proofs live end-to-end.
 - **[`VERIFY.md`](VERIFY.md)** — Detailed manual walkthrough for inspecting individual cases and logs.
 
 ---
@@ -96,3 +96,7 @@ PASS	chain	8f8441e4af00	validation/bundle-chain/chain
 
 - **`inbound` (`validation/bundle-inbound/inbound/`):** 34/34 cases passed against `bin/maurice` (sha256 `36f92fe8...`), verified by `checkers/observes_wimse.py` (NVIDIA Nemotron Ultra), rejecting all 3 negative mutants (`unrelated.pcap`, `request_only.pcap`, `forbidden_fetch.pcap`).
 - **`chain` (`validation/bundle-chain/chain/`):** 19/19 3-agent cross-domain call-chain & attack cases (`:5050–5063`) + 10/10 live `P2/P7/P8` partner scenario cases (`:5064`) passed, verified by `checkers/observes_chain.py` and `checkers/observes_p1_p8.py`, rejecting all 6 negative mutants (`chain_unrelated.pcap`, `chain_request_only.pcap`, `chain_leaked_txn.pcap`, `p1_p8_unrelated.pcap`, `p1_p8_request_only.pcap`, `p1_p8_missing_before_effect.pcap`).
+
+## License
+
+Work by Alexander Pelov is available under either the [Apache License 2.0](LICENSE-APACHE) or the [MIT License](LICENSE-MIT), at your option. Files contributed by Redthread Security, MintID, OmniArx, Cred and others remain credited to them and are not relicensed; see [`NOTICE`](NOTICE).

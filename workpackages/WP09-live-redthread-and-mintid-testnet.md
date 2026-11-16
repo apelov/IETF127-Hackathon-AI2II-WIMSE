@@ -1,4 +1,4 @@
-# WP09 (Future TODO) — Live `emilia-protocol` (Redthread) + `mintid-testnet-3` Integration
+# WP09 (Future TODO) — Live Redthread + `mintid-testnet-3` Integration
 
 Tier: mini-code / live-testnet
 Status: **Planned / Future TODO**
@@ -18,9 +18,11 @@ When a developer clones both external partner repositories alongside this reposi
 
 ## 2. External Repositories & Live Testnet Endpoints
 
-### 2.1 Redthread Security (`emilia-protocol`)
-- **Repository:** `https://github.com/emiliaprotocol/emilia-protocol` (release `v0.7.586`+, commits `a09a616`, `ac4d088`, `39f7531`, `358c1ad`)
-- **Provided Modules (`app/` & `tests/`):**
+### 2.1 Redthread Security (Ben Le)
+- **Implementation:** `draft-le-agent-passport`, version `0.7.591`, commit `3a6560c`. Verifier `app/atpp_verify.py` with `app/delegation.py`; protected-operation executor `app/protected_op.py`.
+- **Repository:** none linked. Ben Le will provide the public citation location; do not link or clone a repository for Redthread until then. Redthread is **not** EMILIA Protocol and `emilia-protocol` is a separate project that is not a Redthread dependency.
+- **Earlier trace provenance:** the committed `P1–P6` traces are headed `0.7.584` and the sandbox run `0.7.586`; reconcile with the `0.7.591` attribution and the file hashes Ben Le sent on 15 Nov 17:59 UTC (not yet in this repo).
+- **Modules referenced by the plan below (names from Redthread's `app/` & `tests/`, unverified until a source location is given):**
   - `rp_policy` (`rp.LOW`, `rp.HIGH`)
   - `atpp_world` (`GOOD_TRANSPORT`, simulated & real clock modes, status-list cache/TTL, tool-digest registry)
   - `test_atpp_delegation` (`_signed`, `two_hop`, Ed25519 Agent Passport chain minting)
@@ -71,15 +73,15 @@ File Tool (:5063) wrapped in Redthread ProtectedOperation (protected_op.py)
 ## 4. Implementation Deliverables
 
 1. **Workspace Checkout Helper (`setup/clone_partners.sh`):**
-   - Clones `https://github.com/emiliaprotocol/emilia-protocol` into `external/emilia-protocol` (pinned to `v0.7.586`+) and links/validates the MintID checkout + `deploy/networks.json` (`profile: testnet`).
+   - Obtains Redthread's source from the location Ben Le will provide (pinned to `0.7.591`, commit `3a6560c`) and links/validates the MintID checkout + `deploy/networks.json` (`profile: testnet`).
    - Verifies live reachability of all 4 MintID testnet endpoints:
      - `https://issuer.testnet.mintid.net`
      - `https://verifier.testnet.mintid.net/v1/build-info` & `/v1/status`
      - `https://relay.testnet.mintid.net`
      - `https://rpc.testnet.mintid.net:443/status`
 
-2. **Live `P1–P6` Regeneration via `emilia-protocol` (`scenarios/p1_p8/run_local.py`):**
-   - Adds `PYTHONPATH=external/emilia-protocol/app:external/emilia-protocol/tests` so `python3 scenarios/p1_p8/run_local.py` executes Redthread's native verifier and regenerates `redthread-P1..P6-local.jsonl` and `redthread-local.manifest.json` live.
+2. **Live `P1–P6` Regeneration via Redthread (source location pending) (`scenarios/p1_p8/run_local.py`):**
+   - Adds `PYTHONPATH=external/redthread/app:external/redthread/tests` so `python3 scenarios/p1_p8/run_local.py` executes Redthread's native verifier and regenerates `redthread-P1..P6-local.jsonl` and `redthread-local.manifest.json` live.
 
 3. **Positive & Negative Live `P2` + MintID Testnet Execution (`scenarios/p1_p8/run_mintid_sandbox.py` & `peers/p2_p7_p8_executor.py`):**
    - Implements `mintid_live_answer(challenge)` in `scenarios/p1_p8/mintid_outside.py` using the MintID SDK (`deploy/networks.json`, profile `testnet`) to replace the placeholder `answer` in `run_mintid_sandbox.py`.
@@ -93,7 +95,7 @@ File Tool (:5063) wrapped in Redthread ProtectedOperation (protected_op.py)
    - Adds an optional `--mintid-outside https://verifier.testnet.mintid.net` flag to `peers/domain_b.py` so the File Tool (`POST /files/read`) invokes `ProtectedOperation(..., outside=mintid_outside.outside(...))` before serving `Q3.pdf`.
 
 5. **Optional `live-partners` Cell in `interop.yaml` & `reproduce.sh --live-testnet`:**
-   - Adds a `live-partners` cell to `interop.yaml` (gated on `envcheck` confirming `external/emilia-protocol` and `https://verifier.testnet.mintid.net/v1/status` are reachable) and an independent checker `checkers/observes_live_partners.py`.
+   - Adds a `live-partners` cell to `interop.yaml` (gated on `envcheck` confirming `external/redthread` and `https://verifier.testnet.mintid.net/v1/status` are reachable) and an independent checker `checkers/observes_live_partners.py`.
 
 ---
 
@@ -105,6 +107,15 @@ curl -fsS https://verifier.testnet.mintid.net/v1/build-info | jq .
 curl -fsS https://verifier.testnet.mintid.net/v1/status | jq .
 
 # 2. Run Redthread P1-P6 + MintID live sandbox (negative + positive cases):
-PYTHONPATH=external/emilia-protocol/app:external/emilia-protocol/tests \
+PYTHONPATH=external/redthread/app:external/redthread/tests \
   .venv/bin/python scenarios/p1_p8/run_mintid_sandbox.py https://verifier.testnet.mintid.net
 ```
+
+
+---
+
+## Attribution note
+
+**EMILIA Protocol** is Iman Schrock's affiliation. Iman's contribution is the `P2` before-effect test design. No EMILIA Protocol runtime is integrated or exercised by this repository.
+
+The live positive (valid-agent) and revoked-agent `P2` sandbox cases have **not been run** and are mocked in `checkers/observes_live_partners.py`. Next useful result: one valid-agent operation followed by a revoked-agent attempt, recording the fresh verifier decision and the actual operation outcome together, with each implementation's time origin and propagation bound beside it.
