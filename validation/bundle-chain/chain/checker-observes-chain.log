@@ -1,22 +1,22 @@
-CHECK B_CHAIN ref=Phase-B statuses=[200, 200, 200, 200, 200, 200, 200, 200, 200]
-CHECK C5 ref=ATK-5 statuses=[400]
-CHECK C6 ref=ATK-6 statuses=[403]
-CHECK C7 ref=ATK-7 statuses=[200, 200, 200, 403]
-CHECK C8 ref=ATK-8 statuses=[200, 200, 200, 403]
-CHECK C9 ref=ATK-9a statuses=[403]
-CHECK C9b ref=ATK-9b statuses=[403]
-CHECK C10 ref=ATK-10 statuses=[200, 200, 403, 200]
-CHECK D1 ref=TXN-1 statuses=[400]
-CHECK D2 ref=TXN-2 statuses=[401, 401]
-CHECK D3_exp ref=TXN-3a statuses=[403]
-CHECK D3_sig ref=TXN-3b statuses=[403]
-CHECK D3_typ ref=TXN-3c statuses=[403]
-CHECK D3_reqwl ref=TXN-3d statuses=[403]
-CHECK D3_dup ref=TXN-3e statuses=[403]
-CHECK D4 ref=TXN-4 statuses=[403]
-CHECK D5 ref=CHAIN-1 statuses=[403]
-CHECK D6 ref=TXO-4/5 statuses=[200, 200, 200, 200]
-CHECK D7 ref=CHAIN-2 statuses=[200, 200, 403]
+CHECK B_CHAIN ref=Phase-B statuses=[200, 200, 200, 200, 200, 200, 200, 200, 200] reason=accept
+CHECK C5 ref=ATK-5 statuses=[400] reason=proof-invalid
+CHECK C6 ref=ATK-6 statuses=[403] reason=txn-token-invalid
+CHECK C7 ref=ATK-7 statuses=[200, 200, 200, 403] reason=not-authorized
+CHECK C8 ref=ATK-8 statuses=[200, 200, 200, 403] reason=accept
+CHECK C9 ref=ATK-9a statuses=[403] reason=not-authorized
+CHECK C9b ref=ATK-9b statuses=[403] reason=not-authorized
+CHECK C10 ref=ATK-10 statuses=[200, 200, 403, 200] reason=revoked
+CHECK D1 ref=TXN-1 statuses=[400] reason=proof-invalid
+CHECK D2 ref=TXN-2 statuses=[401, 401] reason=proof-invalid
+CHECK D3_exp ref=TXN-3a statuses=[403] reason=txn-token-invalid
+CHECK D3_sig ref=TXN-3b statuses=[403] reason=txn-token-invalid
+CHECK D3_typ ref=TXN-3c statuses=[403] reason=txn-token-invalid
+CHECK D3_reqwl ref=TXN-3d statuses=[403] reason=txn-token-invalid
+CHECK D3_dup ref=TXN-3e statuses=[403] reason=txn-token-invalid
+CHECK D4 ref=TXN-4 statuses=[403] reason=not-authorized
+CHECK D5 ref=CHAIN-1 statuses=[403] reason=grant-invalid
+CHECK D6 ref=TXO-4/5 statuses=[200, 200, 200, 200] reason=accept
+CHECK D7 ref=CHAIN-2 statuses=[200, 200, 403] reason=grant-invalid
 SUMMARY cases=19 errors=0
 --- negative: checkers/negatives/chain_unrelated.pcap replaces {capture}
 FAIL B_CHAIN: missing from capture
@@ -38,50 +38,54 @@ FAIL D4: missing from capture
 FAIL D5: missing from capture
 FAIL D6: missing from capture
 FAIL D7: missing from capture
-FAIL B_CHAIN: missing expected multi-agent hop ports {5060, 5061, 5062, 5063, 5051}
+FAIL B_CHAIN: missing expected multi-agent hop ports {5060, 5061, 5062, 5063, 5050, 5051}
+FAIL B_CHAIN: missing verified WPT wth/tth SHA-256 binding on :5063
+FAIL D2: missing WWW-Authenticate: WPT challenge on 401 response
 FAIL B_CHAIN: expected exactly 1 unified txn UUID across hops, got set()
-SUMMARY cases=19 errors=21
+SUMMARY cases=19 errors=23
 --- negative: checkers/negatives/chain_request_only.pcap replaces {capture}
-FAIL B_CHAIN: request on stream 1 (dstport 5051) has no response
-FAIL B_CHAIN: request on stream 2 (dstport 5051) has no response
-FAIL B_CHAIN: request on stream 3 (dstport 5061) has no response
-FAIL B_CHAIN: request on stream 4 (dstport 5060) has no response
-FAIL B_CHAIN: request on stream 5 (dstport 5061) has no response
-FAIL B_CHAIN: request on stream 6 (dstport 5062) has no response
-FAIL B_CHAIN: request on stream 7 (dstport 5061) has no response
-FAIL B_CHAIN: request on stream 8 (dstport 5063) has no response
-FAIL C5: request on stream 9 (dstport 5063) has no response
-FAIL C6: request on stream 10 (dstport 5063) has no response
-FAIL C7: request on stream 11 (dstport 5062) has no response
-FAIL C7: request on stream 12 (dstport 5061) has no response
-FAIL C7: request on stream 13 (dstport 5063) has no response
-FAIL C7: request on stream 14 (dstport 5063) has no response
-FAIL C8: request on stream 15 (dstport 5062) has no response
-FAIL C8: request on stream 16 (dstport 5061) has no response
-FAIL C8: request on stream 17 (dstport 5063) has no response
-FAIL C8: request on stream 18 (dstport 5063) has no response
-FAIL C9: request on stream 19 (dstport 5063) has no response
-FAIL C9b: request on stream 20 (dstport 5063) has no response
-FAIL C10: request on stream 21 (dstport 5063) has no response
-FAIL C10: request on stream 22 (dstport 5063) has no response
-FAIL C10: request on stream 23 (dstport 5063) has no response
-FAIL C10: request on stream 24 (dstport 5063) has no response
-FAIL D1: request on stream 25 (dstport 5063) has no response
-FAIL D2: request on stream 26 (dstport 5063) has no response
-FAIL D3_exp: request on stream 27 (dstport 5063) has no response
-FAIL D3_sig: request on stream 28 (dstport 5063) has no response
-FAIL D3_typ: request on stream 29 (dstport 5063) has no response
-FAIL D3_reqwl: request on stream 30 (dstport 5063) has no response
-FAIL D3_dup: request on stream 31 (dstport 5063) has no response
-FAIL D4: request on stream 32 (dstport 5063) has no response
-FAIL D5: request on stream 33 (dstport 5061) has no response
-FAIL D6: request on stream 34 (dstport 5051) has no response
-FAIL D6: request on stream 35 (dstport 5051) has no response
-FAIL D6: request on stream 36 (dstport 5051) has no response
-FAIL D6: request on stream 37 (dstport 5051) has no response
-FAIL D7: request on stream 38 (dstport 5051) has no response
-FAIL D7: request on stream 39 (dstport 5051) has no response
-FAIL D7: request on stream 40 (dstport 5061) has no response
+FAIL B_CHAIN: request on stream 34 (dstport 5051) has no response
+FAIL B_CHAIN: request on stream 35 (dstport 5050) has no response
+FAIL B_CHAIN: request on stream 36 (dstport 5051) has no response
+FAIL B_CHAIN: request on stream 37 (dstport 5061) has no response
+FAIL B_CHAIN: request on stream 38 (dstport 5060) has no response
+FAIL B_CHAIN: request on stream 39 (dstport 5061) has no response
+FAIL B_CHAIN: request on stream 40 (dstport 5062) has no response
+FAIL B_CHAIN: request on stream 41 (dstport 5061) has no response
+FAIL B_CHAIN: request on stream 42 (dstport 5063) has no response
+FAIL C5: request on stream 43 (dstport 5063) has no response
+FAIL C6: request on stream 44 (dstport 5063) has no response
+FAIL C7: request on stream 45 (dstport 5062) has no response
+FAIL C7: request on stream 46 (dstport 5061) has no response
+FAIL C7: request on stream 47 (dstport 5063) has no response
+FAIL C7: request on stream 48 (dstport 5063) has no response
+FAIL C8: request on stream 49 (dstport 5062) has no response
+FAIL C8: request on stream 50 (dstport 5061) has no response
+FAIL C8: request on stream 51 (dstport 5063) has no response
+FAIL C8: request on stream 52 (dstport 5063) has no response
+FAIL C9: request on stream 53 (dstport 5063) has no response
+FAIL C9b: request on stream 54 (dstport 5063) has no response
+FAIL C10: request on stream 55 (dstport 5063) has no response
+FAIL C10: request on stream 56 (dstport 5063) has no response
+FAIL C10: request on stream 57 (dstport 5063) has no response
+FAIL C10: request on stream 58 (dstport 5063) has no response
+FAIL D1: request on stream 59 (dstport 5063) has no response
+FAIL D2: request on stream 60 (dstport 5063) has no response
+FAIL D2: request on stream 61 (dstport 5050) has no response
+FAIL D3_exp: request on stream 62 (dstport 5063) has no response
+FAIL D3_sig: request on stream 63 (dstport 5063) has no response
+FAIL D3_typ: request on stream 64 (dstport 5063) has no response
+FAIL D3_reqwl: request on stream 65 (dstport 5063) has no response
+FAIL D3_dup: request on stream 66 (dstport 5063) has no response
+FAIL D4: request on stream 67 (dstport 5063) has no response
+FAIL D5: request on stream 68 (dstport 5061) has no response
+FAIL D6: request on stream 69 (dstport 5051) has no response
+FAIL D6: request on stream 70 (dstport 5051) has no response
+FAIL D6: request on stream 71 (dstport 5051) has no response
+FAIL D6: request on stream 72 (dstport 5051) has no response
+FAIL D7: request on stream 73 (dstport 5051) has no response
+FAIL D7: request on stream 74 (dstport 5051) has no response
+FAIL D7: request on stream 75 (dstport 5061) has no response
 FAIL B_CHAIN: missing from capture
 FAIL C5: missing from capture
 FAIL C6: missing from capture
@@ -101,8 +105,31 @@ FAIL D4: missing from capture
 FAIL D5: missing from capture
 FAIL D6: missing from capture
 FAIL D7: missing from capture
-FAIL B_CHAIN: missing expected multi-agent hop ports {5060, 5061, 5062, 5063, 5051}
+FAIL B_CHAIN: missing expected multi-agent hop ports {5060, 5061, 5062, 5063, 5050, 5051}
+FAIL B_CHAIN: missing verified WPT wth/tth SHA-256 binding on :5063
+FAIL D2: missing WWW-Authenticate: WPT challenge on 401 response
 FAIL B_CHAIN: expected exactly 1 unified txn UUID across hops, got set()
-SUMMARY cases=19 errors=61
+SUMMARY cases=19 errors=65
 --- negative: checkers/negatives/chain_leaked_txn.pcap replaces {capture}
-FAIL: Domain A Txn-Token leaked to Domain B port 5062 on stream 41
+FAIL: Domain A Txn-Token leaked to Domain B port 5062 on stream 76
+--- negative: checkers/negatives/chain_hop_flipped.pcap replaces {capture}
+FAIL C7: hops ['5062 200 -', '5061 403 -', '5063 200 -', '5063 403 not-authorized'] differ from expected_hops ['5062 200 -', '5061 200 -', '5063 200 -', '5063 403 not-authorized']
+CHECK B_CHAIN ref=Phase-B statuses=[200, 200, 200, 200, 200, 200, 200, 200, 200] reason=accept
+CHECK C5 ref=ATK-5 statuses=[400] reason=proof-invalid
+CHECK C6 ref=ATK-6 statuses=[403] reason=txn-token-invalid
+CHECK C8 ref=ATK-8 statuses=[200, 200, 200, 403] reason=accept
+CHECK C9 ref=ATK-9a statuses=[403] reason=not-authorized
+CHECK C9b ref=ATK-9b statuses=[403] reason=not-authorized
+CHECK C10 ref=ATK-10 statuses=[200, 200, 403, 200] reason=revoked
+CHECK D1 ref=TXN-1 statuses=[400] reason=proof-invalid
+CHECK D2 ref=TXN-2 statuses=[401, 401] reason=proof-invalid
+CHECK D3_exp ref=TXN-3a statuses=[403] reason=txn-token-invalid
+CHECK D3_sig ref=TXN-3b statuses=[403] reason=txn-token-invalid
+CHECK D3_typ ref=TXN-3c statuses=[403] reason=txn-token-invalid
+CHECK D3_reqwl ref=TXN-3d statuses=[403] reason=txn-token-invalid
+CHECK D3_dup ref=TXN-3e statuses=[403] reason=txn-token-invalid
+CHECK D4 ref=TXN-4 statuses=[403] reason=not-authorized
+CHECK D5 ref=CHAIN-1 statuses=[403] reason=grant-invalid
+CHECK D6 ref=TXO-4/5 statuses=[200, 200, 200, 200] reason=accept
+CHECK D7 ref=CHAIN-2 statuses=[200, 200, 403] reason=grant-invalid
+SUMMARY cases=19 errors=1

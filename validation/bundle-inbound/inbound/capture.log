@@ -1,4 +1,4 @@
 tcpdump: listening on lo0, link-type NULL (BSD loopback), snapshot length 524288 bytes
-536 packets captured
-6122 packets received by filter
+540 packets captured
+6153 packets received by filter
 0 packets dropped by kernel

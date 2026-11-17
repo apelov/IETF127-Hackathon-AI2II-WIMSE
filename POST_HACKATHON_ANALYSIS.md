@@ -2,6 +2,17 @@
 
 Scope: IETF 127 hackathon, 14-15 Nov 2026. Based on the full git history (23 commits on `main`), every document in the repo, the checkers, the evidence bundles and the five independent reviews.
 
+## Status on 17 Nov 2026
+
+This analysis describes the repository as it was on 15-16 Nov. Since then:
+
+- Section 3, items 1 and 5: results are labelled by evidence class and never added across classes; the mocked and simulated cases are labelled as such.
+- Item 2: both bundles were recorded again at `bf10aed`, and `env.json` no longer records absolute paths (Maurice's own log lines still name its home directory).
+- Item 3: `interop.yaml` records who wrote each checker and peer. The checkers are attributed to Nemotron by the maintainer; the repository holds no transcript.
+- Item 6: CI runs `./reproduce.sh` on every push and pull request.
+- Item 8: Mistral F1 is fixed: `observes_chain.py` compares every hop with `expected_hops`, and the new mutant `chain_hop_flipped.pcap` proves it. `observes_live_partners.py` exits 1 when the testnet is unreachable.
+- Absolute `file://` links were replaced with relative links.
+
 ## 0. Two framing corrections
 
 - **AI2II is not in this repo.** It lives in the sibling project `../AI2II` (`DESIGN.md` §24.20). This repo used one part of it: the `wire/` evidence bundle plus the L4 rule that a checker's model family must differ from the peer's. The orchestrator, milestones, reviewer/verifier roles and human gates were not used.

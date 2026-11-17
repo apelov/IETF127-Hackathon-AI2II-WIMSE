@@ -242,7 +242,7 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
         ("Suite 3: Partner traces (simulated clock)", "22/22", "✅ PASS"),
         ("Suite 3: P7/P8 on :5064 (fixed answers)", "6", "MOCKED"),
         ("Suite 4: Live probes (4 hook cases mocked)", "3/3", "✅ PASS"),
-        ("Negative Control Mutants", "9/9", "🛡️ REJ"),
+        ("Negative Control Mutants", "10/10", "🛡️ REJ"),
         ("P2 live sandbox, Redthread 17 Nov", "6", "PARTNER"),
     ]
     for row_idx, (name, count, res) in enumerate(scores):

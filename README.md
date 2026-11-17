@@ -4,7 +4,7 @@ This repository contains the complete implementation, loopback packet captures (
 
 ## Key Documentation Index
 
-- **[`TEST_RESULTS_SUMMARY.md`](TEST_RESULTS_SUMMARY.md)** — Executive summary table of all tested suites, implementations, scenarios, and results (**85/85 passing cases + 9/9 rejected negative PCAP mutants**).
+- **[`TEST_RESULTS_SUMMARY.md`](TEST_RESULTS_SUMMARY.md)** — Executive summary table of all tested suites, implementations, scenarios, and results (results grouped by evidence class, never added across classes; 10 negative PCAP mutants, all rejected).
 - **[`SCENARIOS_AND_AUTHORS.md`](SCENARIOS_AND_AUTHORS.md)** — Complete contributor & implementation table (**AgentMaurice**, **RICH**, **Redthread Security**, **MintID**, **OmniArx**, **Cred**), normative Internet-Drafts & RFCs, AI model provenance table (AI2II Rule L4), and full catalog of all 3 test suites:
   - **Suite 1 (`inbound` cell):** 34 WIMSE inbound cases (`A2–A13j`, `C2–C12b`, `IN4–IN15`) against local **AgentMaurice** (`:5050`).
   - **Suite 2 (`chain` cell):** 19 3-Agent, 2-Domain call-chain (`Agent 1: Maurice -> Agent 2: RICH Coordinator -> Agent 3: RICH Research Sub-Agent -> File Tool`) and mid-transaction revocation / attack cases (`B_CHAIN`, `C5–C10`, `D1–D7`) across `:5050–5063`.
@@ -86,17 +86,17 @@ PYTHONPATH=. .venv/bin/python -m wire summarize validation
 
 ---
 
-## Current Verification Status (2026-11-14)
+## Current Verification Status (2026-11-17)
 
-Both AI2II cells (`inbound` and `chain`) are **PASS**:
+Both AI2II cells (`inbound` and `chain`) are **PASS**, recorded on 17 Nov 2026 at commit `bf10aed`:
 
 ```text
-PASS	inbound	458453327d36	validation/bundle-inbound/inbound
-PASS	chain	8f8441e4af00	validation/bundle-chain/chain
+PASS	WIMSE	chain	bf10aed475bb	chain-stack@bf10aed475bb, wimse-chain-client@bf10aed475bb	all peers exited 0, capture non-empty, every checker passed and rejected its negatives	validation/bundle-chain/chain
+PASS	WIMSE	inbound	bf10aed475bb	maurice@bf10aed475bb, wimse-client@bf10aed475bb	all peers exited 0, capture non-empty, every checker passed and rejected its negatives	validation/bundle-inbound/inbound
 ```
 
 - **`inbound` (`validation/bundle-inbound/inbound/`):** 34/34 cases passed against `bin/maurice` (sha256 `36f92fe8...`), verified by `checkers/observes_wimse.py` (NVIDIA Nemotron Ultra), rejecting all 3 negative mutants (`unrelated.pcap`, `request_only.pcap`, `forbidden_fetch.pcap`).
-- **`chain` (`validation/bundle-chain/chain/`):** 19/19 3-agent cross-domain call-chain & attack cases (`:5050–5063`) + 10 `P2/P7/P8` loopback cases on `:5064` (2 simulated, 2 replayed, 6 mocked; see `TEST_RESULTS_SUMMARY.md`) passed, verified by `checkers/observes_chain.py` and `checkers/observes_p1_p8.py`, rejecting all 6 negative mutants (`chain_unrelated.pcap`, `chain_request_only.pcap`, `chain_leaked_txn.pcap`, `p1_p8_unrelated.pcap`, `p1_p8_request_only.pcap`, `p1_p8_missing_before_effect.pcap`).
+- **`chain` (`validation/bundle-chain/chain/`):** 19/19 3-agent cross-domain call-chain & attack cases (`:5050–5063`) + 10 `P2/P7/P8` loopback cases on `:5064` (2 simulated, 2 replayed, 6 mocked; see `TEST_RESULTS_SUMMARY.md`) passed, verified by `checkers/observes_chain.py` and `checkers/observes_p1_p8.py`, rejecting all 7 negative mutants (`chain_unrelated.pcap`, `chain_request_only.pcap`, `chain_leaked_txn.pcap`, `chain_hop_flipped.pcap`, `p1_p8_unrelated.pcap`, `p1_p8_request_only.pcap`, `p1_p8_missing_before_effect.pcap`).
 
 ## Contributing
 

@@ -22,6 +22,37 @@ FAIL P8_revoked-between-authz-and-use: missing from capture
 FAIL P8_revoked-after-token-released: missing from capture
 SUMMARY cases=10 errors=10
 --- negative: checkers/negatives/p1_p8_request_only.pcap replaces {capture}
-ERROR: Case P2_revoke-upstream on stream 0 has request without response
+FAIL P2_revoke-upstream: request on stream 0 has no response
+FAIL P2_before-effect: request on stream 1 has no response
+FAIL P2_outside-made-up-proof: request on stream 2 has no response
+FAIL P2_outside-no-agent-answer: request on stream 3 has no response
+FAIL P7_display-match: request on stream 4 has no response
+FAIL P7_display-mismatch: request on stream 5 has no response
+FAIL P8_no-delegation: request on stream 6 has no response
+FAIL P8_write-under-read: request on stream 7 has no response
+FAIL P8_revoked-between-authz-and-use: request on stream 8 has no response
+FAIL P8_revoked-after-token-released: request on stream 9 has no response
+FAIL P2_revoke-upstream: missing from capture
+FAIL P2_before-effect: missing from capture
+FAIL P2_outside-made-up-proof: missing from capture
+FAIL P2_outside-no-agent-answer: missing from capture
+FAIL P7_display-match: missing from capture
+FAIL P7_display-mismatch: missing from capture
+FAIL P8_no-delegation: missing from capture
+FAIL P8_write-under-read: missing from capture
+FAIL P8_revoked-between-authz-and-use: missing from capture
+FAIL P8_revoked-after-token-released: missing from capture
+SUMMARY cases=10 errors=20
 --- negative: checkers/negatives/p1_p8_missing_before_effect.pcap replaces {capture}
-ERROR: Case P2_before-effect on stream 1 has request without response
+FAIL P2_before-effect: request on stream 1 has no response
+FAIL P2_before-effect: missing from capture
+FAIL P2_outside-made-up-proof: missing from capture
+FAIL P2_outside-no-agent-answer: missing from capture
+FAIL P7_display-match: missing from capture
+FAIL P7_display-mismatch: missing from capture
+FAIL P8_no-delegation: missing from capture
+FAIL P8_write-under-read: missing from capture
+FAIL P8_revoked-between-authz-and-use: missing from capture
+FAIL P8_revoked-after-token-released: missing from capture
+CHECK P2_revoke-upstream status=403 reason=status-revoked
+SUMMARY cases=10 errors=10

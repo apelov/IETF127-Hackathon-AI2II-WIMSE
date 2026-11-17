@@ -8,11 +8,11 @@
 {"case": "P8_write-under-read", "status": 403, "decision": "deny", "reason": "scope-exceeded", "service": "p2_p7_p8_executor"}
 {"case": "P8_revoked-between-authz-and-use", "status": 403, "decision": "deny", "reason": "status-revoked", "service": "p2_p7_p8_executor"}
 {"case": "P8_revoked-after-token-released", "status": 200, "decision": "revocation recorded, token already released", "reason": "token-released", "service": "p2_p7_p8_executor"}
-{"case": "B_CHAIN", "step": 1, "service": "tts-a", "status": 200, "txn": "feb0e93d-29ec-42e0-b777-b15262f178d9", "decision": "accept"}
-{"case": "B_CHAIN", "step": 2, "service": "maurice", "status": 200, "txn": "feb0e93d-29ec-42e0-b777-b15262f178d9", "decision": "accept"}
-{"case": "B_CHAIN", "step": 3, "service": "as-a", "status": 200, "txn": "feb0e93d-29ec-42e0-b777-b15262f178d9", "decision": "accept"}
-{"case": "B_CHAIN", "step": 4, "service": "as-b", "status": 200, "txn": "feb0e93d-29ec-42e0-b777-b15262f178d9", "decision": "accept"}
-{"case": "B_CHAIN", "step": 5, "service": "agent2-coordinator", "status": 200, "txn": "feb0e93d-29ec-42e0-b777-b15262f178d9", "decision": "accept"}
+{"case": "B_CHAIN", "step": 1, "service": "tts-a", "status": 200, "txn": "9b3e20e9-c0fb-416c-94a8-04da2760f8f0", "decision": "accept"}
+{"case": "B_CHAIN", "step": 2, "service": "maurice", "status": 200, "txn": "9b3e20e9-c0fb-416c-94a8-04da2760f8f0", "decision": "accept"}
+{"case": "B_CHAIN", "step": 3, "service": "as-a", "status": 200, "txn": "9b3e20e9-c0fb-416c-94a8-04da2760f8f0", "decision": "accept"}
+{"case": "B_CHAIN", "step": 4, "service": "as-b", "status": 200, "txn": "9b3e20e9-c0fb-416c-94a8-04da2760f8f0", "decision": "accept"}
+{"case": "B_CHAIN", "step": 5, "service": "agent2-coordinator", "status": 200, "txn": "9b3e20e9-c0fb-416c-94a8-04da2760f8f0", "decision": "accept"}
 {"case": "C5", "service": "file-tool", "status": 400, "decision": "reject", "reason": "proof-invalid"}
 {"case": "C6", "service": "file-tool", "status": 403, "decision": "reject", "reason": "txn-token-invalid"}
 {"case": "C7", "service": "agent3-research", "status": 200, "decision": "accept"}

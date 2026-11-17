@@ -11,14 +11,14 @@ All artifacts listed below contain **zero private keys or secrets** (`"contains_
 Running `PYTHONPATH=. .venv/bin/python -m wire summarize validation` produces:
 
 ```text
-PASS	inbound	458453327d36	validation/bundle-inbound/inbound
-PASS	chain	8f8441e4af00	validation/bundle-chain/chain
+PASS	WIMSE	chain	bf10aed475bb	chain-stack@bf10aed475bb, wimse-chain-client@bf10aed475bb	all peers exited 0, capture non-empty, every checker passed and rejected its negatives	validation/bundle-chain/chain
+PASS	WIMSE	inbound	bf10aed475bb	maurice@bf10aed475bb, wimse-client@bf10aed475bb	all peers exited 0, capture non-empty, every checker passed and rejected its negatives	validation/bundle-inbound/inbound
 ```
 
 | Cell | Verdict | Bundle Path | `verdict.json` SHA-256 | Independent Audit Report | Secrets Present? |
 |---|---|---|---|---|---|
-| `inbound` | **PASS** | [`validation/bundle-inbound/inbound/`](validation/bundle-inbound/inbound/) | `1d342023567c6f53994ebee7fd6a33225f4018782c840c6fcb14d36617caed2d` | [`validation/nemotron-review.md`](validation/nemotron-review.md) (`nvidia/nemotron-3-ultra-550b-a55b:free`) | `false` |
-| `chain` | **PASS** | [`validation/bundle-chain/chain/`](validation/bundle-chain/chain/) | `937ea8a9728c6d35d79535eeab4603b97a269900a312dc75601e9b472f364d44` | [`validation/nemotron-p1-p8-review.md`](validation/nemotron-p1-p8-review.md) (`nvidia/nemotron-3-ultra-550b-a55b:free`) · [`validation/gemini-p1-p8-review.md`](validation/gemini-p1-p8-review.md) (`gemini-4-argon`) · [`validation/opus-chain-review.md`](validation/opus-chain-review.md) (`claude -p --model opus`) | `false` |
+| `inbound` | **PASS** | [`validation/bundle-inbound/inbound/`](validation/bundle-inbound/inbound/) | `18239c9ad11b568568b3a46ae6184ac425c7621a090c52006944b5694f061523` | [`validation/nemotron-review.md`](validation/nemotron-review.md) (`nvidia/nemotron-3-ultra-550b-a55b:free`) | `false` |
+| `chain` | **PASS** | [`validation/bundle-chain/chain/`](validation/bundle-chain/chain/) | `c2264997e14c9a61623f7990f4a9634ff159e38a73a826eb75302437e87ea7de` | [`validation/nemotron-p1-p8-review.md`](validation/nemotron-p1-p8-review.md) (`nvidia/nemotron-3-ultra-550b-a55b:free`) · [`validation/gemini-p1-p8-review.md`](validation/gemini-p1-p8-review.md) (`gemini-4-argon`) · [`validation/opus-chain-review.md`](validation/opus-chain-review.md) (`claude -p --model opus`) | `false` |
 
 ---
 
@@ -28,21 +28,22 @@ PASS	chain	8f8441e4af00	validation/bundle-chain/chain
 
 | Capture File | Cell / Scope | Total Packets | HTTP Messages | SHA-256 Digest | `tshark` / Wireshark Inspection Command |
 |---|---|---:|---:|---|---|
-| [`validation/bundle-inbound/inbound/capture.pcap`](validation/bundle-inbound/inbound/capture.pcap) | Suite 1: 34 WIMSE inbound cases (`A2–A13j`, `C2–C12b`, `IN4–IN15`) on loopback `:5050` & `:47999` | 536 | 72 | `85442bc4bb3051bcdcad88e63aebc0fb47502c062dac52c6c6da3cad344cad56` | `tshark -X lua_script:dissectors/wimse.lua -r validation/bundle-inbound/inbound/capture.pcap -Y http` |
-| [`validation/bundle-chain/chain/capture.pcap`](validation/bundle-chain/chain/capture.pcap) | Suite 2 & 3: 19 3-agent cross-domain call-chain cases (`:5050–5063`) + 10 `P2/P7/P8` loopback cases (`:5064`: 2 simulated, 2 replayed, 6 mocked) | 824 | 106 (53 exchanges; 104 with default `tshark -Y http`) | `fdad7743ec8a69288cef24bfccab1a2740a2f10e8b7063d2426fdbe067f2ca88` | `tshark -X lua_script:dissectors/wimse.lua -r validation/bundle-chain/chain/capture.pcap -Y 'wimse.test_case == "B_CHAIN"' -O wimse` |
+| [`validation/bundle-inbound/inbound/capture.pcap`](validation/bundle-inbound/inbound/capture.pcap) | Suite 1: 34 WIMSE inbound cases (`A2–A13j`, `C2–C12b`, `IN4–IN15`) on loopback `:5050` & `:47999` | 540 | 72 | `b8508d5f1a3ba03dc8a73617fce8d6cb6c88c5f1593bed04536c2b4d78f15eab` | `tshark -X lua_script:dissectors/wimse.lua -r validation/bundle-inbound/inbound/capture.pcap -Y http` |
+| [`validation/bundle-chain/chain/capture.pcap`](validation/bundle-chain/chain/capture.pcap) | Suite 2 & 3: 19 3-agent cross-domain call-chain cases (`:5050–5063`) + 10 `P2/P7/P8` loopback cases (`:5064`: 2 simulated, 2 replayed, 6 mocked) | 822 | 106 (53 exchanges) | `ac56bdb934f59b92b3ed2f60820c2b6251ff64c03e172b7f612d466067af8ad2` | `tshark -X lua_script:dissectors/wimse.lua -r validation/bundle-chain/chain/capture.pcap -Y 'wimse.test_case == "B_CHAIN"' -O wimse` |
 
 ### 2.2 Negative Mutant Captures (Rejected by Independent Checkers)
 
-Every independent checker is verified to exit non-zero on each of its negative PCAP mutants:
+Every independent checker is verified to exit non-zero on each of its negative PCAP mutants: `wire run` re-checks this at every recording, and `./reproduce.sh` re-checks it on every run. The mutants were derived from earlier recordings of the same cells (the chain mutants from the `8f8441e` capture), not from the captures in 2.1.
 
 | Negative PCAP File | Target Checker | Mutation / Violation Tested | Total Packets | SHA-256 Digest |
 |---|---|---|---:|---|
 | [`checkers/negatives/unrelated.pcap`](checkers/negatives/unrelated.pcap) | `observes_wimse.py` | Non-WIMSE traffic (no WIMSE test cases present) | 3 | `812b677b805c51b9a40aae31b32d95c5d8b79bd18c523538244400dbb733c547` |
 | [`checkers/negatives/request_only.pcap`](checkers/negatives/request_only.pcap) | `observes_wimse.py` | Client requests only (all server HTTP responses stripped) | 245 | `d49f72ef4103cd28d80e91a2436b609328827fdc45f8c33d7a2cbc7403090b8b` |
 | [`checkers/negatives/forbidden_fetch.pcap`](checkers/negatives/forbidden_fetch.pcap) | `observes_wimse.py` | Contains forbidden outbound SSRF fetch to port `47999` during `C12`/`C12b` | 491 | `dd1d79aff9f43523f9e0d43afa832815ac5237db3375c8ca7e2fbd8669aab07d` |
-| [`checkers/negatives/chain_unrelated.pcap`](checkers/negatives/chain_unrelated.pcap) | `observes_chain.py` | Non-WIMSE traffic (missing `B_CHAIN` and negative cases) | 3 | `269ec353898c3c9b2cf2a899da3b03cf55c347f11c47c069e5375426ebd214f0` |
-| [`checkers/negatives/chain_request_only.pcap`](checkers/negatives/chain_request_only.pcap) | `observes_chain.py` | Request packets only (HTTP responses stripped across `:5050–5063`) | 522 | `ba162791ce3a5977e5cc481dd62861d56143fc9991799a0ded79f342ac044d91` |
-| [`checkers/negatives/chain_leaked_txn.pcap`](checkers/negatives/chain_leaked_txn.pcap) | `observes_chain.py` | Domain A internal `Txn-Token` (`aud = "maurice.ietf127.example"`, `txn = "leaked"`) injected onto Domain B port `:5062` (`POST /research`, stream 41) during `B_CHAIN` | 563 | `9762aeb45ba25e6ff6aac692bf26ac1cfc0af6e20126cd1b5c73d9ff1b796c7e` |
+| [`checkers/negatives/chain_unrelated.pcap`](checkers/negatives/chain_unrelated.pcap) | `observes_chain.py` | Non-WIMSE traffic (missing `B_CHAIN` and negative cases) | 3 | `0b85a5a7ac55505dfef4be1248455e17291fca83594e0313786d0c169850e456` |
+| [`checkers/negatives/chain_request_only.pcap`](checkers/negatives/chain_request_only.pcap) | `observes_chain.py` | Request packets only (HTTP responses stripped across `:5050–5063`) | 781 | `01d3a553e97003f4a4a9c5d9105090d8ff581959108a4f1026cd467656410324` |
+| [`checkers/negatives/chain_leaked_txn.pcap`](checkers/negatives/chain_leaked_txn.pcap) | `observes_chain.py` | Domain A internal `Txn-Token` (`aud = "maurice.ietf127.example"`, `txn = "leaked"`) injected onto Domain B port `:5062` (`POST /research`) during `B_CHAIN` | 825 | `5f086cb2f1d0a24614fb05a12e832ca1e33bc5c893ebdbb2a50e0a1684691e3c` |
+| [`checkers/negatives/chain_hop_flipped.pcap`](checkers/negatives/chain_hop_flipped.pcap) | `observes_chain.py` | One intermediate hop of `C7` (`:5061`) changed from `200` to `403`; the case's set of statuses is unchanged, so only the hop-by-hop comparison with `expected_hops` catches it | 824 | `92e6e2cfd875c824da5f0e29b7b1ce5fc843558e598167773199407d84340989` |
 | [`checkers/negatives/p1_p8_unrelated.pcap`](checkers/negatives/p1_p8_unrelated.pcap) | `observes_p1_p8.py` | Non-WIMSE traffic on loopback | 3 | `1281856404dbd4572ae0de3970160c91d5458493fa2239c7134f566e23c51fe3` |
 | [`checkers/negatives/p1_p8_request_only.pcap`](checkers/negatives/p1_p8_request_only.pcap) | `observes_p1_p8.py` | `P2/P7/P8` requests on `:5064` with all HTTP responses stripped | 70 | `cb3bbef9651ff7199b3f9c3b317474aa218ffa78fb9f5d8034b35ebbdd5b5975` |
 | [`checkers/negatives/p1_p8_missing_before_effect.pcap`](checkers/negatives/p1_p8_missing_before_effect.pcap) | `observes_p1_p8.py` | Truncated to frames 1–20 so `P2_before-effect` response and `P2_outside-made-up-proof` / `P2_outside-no-agent-answer` before-effect revocation checks are missing | 20 | `726aef5de0bbd2ed2730abe582719f7ae926ad0c74a54f3dde5b4b0c582f6913` |
@@ -55,8 +56,8 @@ Every independent checker is verified to exit non-zero on each of its negative P
 
 | File | Description | Lines | SHA-256 Digest |
 |---|---|---:|---|
-| [`validation/bundle-inbound/inbound/decision-journal.jsonl`](validation/bundle-inbound/inbound/decision-journal.jsonl) | AgentMaurice WIMSE inbound verifier decision journal across the 34 Suite 1 cases | 35 | `161c5d1658c6bca8827ee28fa786584e4e46172b9c0cea5eb2914772747e4b13` |
-| [`validation/bundle-chain/chain/chain-journal.jsonl`](validation/bundle-chain/chain/chain-journal.jsonl) | Domain A + Domain B + `P2/P7/P8` structured decision journal across Suite 2 & Suite 3 | 38 | `77cb4ac70ce75d7091d11db541954ef13e1443a0a0a3016e7a8abd2fac47f974` |
+| [`validation/bundle-inbound/inbound/decision-journal.jsonl`](validation/bundle-inbound/inbound/decision-journal.jsonl) | AgentMaurice WIMSE inbound verifier decision journal across the 34 Suite 1 cases | 35 | `2019fbd387b135f757752bee8ab698432af3033792a0f9611f547955fb6b8ff0` |
+| [`validation/bundle-chain/chain/chain-journal.jsonl`](validation/bundle-chain/chain/chain-journal.jsonl) | Domain A + Domain B + `P2/P7/P8` structured decision journal across Suite 2 & Suite 3 | 38 | `1e60f6063db8a09efa1578f513541528f8a1852f79d36ad0009fbe220a6de285` |
 
 ### 3.2 Partner Scenario Definitions, Traces & Manifests (`scenarios/p1_p8/`)
 

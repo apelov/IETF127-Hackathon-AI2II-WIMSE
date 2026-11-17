@@ -6,7 +6,7 @@ Do not trust this file. Re-run the commands and read the evidence.
 ## Claims
 
 1. `peers/driver.py` passes all 34 cases in `cases.json` against a local Maurice.
-2. The AI2II cell `inbound` has verdict PASS at commit `801b463` with a clean tree.
+2. The AI2II cell `inbound` has verdict PASS at commit `bf10aed` with a clean tree (recorded again on 17 Nov 2026; first recorded at `801b463`).
 3. `checkers/observes_wimse.py` is an independent checker. Nemotron Ultra wrote it via `claude-or`. It
    accepts a real capture (34 cases, 0 errors) and rejects all three negatives.
 4. The Maurice binary under test is `bin/maurice`, sha256 `36f92fe85b5b8ad3675cdf84800dcb0ae22507523ee6e9e9f679b69e1603c695`.
