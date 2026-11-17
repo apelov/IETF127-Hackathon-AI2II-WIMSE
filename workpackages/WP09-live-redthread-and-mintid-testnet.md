@@ -21,7 +21,7 @@ When a developer clones both external partner repositories alongside this reposi
 ### 2.1 Redthread Security (Ben Le)
 - **Implementation:** `draft-le-agent-passport`, version `0.7.591`, commit `3a6560c`. Verifier `app/atpp_verify.py` with `app/delegation.py`; protected-operation executor `app/protected_op.py`.
 - **Repository:** none linked. Ben Le will provide the public citation location; do not link or clone a repository for Redthread until then. Redthread is **not** EMILIA Protocol and `emilia-protocol` is a separate project that is not a Redthread dependency.
-- **Earlier trace provenance:** the committed `P1–P6` traces are headed `0.7.584` and the sandbox run `0.7.586`; reconcile with the `0.7.591` attribution and the file hashes Ben Le sent on 15 Nov 17:59 UTC (not yet in this repo).
+- **Earlier trace provenance:** the committed `P1–P6` traces are headed `0.7.584` and the sandbox run `0.7.586`; reconcile with the `0.7.591` attribution and the file hashes mentioned in Ben Le's message of 15 Nov 17:59 UTC (not received; not in this repo).
 - **Modules referenced by the plan below (names from Redthread's `app/` & `tests/`, unverified until a source location is given):**
   - `rp_policy` (`rp.LOW`, `rp.HIGH`)
   - `atpp_world` (`GOOD_TRANSPORT`, simulated & real clock modes, status-list cache/TTL, tool-digest registry)

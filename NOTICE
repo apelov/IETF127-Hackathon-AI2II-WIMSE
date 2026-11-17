@@ -24,6 +24,8 @@ confirmed with them.
     scenarios/p1_p8/P1-*.json, P3-*.json, P4-*.json, P5-*.json, P6-*.json
       (scenario definitions)
     scenarios/p1_p8/originals/ietf127-scenarios.zip
+    scenarios/p1_p8/originals/P2-revocation-after-delegation-before-effect-v1.json
+      (first P2 definition)
 
   MintID (Marc Miro i Rierola):
     scenarios/p1_p8/revocation-trace-testnet-20261114T104257Z.*

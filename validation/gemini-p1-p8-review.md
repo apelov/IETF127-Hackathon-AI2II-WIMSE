@@ -1,5 +1,7 @@
 # Independent Cross-Family L4 Review: `observes_p1_p8.py`, `observes_chain.py`, and Redthread `P1–P6` Traces
 
+> **Maintainer note (17 Nov 2026):** Redthread's verifier, executor and `run_local.py` are Redthread Security's work (Ben Le). This repository does not record which model family Redthread used; the reviewer's phrase "the Anthropic Claude family that authored Redthread's ... verifier" below is the reviewer's assumption, not a fact established here.
+
 - **Reviewer Model Family:** Google Gemini 4 (`gemini-4-argon`, non-Claude model family — distinct from the Anthropic Claude family that authored Redthread's `v0.7.584`/`v0.7.586` verifier, `run_local.py`, and [`validation/opus-chain-review.md`](opus-chain-review.md))
 - **Review Date:** 2026-11-15
 - **Scope:**

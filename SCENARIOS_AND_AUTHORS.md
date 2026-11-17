@@ -10,7 +10,7 @@ For a sanitized technical summary of the multi-party coordination emails and des
 
 | Contributor | Affiliation / Project | Implementations & Contributions |
 |---|---|---|
-| **Alexander Pelov** | IMT Atlantique / AgentMaurice & RICH | Overall WIMSE interop architecture, AI2II evidence harness (`interop.yaml`, `wire/`), Phase A/B/C multi-domain 3-agent call-chain & mid-transaction revocation specifications (`specs/maurice-wimse-spec.md`, `specs/maurice-demo-scenario-spec.md`, `specs/hackathon-test-scenario.md`), RICH Coordinator & Research Sub-Agent runtime (`rich.ietf127.example`, `peers/domain_b.py`), Domain A TTS/AS (`peers/domain_a.py`), AgentMaurice WIMSE integration (`maurice.ietf127.example`), and Wireshark Lua post-dissector (`dissectors/wimse.lua`). |
+| **Alexander Pelov** | IMT Atlantique / AgentMaurice & RICH | Overall WIMSE interop architecture, AI2II evidence harness (`interop.yaml`, `wire/`), Phase A/B/C multi-domain 3-agent call-chain & mid-transaction revocation specifications (`maurice-wimse-spec.md`, `maurice-demo-scenario-spec.md`, `hackathon-test-scenario.md`: AgentMaurice `wimse-interop` documents, not in this repository), RICH Coordinator & Research Sub-Agent runtime (`rich.ietf127.example`, `peers/domain_b.py`), Domain A TTS/AS (`peers/domain_a.py`), AgentMaurice WIMSE integration (`maurice.ietf127.example`), and Wireshark Lua post-dissector (`dissectors/wimse.lua`). |
 | **Iman Schrock** | EMILIA Protocol | Before-effect revalidation test design (`P2` `before-effect` gate between delegation/status-cache validation and downstream tool effect), cross-implementation scenario schema (`ietf127-wimse-scenario/1`), and bound/latency taxonomy across `P1–P8`. No EMILIA Protocol runtime is integrated or exercised in this repository. |
 | **Ben Le** | Redthread Security | Author of `draft-le-agent-passport` (*Chain Validation*, *Status and Revocation*, *Exposure After Revocation*), scenarios `P1–P6` (`ietf127-wimse-scenario/1`), Redthread verifier (`app/atpp_verify.py`, `app/delegation.py`) & protected-operation executor (`app/protected_op.py`), `draft-le-agent-passport` version `0.7.591`, commit `3a6560c`; `P1–P6` results are simulated-clock runs (no public repository is cited until Ben Le provides one), tool-digest pinning (`P6`), local JSONL traces (`redthread-P1..P6-local.jsonl`), and the MintID outside-verifier hook (`scenarios/p1_p8/mintid_outside.py`, `scenarios/p1_p8/protected_op.py`). |
 | **Marc Miro i Rierola** | MintID | MintID zero-knowledge non-revocation verifier (`mintid-testnet-3`, `public-v2026-11-11.1`, `proof-core 0.6.0`, `SPEC-1 v3.7`), 10 s presentation proof lifetime, 185 s issuer / 245 s holder / 395 s cascade revocation bounds, live testnet revocation traces (`scenarios/p1_p8/revocation-trace-testnet-20261114T104257Z.jsonl` & `.md`), dual time-origin measurement (`t0` on-chain anchor vs `trigger_request_unix`), and the sibling witness-refresh control proving revocation attribution. |
@@ -46,8 +46,8 @@ Under the **AI2II** (AI-Assisted Interop & Implementation) evidence rules, the p
 
 | Cell | Peer Implementations Under Test | Implementation Author / Model Family | Independent Packet Checker(s) | Checker / Reviewer Model Family & Audit Report | Negative Mutants Rejected |
 |---|---|---|---|---|---|
-| `inbound` | `bin/maurice` (v2.2.18, Go/Rust binary) + `peers/driver.py`, `peers/wimse.py` | **Anthropic Claude Opus 4.6** + human authors (Alexander Pelov) | `checkers/observes_wimse.py` | **NVIDIA Nemotron Ultra (`nvidia/llama-3.1-nemotron-ultra-253b-v1` / `nvidia/nemotron-3-ultra-550b-a55b:free`)** — see [`validation/nemotron-review.md`](validation/nemotron-review.md) | `unrelated.pcap`, `request_only.pcap`, `forbidden_fetch.pcap` |
-| `chain` | `bin/maurice` (`:5050`), `peers/domain_a.py` (`:5051`), `peers/domain_b.py` (`:5060–5063`), `peers/p2_p7_p8_executor.py` (`:5064`), `peers/chain_driver.py` | **Google Gemini 4 Argon** + **Anthropic Claude Opus 4.6** + Partner Implementations (Ben Le / Redthread, Marc Miro / MintID, Arun Thallapelly / OmniArx, Kieran Sweeney / Cred) | `checkers/observes_chain.py`, `checkers/observes_p1_p8.py` | Cross-family audited by **NVIDIA Nemotron 3 Ultra (`nvidia/nemotron-3-ultra-550b-a55b:free`)** ([`validation/nemotron-p1-p8-review.md`](validation/nemotron-p1-p8-review.md)), **Google Gemini 4 (`gemini-4-argon`)** ([`validation/gemini-p1-p8-review.md`](validation/gemini-p1-p8-review.md)), and **Anthropic Claude Opus 5.5 / Sonnet 5.5** ([`validation/opus-chain-review.md`](validation/opus-chain-review.md)) | `chain_unrelated.pcap`, `chain_request_only.pcap`, `chain_leaked_txn.pcap`, `chain_leaked_txn_body.pcap`, `chain_hop_flipped.pcap`, `p1_p8_unrelated.pcap`, `p1_p8_request_only.pcap`, `p1_p8_missing_before_effect.pcap` |
+| `inbound` | `bin/maurice` (v2.2.18, Go/Rust binary) + `peers/driver.py`, `peers/wimse.py` | `bin/maurice`: provenance unknown. Client adapter: mainly **OpenAI Codex**, two later edits by **Anthropic Claude** (`VERIFY.md`, `interop.yaml`) | `checkers/observes_wimse.py` | **NVIDIA Nemotron 3 Ultra (`nvidia/nemotron-3-ultra-550b-a55b:free`)** — see [`validation/nemotron-review.md`](validation/nemotron-review.md) | `unrelated.pcap`, `request_only.pcap`, `forbidden_fetch.pcap` |
+| `chain` | `bin/maurice` (`:5050`), `peers/domain_a.py` (`:5051`), `peers/domain_b.py` (`:5060–5063`), `peers/p2_p7_p8_executor.py` (`:5064`), `peers/chain_driver.py` | **Google Gemini 4 Argon** + **Anthropic Claude Opus 4.6** + Partner Implementations (Ben Le / Redthread, Marc Miro / MintID, Arun Thallapelly / OmniArx, Kieran Sweeney / Cred) | `checkers/observes_chain.py`, `checkers/observes_p1_p8.py` — written by **NVIDIA Nemotron** (maintainer's statement; no transcript in the repository), later edited by **Claude Opus** and **Gemini**, the families that wrote the peers, so the separation is partial (`interop.yaml`) | Cross-family audited by **NVIDIA Nemotron 3 Ultra (`nvidia/nemotron-3-ultra-550b-a55b:free`)** ([`validation/nemotron-p1-p8-review.md`](validation/nemotron-p1-p8-review.md)), **Google Gemini 4 (`gemini-4-argon`)** ([`validation/gemini-p1-p8-review.md`](validation/gemini-p1-p8-review.md)), and **Anthropic Claude Opus 5.5** ([`validation/opus-chain-review.md`](validation/opus-chain-review.md)) | `chain_unrelated.pcap`, `chain_request_only.pcap`, `chain_leaked_txn.pcap`, `chain_leaked_txn_body.pcap`, `chain_hop_flipped.pcap`, `p1_p8_unrelated.pcap`, `p1_p8_request_only.pcap`, `p1_p8_missing_before_effect.pcap` |
 
 ---
 
@@ -57,16 +57,45 @@ Under the **AI2II** (AI-Assisted Interop & Implementation) evidence rules, the p
 
 Tested in cell `inbound` (`validation/bundle-inbound/inbound/capture.pcap`):
 
-| Case ID(s) | Category | Expected HTTP Status & Problem Type / Outcome |
-|---|---|---|
-| `A2`, `A3` | Unauthenticated Discovery | `401 Unauthorized` with `WWW-Authenticate: Workload-Identity-Token ...` challenge + `200 OK` on `GET /.well-known/wimse-Server-metadata`. |
-| `A4`, `A5` | Valid WIMSE Profiles | `200 OK` for Profile 1 (`WIT + WPT`, `A4`) and Profile 2 (`WIT + RFC 9421 HTTP Message Signatures`, `A5`). |
-| `A6`, `A6a`, `A6b` | Dual-Profile & Mixed-Credential Rejections | `200 OK` when both WPT and RFC 9421 are valid (`A6`); `401 invalid-wpt` (`A6a`) or `401 invalid-http-signature` (`A6b`) when either proof is corrupted (never silently downgraded). |
-| `A7`–`A12` | Proof & Binding Rejections | `401 missing-proof` (`A7`), `401 invalid-wit` (`A8`), `401 invalid-wpt` (`A9` wrong `wth`, `A10` wrong `aud`, `A12` replayed `jti`), `401 invalid-http-signature` (`A11` tampered body vs `Content-Digest`). |
-| `A13`–`A13j` | Trust Domain, Identifier & Policy Rejections | `401 untrusted-trust-domain` (`A13`), `401 invalid-wit` (`A13a`–`A13i`: non-`wimse://` scheme, empty trust domain, query/fragment in `sub`, `iss`/`sub` mismatch, missing `cnf.jwk`, symmetric `HS256` alg, wrong `typ`, missing `exp`), `403 insufficient-policy` (`A13j`). |
-| `C2`, `C3`, `C4` | WIT Revocation Lifecycle | `200 OK` before revocation (`C2`), `200 OK` on `POST /v1/wimse/revocations` (`C3`), `401 wit-revoked` immediately after revocation (`C4`). |
-| `C11`, `C12`, `C12b` | Key Compromise (`kid`) & SSRF Protection | `401 key-compromised` (`C11`), `401 untrusted-trust-domain` with **zero outbound fetches** to attacker `jku`/`x5u` URLs on port `47999` (`C12`, `C12b`). |
-| `IN4`–`IN15` | Clock Skew & Input Hardening | `200 OK` within $\pm 30\text{ s}$ clock skew (`IN4`, `IN5`), `401` beyond skew (`IN6`, `IN7`), `401` on duplicate headers (`IN8`, `IN9`), oversized WIT (`IN11`), malformed `Signature-Input` (`IN12`), missing covered components (`IN13`), and WPT `alg: "none"` (`IN15`). |
+Generated from `cases.json` (34 cases, 35 steps):
+
+| Case | What is tested | Expected status | Problem type / challenge (checked on the wire) | Expected reason (checked by the driver in Maurice's journal) |
+|---|---|---|---|---|
+| `A2` | WIT + HTTP-sig, granted workload | `200` | — | `accept` |
+| `A3` | wimse-sign-response=true is never a 200 | `501` | `wimse-signed-response-unsupported` | `signed-response-unsupported` |
+| `A4` | WIT + WPT, granted workload | `200` | — | `accept` |
+| `A5` | WIT without proof | `401` | `WWW-Authenticate: WPT` | `proof-missing` |
+| `A6a` | WIT + HTTP-sig + X-API-Key | `400` | `wimse-signature-invalid` | `mixed-credentials` |
+| `A6b` | WIT + WPT and Bearer credentials | `400 or 401` | — | `mixed-credentials` |
+| `A12a` | Ed25519 key, cnf.jwk.alg=Ed25519, HTTP-sig | `200` | — | `accept` |
+| `A12b` | Ed25519 key, cnf.jwk.alg=EdDSA, HTTP-sig | `200` | — | `accept` |
+| `A12c` | Ed25519 key, cnf.jwk.alg=Ed25519, WPT | `200` | — | `accept` |
+| `A12d` | Ed25519 key, cnf.jwk.alg=EdDSA, WPT | `200` | — | `accept` |
+| `A13a` | identifier with no path | `400` | `wimse-signature-invalid` | `identifier-invalid` |
+| `A13b` | identifier with ./ segment | `400` | `wimse-signature-invalid` | `identifier-invalid` |
+| `A13c` | identifier with ../ segment | `400` | `wimse-signature-invalid` | `identifier-invalid` |
+| `A13d` | identifier with %2E%2E segment | `400` | `wimse-signature-invalid` | `identifier-invalid` |
+| `A13e` | identifier with port | `400` | `wimse-signature-invalid` | `identifier-invalid` or `untrusted-trust-domain` |
+| `A13f` | identifier with query | `400` | `wimse-signature-invalid` | `identifier-invalid` |
+| `A13g` | identifier with fragment | `400` | `wimse-signature-invalid` | `identifier-invalid` |
+| `A13h` | identifier with userinfo | `400` | `wimse-signature-invalid` | `identifier-invalid` or `untrusted-trust-domain` |
+| `A13i` | Peer.Ietf127.Example/a%7Eb matches grant .../a~b | `200` | — | `accept` |
+| `A13j` | /a%2Fb does not match grant /a/b | `403` | — | `not-authorized` |
+| `C2` | genuine WIT, request signed with another key | `400` | `wimse-signature-invalid` | `proof-invalid` |
+| `C3` step 1 | replay of a signed request | `200` | — | `accept` |
+| `C3` step 2 | replay of a signed request | `400` | `wimse-signature-invalid` | `replay` |
+| `C4` | request signed for RICH sent to Maurice | `400` | `wimse-signature-invalid` | `audience-mismatch` |
+| `C4b` | wimse-aud differs by a trailing slash | `400` | `wimse-signature-invalid` | `audience-mismatch` |
+| `C11` | WIT from an issuer not in trust | `400` | `wimse-signature-invalid` | `untrusted-trust-domain` |
+| `C12` | iss is an attacker JWKS URL, no fetch | `400` | `wimse-signature-invalid`, no connection to port `47999` | `issuer-not-allowed` |
+| `C12b` | iss is an attacker URL, trust entry without iss allowlist, no fetch | `400 or 403` | no connection to port `47999` | `not-authorized` or `issuer-not-allowed` or `wit-invalid` |
+| `IN4` | expired WIT | `400` | `wimse-signature-invalid` | `wit-expired` |
+| `IN6` | WIT iss not in allowlist | `400` | `wimse-signature-invalid` | `issuer-not-allowed` |
+| `IN10` | body modified after signing | `400` | `wimse-signature-invalid` | `digest-mismatch` |
+| `IN11` | two signatures with the WIMSE tag | `400` | `wimse-signature-invalid` | — |
+| `IN12` | signature carries keyid | `400` | `wimse-signature-invalid` | — |
+| `IN13` | WPT alg differs from cnf.jwk.alg | `401` | `WWW-Authenticate: WPT` | — |
+| `IN15` | valid identity, no grant | `403` | — | `not-authorized` |
 
 ---
 

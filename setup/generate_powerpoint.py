@@ -82,11 +82,11 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
     p_al.font.color.rgb = c_blue_acc
 
     nodes = [
-        ("User / Initiator", "Task Input"),
-        ("Agent 1: Maurice", "WIT + RFC 9421"),
-        ("Token Authority", "OAuth Txn-Token"),
-        ("Agent 2: Coordinator", "Cross-Domain WPT"),
-        ("Agent 3: Research", "Scope Narrowing"),
+        ("Client Workload", "Domain A Txn-Token; calls Maurice"),
+        ("AS-A → AS-B", "Cross-domain grant"),
+        ("Agent 2: Coordinator", "WIT + RFC 9421"),
+        ("TTS-B", "Narrowed Txn-Token"),
+        ("Agent 3: Research", "WPT: wth + tth"),
         ("File Tool", "Protected Read"),
     ]
     node_w = Inches(1.72)
@@ -155,7 +155,7 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
     p.font.color.rgb = c_navy_dark
 
     bullets1 = [
-        ("18 RFCs & Internet-Drafts", "Run here: Maurice + RICH. Partner runs: Redthread, MintID, OmniArx, Cred. Continuation: OpenA2A + AEP."),
+        ("17 RFCs & Internet-Drafts", "Run here: Maurice + RICH. Partner runs: Redthread, MintID, OmniArx, Cred. Continuation: OpenA2A + AEP."),
         ("Monotonic Scope Narrowing", "OAuth Txn-Tokens narrow privileges across hops (files:read files:list → files:read)."),
         ("Dual Token PoP Bindings", "WPT cryptographically binds both WIT hash (wth) and Txn-Token hash (tth)."),
         ("Security Vectors Tested", "Token swap, body tampering, replay attacks, cross-domain isolation, and SSRF jku/x5u defense."),
@@ -236,12 +236,13 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
         ("Suite 1: inbound matrix", "34/34", "on wire"),
         ("Suite 2: 9-hop chain, attacks", "19/19", "on wire"),
         ("Redthread P1-P6 traces", "22/22", "simulated"),
+        ("P2 on :5064 (2 + 2)", "4", "sim / replay"),
         ("P7/P8 on :5064", "6", "mocked"),
         ("MintID probes, 15 Nov", "3/3", "live probe"),
         ("P2 sandbox, Redthread 17 Nov", "6", "partner"),
         ("Negative mutants rejected", "11/11", "checker"),
     ]
-    row_h = Inches(0.27)
+    row_h = Inches(0.26)
     table_shape = slide1.shapes.add_table(
         len(scores), 3, c3_x + Inches(0.15), col_y + Inches(0.55), col_w - Inches(0.3), row_h * len(scores)
     )
@@ -269,7 +270,7 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
             if col_idx > 0:
                 p.alignment = PP_ALIGN.CENTER
 
-    badge = slide1.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, c3_x + Inches(0.15), col_y + Inches(2.95), col_w - Inches(0.3), Inches(0.65))
+    badge = slide1.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, c3_x + Inches(0.15), col_y + Inches(3.05), col_w - Inches(0.3), Inches(0.6))
     badge.fill.solid()
     badge.fill.fore_color.rgb = c_green_bg
     badge.line.color.rgb = c_green_pass
@@ -372,42 +373,42 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
             "AgentMaurice",
             ":5050",
             "Domain A (maurice.ietf127.example)",
-            "draft-ietf-wimse-s2s-protocol\nRFC 9421 HTTP Message Signatures\ndraft-ietf-wimse-identifier-04",
-            "Autonomous Workload initiator (Agent 1). WIT Profile 1 (WPT) & Profile 2 (HTTP-Sig), key compromise (C11), and port 47999 SSRF anti-probing defense.",
+            "draft-ietf-wimse-http-signature-08\nRFC 9421 HTTP Message Signatures\ndraft-ietf-wimse-identifier-04",
+            "Inbound verifier under test (Suite 1, 34 cases): WIT + WPT and WIT + HTTP-sig, identifier rules, untrusted issuer (C11), no fetch of an attacker issuer URL (C12). In the chain: a side workflow (Agent 1).",
         ),
         (
             "Token Authority (TTS-A)",
             ":5051",
             "Domain A (maurice.ietf127.example)",
-            "draft-ietf-wimse-workload-identity-bcp\ndraft-ietf-oauth-transaction-tokens",
+            "draft-ietf-wimse-workload-creds-03\ndraft-ietf-oauth-transaction-tokens-11",
             "Issues the initial Transaction Token with the broad delegation scope (files:read files:list); AS-A issues the cross-domain grant.",
         ),
         (
             "Coordinator Agent (Agent 2)",
             ":5060",
             "Domain B (rich.ietf127.example)",
-            "draft-ietf-wimse-s2s-protocol\ndraft-ietf-oauth-transaction-tokens",
+            "draft-ietf-wimse-http-signature-08\ndraft-ietf-oauth-transaction-tokens-11",
             "Inter-domain gateway. Validates inbound Domain A WIMSE proofs, passes sanitized context, and calls Domain B Token Authority for token exchange.",
         ),
         (
             "Token Authority (TTS-B)",
             ":5061",
             "Domain B (rich.ietf127.example)",
-            "draft-ietf-oauth-transaction-tokens\ndraft-ietf-wimse-wpt",
+            "draft-ietf-oauth-transaction-tokens-11\ndraft-ietf-wimse-wpt-02",
             "AS-B and TTS-B: accepts the cross-domain grant and issues the narrowed Txn-Token (files:read). The calling workload's WPT binds the WIT hash (wth) and the Txn-Token hash (tth).",
         ),
         (
             "Research Sub-Agent (Agent 3)",
             ":5062",
             "Domain B (rich.ietf127.example)",
-            "draft-ietf-wimse-s2s-protocol\nRFC 9421 HTTP Message Signatures",
+            "draft-ietf-wimse-http-signature-08\nRFC 9421 HTTP Message Signatures",
             "Executes research queries. Sanitizes caller_context to prevent credential exfiltration; prompt injection vectors C7/C8 stopped at boundary.",
         ),
         (
             "File Tool Microservice",
             ":5063",
             "Domain B (rich.ietf127.example)",
-            "draft-ietf-oauth-transaction-tokens\nRFC 8941 Structured Headers",
+            "draft-ietf-oauth-transaction-tokens-11\ndraft-ietf-wimse-wpt-02",
             "Protected resource. Verifies the WIT, the WPT binding to WIT and narrowed Txn-Token, and the scope before exactly one protected read.",
         ),
         (
@@ -477,7 +478,7 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
     footer2.fill.fore_color.rgb = c_navy_dark
     footer2.line.fill.background()
     p_foot2 = footer2.text_frame.paragraphs[0]
-    p_foot2.text = "11 Implementations & Microservices  ·  18 RFCs & Internet-Drafts  ·  Zero Log Trust  ·  https://github.com/apelov/IETF127-Hackathon-AI2II-WIMSE"
+    p_foot2.text = "11 Implementations & Microservices  ·  17 RFCs & Internet-Drafts  ·  Zero Log Trust  ·  https://github.com/apelov/IETF127-Hackathon-AI2II-WIMSE"
     p_foot2.font.name = "Arial"
     p_foot2.font.size = Pt(9)
     p_foot2.font.color.rgb = c_white

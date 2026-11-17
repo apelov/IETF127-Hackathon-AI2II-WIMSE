@@ -70,12 +70,12 @@ No reverts and no deletions. Docs and reports account for most of the line growt
 |---|---|---|
 | Four overlapping summary docs (README, TEST_RESULTS_SUMMARY, SCENARIOS_AND_AUTHORS, EVIDENCE) | Restate the same counts by hand, and are the source of the drift | Generate one from `verdict.json` |
 | `checkers/wire.py` | Same-family dev checker, superseded | Delete |
-| `WP09-architecture-nemotron.md` | Unedited generated spec beside a shorter WP09 | Delete or move out of the repo |
+| `WP09-architecture-nemotron.md` (an untracked file at the time; never committed) | Unedited generated spec beside a shorter WP09 | Delete or move out of the repo |
 | Free-tier, non-executing reviewers as a gate | Cost more triage than they returned | Keep only reviewers that can run commands |
 | "mini-code tier" label | Nothing enforces it | Drop or enforce |
 | Slide generator (471 lines) for 2 slides | Output is hand-checked anyway | Generate numbers from verdicts, or build slides by hand |
 | `scenarios/p1_p8/originals/*.zip` next to extracted copies | Duplicate | Keep one |
-| 10 MB of pcaps for a loopback demo | Heavy for the value | Keep hashes plus one reference capture |
+| About 1.3 MB of pcaps for a loopback demo (an earlier draft of this analysis said 10 MB, which was wrong) | Small, but more than the claims need | Keep hashes plus one reference capture |
 | `.ruff_cache`, `.DS_Store`, Office lock file | Clutter | Already ignored |
 
 ## 5. What to add, in priority order

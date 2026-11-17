@@ -8,7 +8,7 @@
 3. Redthread P1–P6 local traces (`redthread-P1..P6-local.jsonl`), manifest (`redthread-local.manifest.json`), runner (`run_local.py`), and protected-operation bridge (`protected_op.py`)
 4. Redthread + MintID sandbox negative control (`redthread-P2-mintid-sandbox-negative.jsonl` and its manifest)
 
-**Audit Date:** 2025-11-15 (simulated clock; actual wall-clock time of review)
+**Audit Date:** 2025-11-15 as written by the reviewer; the review took place on 2026-11-15 (maintainer correction, 17 Nov 2026)
 
 ---
 

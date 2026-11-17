@@ -83,13 +83,16 @@ MintID's proof presentation lifetime is **`10 s`** (which bounds replay of a sin
 
 Because `P2` defines time zero as the **issuer revocation record/response**, whereas MintID's native cascade clock starts at the **trigger status commitment root**, both time origins are preserved side-by-side:
 
-| Path | Subject | Issuer Revoke Response (`t_revoke`) | Trigger Root (`t_root`) | Delta (`t_root - t_revoke`) | Last Accepted (from `t_root` / from `t_revoke`) | First Refused (from `t_root` / from `t_revoke`) | Native Bound (from `t_root` / from `t_revoke`) |
-|---|---|---|---|---|---|---|---|
-| **`issuer`** | `target` (direct agent) | `10:42:59.092Z` | — | — | `17.1 s` | **`23.1 s`** | **`185 s`** |
-| **`kill_switch`** | `target` (holder-initiated) | `10:43:37.547Z` (holder trigger) | — | — | `11.1 s` | **`17.1 s`** | **`245 s`** |
-| **`cascade`** | `principal` (person root) | `10:44:27.096Z` | `10:44:41Z` | `13.9 s` | `9.9 s` / `23.8 s` | **`15.9 s`** / **`29.8 s`** | **`185 s`** / `198.9 s` |
-| **`cascade`** | `cascade_agent_1` (delegated agent) | `10:44:27.096Z` | `10:44:41Z` | `13.9 s` | `34.8 s` / `48.7 s` | **`40.8 s`** / **`54.7 s`** | **`395 s`** / **`408.9 s`** |
-| **`cascade`** | `cascade_agent_2` (delegated agent) | `10:44:27.096Z` | `10:44:41Z` | `13.9 s` | `185.9 s` / `199.8 s` | **`189.1 s`** / **`203.0 s`** | **`395 s`** / **`408.9 s`** |
+Figures below are recomputed from the `results` row of `revocation-trace-testnet-20261114T104257Z.jsonl` and match MintID's own summary (`revocation-trace-testnet-20261114T104257Z.md`). Each path has its own `t0`, as MintID defines it.
+
+| Path | Subject | `t0` (MintID's definition) | Last accepted (from `t0`) | First refused (from `t0`) | Bound (from `t0`) |
+|---|---|---|---|---|---|
+| **`issuer`** | `agent_issuer` | `10:43:25.128Z`, the issuer's revoke response | `19.7 s` | **`23.1 s`** | **`185 s`** |
+| **`kill_switch`** | `agent_kill_switch` | `10:44:00.599Z`, the nullifier recorded on chain | `14.5 s` | **`17.1 s`** | **`245 s`** |
+| **`cascade`** | `cascade_agent_1` | `10:44:41Z`, the trigger root | `185.9 s` | **`189.1 s`** | **`395 s`** |
+| **`cascade`** | `cascade_agent_2` | `10:44:41Z`, the trigger root | `34.8 s` | **`40.8 s`** | **`395 s`** |
+
+For the cascade, `P2`'s time zero (the principal's revocation request, `10:44:27.096Z`) is `13.9 s` before MintID's trigger root, so from that origin: `cascade_agent_1` last accepted `199.8 s`, first refused `203.0 s`; `cascade_agent_2` `48.7 s` and `54.7 s`; bound `408.9 s`.
 
 ### Refusal Attribution & Verifier Decision Logs
 - **Shared Refusal Code (`status_root_stale`) + Witness-Refresh Control:**

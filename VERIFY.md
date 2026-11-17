@@ -22,7 +22,7 @@ Do not trust this file. Re-run the commands and read the evidence.
 | `checkers/make_negatives.py`, `checkers/negatives/*.pcap` | Capture mutants: unrelated, request_only, forbidden_fetch |
 | `setup/` | Keys, config patch, build, env check, run, ready check |
 | `interop.yaml` | AI2II manifest |
-| `validation/bundle-inbound/inbound/` | Evidence bundle from the PASS run (git-ignored) |
+| `validation/bundle-inbound/inbound/` | Evidence bundle from the PASS run (committed) |
 
 ## Re-run (needs port 5050 free, tree committed; run outside any sandbox)
 
