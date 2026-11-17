@@ -64,7 +64,11 @@ if command -v tshark >/dev/null 2>&1; then
         fi
     done
 else
-    echo "  [WARN] tshark not found on PATH; skipping live tshark dissection check."
+    if [ "${REQUIRE_TSHARK:-0}" = "1" ]; then
+        echo "ERROR: tshark not found on PATH and REQUIRE_TSHARK=1; the packet checkers did not run." >&2
+        exit 1
+    fi
+    echo "  [WARN] tshark not found on PATH; skipping the packet checkers. Nothing in step 4 was checked."
 fi
 
 echo "=== [5/5] Verifying Partner P1-P8 Manifests & SHA-256 Digests ==="
@@ -99,6 +103,24 @@ assert len(sb_lines) == sb_manifest["lines"] == 4
 assert sb_manifest["results"]["made-up-proof"]["outside"]["reason"] == "proof_invalid"
 assert sb_manifest["results"]["no-agent-answer"]["outside"]["reason"] == "no-agent-answer"
 print(f"  -> Redthread+MintID sandbox negative-control manifest verified ({len(sb_lines)} JSONL records)")
+
+# 4. Partner-contributed runs (CONTRIBUTING.md format): every manifest whose "files" maps a name
+#    to {"sha256", "lines"} is checked. These are partner-attested results, not re-run here.
+contributed = 0
+for mpath in sorted(p_dir.glob("*.manifest.json")):
+    man = json.loads(mpath.read_text())
+    files = man.get("files")
+    if not isinstance(files, dict) or not all(isinstance(v, dict) and "sha256" in v for v in files.values()):
+        continue
+    for fname, meta in files.items():
+        data = (p_dir / fname).read_bytes()
+        digest = hashlib.sha256(data).hexdigest()
+        assert digest == meta["sha256"], f"SHA256 mismatch for {fname}: {digest} != {meta['sha256']}"
+        if "lines" in meta:
+            assert len(data.decode().strip().splitlines()) == meta["lines"], f"line count mismatch for {fname}"
+    contributed += 1
+    print(f"  -> {mpath.name} verified ({man.get('impl', '?')} {man.get('scenario', '')}, commit {str(man.get('commit', '?'))[:7]}; partner-attested, not re-run here)")
+assert contributed >= 1, "expected at least the Cred P8 manifest"
 PY
 
 if [ "${1:-}" = "--live" ]; then

@@ -98,6 +98,10 @@ PASS	chain	8f8441e4af00	validation/bundle-chain/chain
 - **`inbound` (`validation/bundle-inbound/inbound/`):** 34/34 cases passed against `bin/maurice` (sha256 `36f92fe8...`), verified by `checkers/observes_wimse.py` (NVIDIA Nemotron Ultra), rejecting all 3 negative mutants (`unrelated.pcap`, `request_only.pcap`, `forbidden_fetch.pcap`).
 - **`chain` (`validation/bundle-chain/chain/`):** 19/19 3-agent cross-domain call-chain & attack cases (`:5050–5063`) + 10 `P2/P7/P8` loopback cases on `:5064` (2 simulated, 2 replayed, 6 mocked; see `TEST_RESULTS_SUMMARY.md`) passed, verified by `checkers/observes_chain.py` and `checkers/observes_p1_p8.py`, rejecting all 6 negative mutants (`chain_unrelated.pcap`, `chain_request_only.pcap`, `chain_leaked_txn.pcap`, `p1_p8_unrelated.pcap`, `p1_p8_request_only.pcap`, `p1_p8_missing_before_effect.pcap`).
 
+## Contributing
+
+Pull requests are welcome, including results from your own implementation. See [`CONTRIBUTING.md`](CONTRIBUTING.md); every pull request is checked by `./reproduce.sh` on GitHub.
+
 ## License
 
 Work by Alexander Pelov is available under either the [Apache License 2.0](LICENSE-APACHE) or the [MIT License](LICENSE-MIT), at your option. Files contributed by Redthread Security, MintID, OmniArx, Cred and others remain credited to them and are not relicensed; see [`NOTICE`](NOTICE).

@@ -1,0 +1,31 @@
+name: reproduce
+
+# Re-checks the committed evidence on every pull request and push to main:
+# bundle integrity, the packet checkers on the committed captures (tshark is
+# required, so a missing tshark fails instead of skipping), the negative
+# mutants, and the partner manifests' digests. It does not re-run any peer.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  reproduce:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install tshark
+        run: |
+          sudo apt-get update -q
+          echo "wireshark-common wireshark-common/install-setuid boolean false" | sudo debconf-set-selections
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q tshark
+          tshark --version | head -1
+      - name: Reproduce
+        run: REQUIRE_TSHARK=1 ./reproduce.sh
