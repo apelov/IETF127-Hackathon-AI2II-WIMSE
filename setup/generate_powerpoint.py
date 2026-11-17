@@ -87,7 +87,7 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
         ("Token Authority", "OAuth Txn-Token"),
         ("Agent 2: Coordinator", "Cross-Domain WPT"),
         ("Agent 3: Research", "Scope Narrowing"),
-        ("File Tool", "Protected Op / ZK"),
+        ("File Tool", "Protected Read"),
     ]
     node_w = Inches(1.72)
     node_h = Inches(0.72)
@@ -197,7 +197,7 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
         ("Wireshark Dissector (dissectors/wimse.lua)", "Custom Lua dissector visually decodes WIT, WPT, Txn-Tokens, and RFC 9421 signatures in Wireshark GUI."),
         ("Live Testnet Probes (WP09)", "3 live endpoint probes (MintID RPC, verifier status/build-info). Live P2 hook cases here: mocked."),
         ("P2 Live Sandbox (Redthread, partner-reported)", "Issuer route: refused at once. Kill switch: allowed on held witness, refused after next commitment (40 s)."),
-        ("4 Independent AI Family Audits", "Full code and PCAP verification by Claude Opus, Gemini, NVIDIA Nemotron, and Mistral Vibe."),
+        ("Reviews by 4 AI Families", "Claude Opus, Gemini, NVIDIA Nemotron and Mistral Vibe reviewed code and captures; findings and fixes are in validation/."),
     ]
     for b_title, b_desc in bullets2:
         p = tf2.add_paragraph()
@@ -230,34 +230,46 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
     p.font.bold = True
     p.font.color.rgb = c_navy_dark
 
-    table_shape = slide1.shapes.add_table(7, 3, c3_x + Inches(0.15), col_y + Inches(0.55), col_w - Inches(0.3), Inches(2.2))
-    table = table_shape.table
-    table.columns[0].width = Inches(1.95)
-    table.columns[1].width = Inches(0.68)
-    table.columns[2].width = Inches(0.77)
-
+    # One row per evidence class; classes are never added together.
     scores = [
-        ("Suite 1: Inbound Matrix", "34/34", "✅ PASS"),
-        ("Suite 2: 9-Hop Chain & Attacks", "19/19", "✅ PASS"),
-        ("Suite 3: Partner traces (simulated clock)", "22/22", "✅ PASS"),
-        ("Suite 3: P7/P8 on :5064 (fixed answers)", "6", "MOCKED"),
-        ("Suite 4: Live probes (4 hook cases mocked)", "3/3", "✅ PASS"),
-        ("Negative Control Mutants", "10/10", "🛡️ REJ"),
-        ("P2 live sandbox, Redthread 17 Nov", "6", "PARTNER"),
+        ("Result", "Count", "Class"),
+        ("Suite 1: inbound matrix", "34/34", "on wire"),
+        ("Suite 2: 9-hop chain, attacks", "19/19", "on wire"),
+        ("Redthread P1-P6 traces", "22/22", "simulated"),
+        ("P7/P8 on :5064", "6", "mocked"),
+        ("MintID probes, 15 Nov", "3/3", "live probe"),
+        ("P2 sandbox, Redthread 17 Nov", "6", "partner"),
+        ("Negative mutants rejected", "10/10", "checker"),
     ]
-    for row_idx, (name, count, res) in enumerate(scores):
-        for col_idx, val in enumerate((name, count, res)):
+    row_h = Inches(0.27)
+    table_shape = slide1.shapes.add_table(
+        len(scores), 3, c3_x + Inches(0.15), col_y + Inches(0.55), col_w - Inches(0.3), row_h * len(scores)
+    )
+    table = table_shape.table
+    table.columns[0].width = Inches(2.0)
+    table.columns[1].width = Inches(0.6)
+    table.columns[2].width = col_w - Inches(0.3) - Inches(2.6)
+    class_color = {"on wire": c_green_pass, "checker": c_green_pass}
+    for row_idx, row in enumerate(scores):
+        table.rows[row_idx].height = row_h
+        for col_idx, val in enumerate(row):
             cell = table.cell(row_idx, col_idx)
             cell.text = val
+            cell.margin_top = cell.margin_bottom = Inches(0.02)
             p = cell.text_frame.paragraphs[0]
             p.font.name = "Arial"
-            p.font.size = Pt(8.5 if row_idx < 5 else 9.5)
-            p.font.bold = (row_idx == 5 or col_idx > 0)
-            p.font.color.rgb = c_green_pass if (row_idx == 5 or col_idx == 2) else c_navy_dark
+            p.font.size = Pt(8.5)
+            p.font.bold = row_idx == 0 or col_idx > 0
+            if row_idx == 0:
+                p.font.color.rgb = c_white
+            elif col_idx == 2:
+                p.font.color.rgb = class_color.get(val, c_navy_dark)
+            else:
+                p.font.color.rgb = c_navy_dark
             if col_idx > 0:
                 p.alignment = PP_ALIGN.CENTER
 
-    badge = slide1.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, c3_x + Inches(0.15), col_y + Inches(2.9), col_w - Inches(0.3), Inches(0.7))
+    badge = slide1.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, c3_x + Inches(0.15), col_y + Inches(2.95), col_w - Inches(0.3), Inches(0.65))
     badge.fill.solid()
     badge.fill.fore_color.rgb = c_green_bg
     badge.line.color.rgb = c_green_pass
@@ -266,7 +278,7 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
     tf_b = badge.text_frame
     tf_b.word_wrap = True
     p_b1 = tf_b.paragraphs[0]
-    p_b1.text = "100% REPRODUCIBLE IN 1 COMMAND"
+    p_b1.text = "EVIDENCE RE-CHECKED IN 1 COMMAND"
     p_b1.font.name = "Arial"
     p_b1.font.size = Pt(9.5)
     p_b1.font.bold = True
@@ -274,12 +286,19 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
     p_b1.alignment = PP_ALIGN.CENTER
 
     p_b2 = tf_b.add_paragraph()
-    p_b2.text = "./reproduce.sh  ·  ./reproduce.sh --live-testnet"
+    p_b2.text = "./reproduce.sh"
     p_b2.font.name = "Courier New"
-    p_b2.font.size = Pt(8.5)
+    p_b2.font.size = Pt(9)
     p_b2.font.bold = True
     p_b2.font.color.rgb = c_navy_dark
     p_b2.alignment = PP_ALIGN.CENTER
+
+    p_b3 = tf_b.add_paragraph()
+    p_b3.text = "checks hashes and captures; does not re-run peers"
+    p_b3.font.name = "Arial"
+    p_b3.font.size = Pt(8)
+    p_b3.font.color.rgb = c_navy_dark
+    p_b3.alignment = PP_ALIGN.CENTER
 
     # Footer Slide 1
     footer1 = slide1.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), Inches(7.0), Inches(11.733), Inches(0.38))
@@ -352,57 +371,57 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
         (
             "AgentMaurice",
             ":5050",
-            "Domain A (harbor.example)",
+            "Domain A (maurice.ietf127.example)",
             "draft-ietf-wimse-s2s-protocol\nRFC 9421 HTTP Message Signatures\ndraft-ietf-wimse-identifier-04",
             "Autonomous Workload initiator (Agent 1). WIT Profile 1 (WPT) & Profile 2 (HTTP-Sig), key compromise (C11), and port 47999 SSRF anti-probing defense.",
         ),
         (
             "Token Authority (TTS-A)",
             ":5051",
-            "Domain A (harbor.example)",
+            "Domain A (maurice.ietf127.example)",
             "draft-ietf-wimse-workload-identity-bcp\ndraft-ietf-oauth-transaction-tokens",
-            "Issues Ed25519 WITs and mints initial cross-domain OAuth Transaction Tokens carrying broad delegation scope (files:read files:list).",
+            "Issues the initial Transaction Token with the broad delegation scope (files:read files:list); AS-A issues the cross-domain grant.",
         ),
         (
             "Coordinator Agent (Agent 2)",
             ":5060",
-            "Domain B (rich.example)",
+            "Domain B (rich.ietf127.example)",
             "draft-ietf-wimse-s2s-protocol\ndraft-ietf-oauth-transaction-tokens",
             "Inter-domain gateway. Validates inbound Domain A WIMSE proofs, passes sanitized context, and calls Domain B Token Authority for token exchange.",
         ),
         (
             "Token Authority (TTS-B)",
             ":5061",
-            "Domain B (rich.example)",
+            "Domain B (rich.ietf127.example)",
             "draft-ietf-oauth-transaction-tokens\ndraft-ietf-wimse-wpt",
-            "Enforces monotonic scope narrowing (files:read). Mints WPT cryptographically binding both WIT hash (wth) and Txn-Token hash (tth).",
+            "AS-B and TTS-B: accepts the cross-domain grant and issues the narrowed Txn-Token (files:read). The calling workload's WPT binds the WIT hash (wth) and the Txn-Token hash (tth).",
         ),
         (
             "Research Sub-Agent (Agent 3)",
             ":5062",
-            "Domain B (rich.example)",
+            "Domain B (rich.ietf127.example)",
             "draft-ietf-wimse-s2s-protocol\nRFC 9421 HTTP Message Signatures",
             "Executes research queries. Sanitizes caller_context to prevent credential exfiltration; prompt injection vectors C7/C8 stopped at boundary.",
         ),
         (
             "File Tool Microservice",
             ":5063",
-            "Domain B (rich.example)",
+            "Domain B (rich.ietf127.example)",
             "draft-ietf-oauth-transaction-tokens\nRFC 8941 Structured Headers",
-            "Protected downstream resource. Validates narrowed Txn-Token, enforces WPT binding, and hooks outside verifier before serving files.",
+            "Protected resource. Verifies the WIT, the WPT binding to WIT and narrowed Txn-Token, and the scope before exactly one protected read.",
         ),
         (
             "Redthread Security",
             "Simulated / :5064",
-            "Partner Runtime (v0.7.584)",
-            "ProtectedOperation Architecture\nATPP Delegation Framework",
-            "Scenarios P1–P6: status-revocation, status-stale, attenuation (host, methods, expiration, tools), rate limits (P4), and build pinning (P6).",
+            "Partner runtime",
+            "draft-le-agent-passport\n(0.7.591, commit 3a6560c)",
+            "Scenarios P1–P6 on a simulated clock: status revoked, stale, unavailable (P1), attenuation (P3), cumulative limit (P4), request rewritten (P5), tool and build pinning (P6).",
         ),
         (
             "MintID Testnet",
-            "testnet.mintid.net",
+            "MintID testnet",
             "External Live Testnet",
-            "draft-mintid-zk-credentials\nTendermint RPC (:443)",
+            "MintID protocol (open source)\nZK non-revocation proof",
             "MintID's recorded 14 Nov testnet trace (partner-attested): revocation attributed via holder witness refresh (credential_revoked) + sibling control.",
         ),
         (
