@@ -69,6 +69,7 @@ checkers:
       - {input: checkers/negatives/chain_request_only.pcap, replaces: "{capture}"}
       - {input: checkers/negatives/chain_leaked_txn.pcap, replaces: "{capture}"}
       - {input: checkers/negatives/chain_hop_flipped.pcap, replaces: "{capture}"}
+      - {input: checkers/negatives/chain_leaked_txn_body.pcap, replaces: "{capture}"}
   - name: observes-p1-p8
     family: nvidia
     observes_capture: true

@@ -49,8 +49,14 @@ def check_url(url: str, timeout: float = 4.0) -> tuple[bool, int, dict | str]:
         return False, 0, str(e)
 
 
+def testnet_endpoints(networks: dict) -> dict:
+    """The first chain of the testnet profile in deploy/networks.json (profiles.testnet.chains)."""
+    chains = networks.get("profiles", {}).get("testnet", {}).get("chains", {})
+    return next(iter(chains.values()), {}) if isinstance(chains, dict) else {}
+
+
 def verify_live_endpoints(networks: dict) -> tuple[int, int, str]:
-    endpoints = networks.get("testnet", {}).get("endpoints", {})
+    endpoints = testnet_endpoints(networks)
     verifier_url = endpoints.get("verifier", "https://verifier.testnet.mintid.net")
     rpc_url = endpoints.get("rpc", "https://rpc.testnet.mintid.net:443")
 
@@ -68,6 +74,8 @@ def verify_live_endpoints(networks: dict) -> tuple[int, int, str]:
             mode = "LIVE"
         else:
             mode = "DEGRADED"
+            errors += 1
+            print(f"FAIL LIVE_VERIFIER_STATUS sync_status={sync_st}: verifier not synced, hook cases fall back to mocks", file=sys.stderr)
     else:
         errors += 1
         print(f"FAIL LIVE_VERIFIER_STATUS url={verifier_url}/v1/status status={st}: unreachable", file=sys.stderr)
@@ -184,7 +192,7 @@ def main():
     args = parser.parse_args()
 
     networks = load_networks()
-    endpoints = networks.get("testnet", {}).get("endpoints", {})
+    endpoints = testnet_endpoints(networks)
     verifier_url = args.verifier_url or endpoints.get("verifier", "https://verifier.testnet.mintid.net")
 
     print(f"=== [WP09] Live Partner & Testnet Verification ({verifier_url}) ===")

@@ -13,6 +13,7 @@ What answers each case:
 import argparse
 import http.server
 import json
+import os
 import pathlib
 import sys
 import threading
@@ -30,6 +31,10 @@ from protected_op import ProtectedOperation  # noqa: E402
 import mintid_outside  # noqa: E402
 
 JOURNAL: list[dict] = []
+
+# The P2 outside-verifier cases replay recorded sandbox outcomes. Only the operator can switch them
+# to live calls, by setting this variable before starting the executor; a request cannot.
+LIVE_OUTSIDE_VERIFIER = os.environ.get("WIMSE_EXECUTOR_LIVE_VERIFIER") or None
 
 DISPLAY_DIGEST_EXPECTED = "sha256:4a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b"
 TS_OMNIARX = 1800000000
@@ -159,7 +164,7 @@ class ExecutorHTTPHandler(http.server.BaseHTTPRequestHandler):
         elif case == "outside-made-up-proof":
             session_id = body.get("session_id", "01eac0157bbfc1f54af295fadb53dafc")
             now_utc = body.get("utc", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
-            verifier_url = body.get("verifier_url")
+            verifier_url = LIVE_OUTSIDE_VERIFIER
             if verifier_url:
                 outside_fn = mintid_outside.outside(
                     verifier_url,
@@ -205,7 +210,7 @@ class ExecutorHTTPHandler(http.server.BaseHTTPRequestHandler):
         elif case == "outside-no-agent-answer":
             session_id = body.get("session_id", "ea27daa1d8be8f59a1c5e43963facc2d")
             now_utc = body.get("utc", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
-            verifier_url = body.get("verifier_url")
+            verifier_url = LIVE_OUTSIDE_VERIFIER
             if verifier_url:
                 outside_fn = mintid_outside.outside(verifier_url, lambda ch: None)
             else:
@@ -243,7 +248,7 @@ class ExecutorHTTPHandler(http.server.BaseHTTPRequestHandler):
         elif case == "outside-positive-unrevoked":
             session_id = body.get("session_id", "live-unrevoked-session-01")
             now_utc = body.get("utc", time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
-            verifier_url = body.get("verifier_url")
+            verifier_url = LIVE_OUTSIDE_VERIFIER
             config_path = ROOT / "config" / "mintid_live.json"
             if verifier_url and config_path.exists():
                 try:

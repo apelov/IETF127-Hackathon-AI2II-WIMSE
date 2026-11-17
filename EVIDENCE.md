@@ -33,7 +33,7 @@ PASS	WIMSE	inbound	bf10aed475bb	maurice@bf10aed475bb, wimse-client@bf10aed475bb	
 
 ### 2.2 Negative Mutant Captures (Rejected by Independent Checkers)
 
-Every independent checker is verified to exit non-zero on each of its negative PCAP mutants: `wire run` re-checks this at every recording, and `./reproduce.sh` re-checks it on every run. The mutants were derived from earlier recordings of the same cells (the chain mutants from the `8f8441e` capture), not from the captures in 2.1.
+Every independent checker is verified to exit non-zero on each of its negative PCAP mutants: `wire run` re-checks this at every recording, and `./reproduce.sh` re-checks it on every run. The mutants were derived from earlier recordings of the same cells (the chain mutants from the `8f8441e` capture, except `chain_leaked_txn_body.pcap`, made from the capture in 2.1).
 
 | Negative PCAP File | Target Checker | Mutation / Violation Tested | Total Packets | SHA-256 Digest |
 |---|---|---|---:|---|
@@ -43,6 +43,7 @@ Every independent checker is verified to exit non-zero on each of its negative P
 | [`checkers/negatives/chain_unrelated.pcap`](checkers/negatives/chain_unrelated.pcap) | `observes_chain.py` | Non-WIMSE traffic (missing `B_CHAIN` and negative cases) | 3 | `0b85a5a7ac55505dfef4be1248455e17291fca83594e0313786d0c169850e456` |
 | [`checkers/negatives/chain_request_only.pcap`](checkers/negatives/chain_request_only.pcap) | `observes_chain.py` | Request packets only (HTTP responses stripped across `:5050–5063`) | 781 | `01d3a553e97003f4a4a9c5d9105090d8ff581959108a4f1026cd467656410324` |
 | [`checkers/negatives/chain_leaked_txn.pcap`](checkers/negatives/chain_leaked_txn.pcap) | `observes_chain.py` | Domain A internal `Txn-Token` (`aud = "maurice.ietf127.example"`, `txn = "leaked"`) injected onto Domain B port `:5062` (`POST /research`) during `B_CHAIN` | 825 | `5f086cb2f1d0a24614fb05a12e832ca1e33bc5c893ebdbb2a50e0a1684691e3c` |
+| [`checkers/negatives/chain_leaked_txn_body.pcap`](checkers/negatives/chain_leaked_txn_body.pcap) | `observes_chain.py` | The same Domain A `Txn-Token` sent to `:5062` in an untagged request's JSON body (`subject_token`) instead of a header; only the body scan rejects it | 823 | `5aa5bd1a467c4f25a08d5a8e1e1288cbc6a0497aeda87d8ed50b054fb5b3a016` |
 | [`checkers/negatives/chain_hop_flipped.pcap`](checkers/negatives/chain_hop_flipped.pcap) | `observes_chain.py` | One intermediate hop of `C7` (`:5061`) changed from `200` to `403`; the case's set of statuses is unchanged, so only the hop-by-hop comparison with `expected_hops` catches it | 824 | `92e6e2cfd875c824da5f0e29b7b1ce5fc843558e598167773199407d84340989` |
 | [`checkers/negatives/p1_p8_unrelated.pcap`](checkers/negatives/p1_p8_unrelated.pcap) | `observes_p1_p8.py` | Non-WIMSE traffic on loopback | 3 | `1281856404dbd4572ae0de3970160c91d5458493fa2239c7134f566e23c51fe3` |
 | [`checkers/negatives/p1_p8_request_only.pcap`](checkers/negatives/p1_p8_request_only.pcap) | `observes_p1_p8.py` | `P2/P7/P8` requests on `:5064` with all HTTP responses stripped | 70 | `cb3bbef9651ff7199b3f9c3b317474aa218ffa78fb9f5d8034b35ebbdd5b5975` |

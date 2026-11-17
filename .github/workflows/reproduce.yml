@@ -28,4 +28,4 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q tshark
           tshark --version | head -1
       - name: Reproduce
-        run: REQUIRE_TSHARK=1 ./reproduce.sh
+        run: ./reproduce.sh

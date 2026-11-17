@@ -1,5 +1,6 @@
-"""Derive four capture mutants from a valid multi-hop WIMSE chain run."""
+"""Derive five capture mutants from a valid multi-hop WIMSE chain run."""
 import argparse
+import json
 import pathlib
 import re
 import struct
@@ -10,7 +11,7 @@ HERE = pathlib.Path(__file__).parent
 OUT = HERE / "negatives"
 
 
-def add_leaked_txn(source: pathlib.Path, target: pathlib.Path):
+def add_leaked_txn(source: pathlib.Path, target: pathlib.Path, in_body: bool = False):
     data = source.read_bytes()
     if data[:4] != b"\xd4\xc3\xb2\xa1" or struct.unpack_from("<I", data, 20)[0] != 0:
         raise ValueError("expected little-endian classic pcap with DLT_NULL")
@@ -18,13 +19,24 @@ def add_leaked_txn(source: pathlib.Path, target: pathlib.Path):
     # Header: {"alg":"ES256","typ":"txntoken+jwt"} -> eyJhbGciOiJFUzI1NiIsInR5cCI6InR4bnRva2VuK2p3dCJ9
     # Payload: {"aud":"maurice.ietf127.example","txn":"leaked"} -> eyJhdWQiOiJtYXVyaWNlLmlldGYxMjcuZXhhbXBsZSIsInR4biI6ImxlYWtlZCJ9
     leaked_jwt = "eyJhbGciOiJFUzI1NiIsInR5cCI6InR4bnRva2VuK2p3dCJ9.eyJhdWQiOiJtYXVyaWNlLmlldGYxMjcuZXhhbXBsZSIsInR4biI6ImxlYWtlZCJ9.c2ln"
-    http_payload = (
-        f"POST /research HTTP/1.1\r\n"
-        f"Host: 127.0.0.1:5062\r\n"
-        f"X-Test-Case: B_CHAIN\r\n"
-        f"Txn-Token: {leaked_jwt}\r\n"
-        f"Content-Length: 2\r\n\r\n{{}}"
-    ).encode("ascii")
+    if in_body:
+        # Same token in the JSON body (e.g. as a token-exchange subject_token), not in a header.
+        # Untagged, so no case's hops change: only the body scan can reject this capture.
+        body = json.dumps({"subject_token": leaked_jwt})
+        http_payload = (
+            f"POST /research HTTP/1.1\r\n"
+            f"Host: 127.0.0.1:5062\r\n"
+            f"Content-Type: application/json\r\n"
+            f"Content-Length: {len(body)}\r\n\r\n{body}"
+        ).encode("ascii")
+    else:
+        http_payload = (
+            f"POST /research HTTP/1.1\r\n"
+            f"Host: 127.0.0.1:5062\r\n"
+            f"X-Test-Case: B_CHAIN\r\n"
+            f"Txn-Token: {leaked_jwt}\r\n"
+            f"Content-Length: 2\r\n\r\n{{}}"
+        ).encode("ascii")
     source_ip = bytes((127, 0, 0, 1))
     dest_ip = source_ip
     total_len = 40 + len(http_payload)
@@ -96,8 +108,9 @@ def main():
         check=True,
     )
     add_leaked_txn(args.capture, OUT / "chain_leaked_txn.pcap")
+    add_leaked_txn(args.capture, OUT / "chain_leaked_txn_body.pcap", in_body=True)
     flip_hop_status(args.capture, OUT / "chain_hop_flipped.pcap")
-    for name in ("chain_unrelated", "chain_request_only", "chain_leaked_txn", "chain_hop_flipped"):
+    for name in ("chain_unrelated", "chain_request_only", "chain_leaked_txn", "chain_leaked_txn_body", "chain_hop_flipped"):
         print(name, (OUT / f"{name}.pcap").stat().st_size)
 
 

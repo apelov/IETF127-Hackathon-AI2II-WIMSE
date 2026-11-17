@@ -14,6 +14,7 @@ import base64
 import hashlib
 import json
 import pathlib
+import re
 import subprocess
 import sys
 from collections import defaultdict
@@ -93,6 +94,16 @@ def _decode_body(http_layer: dict) -> dict:
             return json.loads(bytes.fromhex(cleaned).decode("utf-8", errors="replace"))
         except Exception:
             return {}
+
+
+_JWT_RE = re.compile(r"eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*")
+
+
+def _body_text(http_layer: dict) -> str:
+    raw = _first_str(http_layer.get("http.file_data", ""))
+    if raw and re.fullmatch(r"[0-9a-fA-F]{2}(:[0-9a-fA-F]{2})*", raw):
+        return bytes.fromhex(raw.replace(":", "")).decode("utf-8", errors="replace")
+    return raw
 
 
 def _jwt_header(token: str) -> dict:
@@ -193,9 +204,14 @@ def verify_capture(capture_path: pathlib.Path) -> None:
                     if auth_val.upper().startswith("WPT "):
                         wpt_header = auth_val[4:].strip()
 
-            # Cross-domain isolation check on all requests to Domain B ports
+            # Cross-domain isolation check on all requests to Domain B ports: Txn-Token headers,
+            # and any Txn-Token (typ txntoken+jwt) carried in the request body.
             if dstport in DOMAIN_B_PORTS:
-                for tok in txn_headers:
+                body_txn = [
+                    t for t in _JWT_RE.findall(_body_text(req))
+                    if "txntoken" in str(_jwt_header(t).get("typ", "")).lower()
+                ]
+                for tok in txn_headers + body_txn:
                     hdr = _jwt_header(tok)
                     payload = _jwt_payload(tok)
                     is_domain_a_tok = (

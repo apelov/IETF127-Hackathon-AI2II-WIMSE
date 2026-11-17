@@ -28,6 +28,14 @@ for bundle in validation/bundle-*/*/; do
     fi
 done
 .venv/bin/python -m wire summarize validation
+# verify-bundle checks digests only; a bundle whose recorded verdict is not PASS must fail here.
+.venv/bin/python - <<'PY'
+import json, pathlib, sys
+bad = [str(p.parent) for p in pathlib.Path("validation").glob("bundle-*/*/verdict.json")
+       if json.loads(p.read_text()).get("verdict") != "PASS"]
+if bad:
+    sys.exit("ERROR: recorded verdict is not PASS: " + ", ".join(bad))
+PY
 
 echo "=== [4/5] Running Independent Packet Checkers on Committed PCAPs & Negative Mutants ==="
 if command -v tshark >/dev/null 2>&1; then
@@ -44,7 +52,7 @@ if command -v tshark >/dev/null 2>&1; then
 
     echo "  -> Checking Suite 2 (observes_chain.py on validation/bundle-chain/chain/capture.pcap)"
     .venv/bin/python checkers/observes_chain.py validation/bundle-chain/chain/capture.pcap
-    for neg in checkers/negatives/chain_unrelated.pcap checkers/negatives/chain_request_only.pcap checkers/negatives/chain_leaked_txn.pcap checkers/negatives/chain_hop_flipped.pcap; do
+    for neg in checkers/negatives/chain_unrelated.pcap checkers/negatives/chain_request_only.pcap checkers/negatives/chain_leaked_txn.pcap checkers/negatives/chain_hop_flipped.pcap checkers/negatives/chain_leaked_txn_body.pcap; do
         if .venv/bin/python checkers/observes_chain.py "$neg" >/dev/null 2>&1; then
             echo "ERROR: negative mutant $neg unexpectedly passed observes_chain.py!" >&2
             exit 1
@@ -64,11 +72,12 @@ if command -v tshark >/dev/null 2>&1; then
         fi
     done
 else
-    if [ "${REQUIRE_TSHARK:-0}" = "1" ]; then
-        echo "ERROR: tshark not found on PATH and REQUIRE_TSHARK=1; the packet checkers did not run." >&2
+    if [ "${ALLOW_NO_TSHARK:-0}" != "1" ]; then
+        echo "ERROR: tshark not found on PATH; the packet checkers cannot run. Install tshark, or set ALLOW_NO_TSHARK=1 to check only hashes and manifests." >&2
         exit 1
     fi
-    echo "  [WARN] tshark not found on PATH; skipping the packet checkers. Nothing in step 4 was checked."
+    echo "  [WARN] tshark not found on PATH and ALLOW_NO_TSHARK=1; skipping the packet checkers. Nothing in step 4 was checked."
+    SKIPPED_CHECKERS=1
 fi
 
 echo "=== [5/5] Verifying Partner P1-P8 Manifests & SHA-256 Digests ==="
@@ -146,4 +155,8 @@ if [ "${1:-}" = "--live-testnet" ]; then
     .venv/bin/python checkers/observes_live_partners.py
 fi
 
-echo "=== ALL REPRODUCIBILITY CHECKS PASSED ==="
+if [ "${SKIPPED_CHECKERS:-0}" = "1" ]; then
+    echo "=== HASHES AND MANIFESTS PASSED; PACKET CHECKERS NOT RUN (no tshark) ==="
+else
+    echo "=== ALL REPRODUCIBILITY CHECKS PASSED ==="
+fi

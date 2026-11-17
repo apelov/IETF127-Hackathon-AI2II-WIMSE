@@ -227,19 +227,20 @@
   {
     "id": "D5",
     "ref": "CHAIN-1",
-    "title": "Cross-domain guard blocks Domain A Txn-Token from leaving Domain A / AS-B rejects raw Txn-Token",
+    "title": "AS-B rejects a non-grant JWT (typ at+jwt) presented as a cross-domain grant",
     "expected_statuses": [
       403
     ],
     "expected_reason": "grant-invalid",
     "expected_hops": [
       "5061 403 grant-invalid"
-    ]
+    ],
+    "wire_note": "The other half of D5, the driver's outbound guard refusing to send a Domain A Txn-Token to Domain B, happens before any packet is sent, so it is not wire evidence."
   },
   {
     "id": "D6",
     "ref": "TXO-4/5",
-    "title": "Replacement Txn-Token scope narrowing accepted; widened scope and mutated txn rejected",
+    "title": "TTS-A issues a narrowed replacement Txn-Token (the widened and txn-mutated replacements are rejected by the driver, not on the wire)",
     "expected_statuses": [
       200
     ],

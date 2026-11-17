@@ -239,7 +239,7 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
         ("P7/P8 on :5064", "6", "mocked"),
         ("MintID probes, 15 Nov", "3/3", "live probe"),
         ("P2 sandbox, Redthread 17 Nov", "6", "partner"),
-        ("Negative mutants rejected", "10/10", "checker"),
+        ("Negative mutants rejected", "11/11", "checker"),
     ]
     row_h = Inches(0.27)
     table_shape = slide1.shapes.add_table(
