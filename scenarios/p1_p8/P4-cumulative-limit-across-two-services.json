@@ -1,0 +1,71 @@
+{
+  "id": "P4",
+  "title": "Cumulative limit across two services",
+  "proposed_by": "Ben Le (Redthread)",
+  "drafts": [
+    "draft-le-agent-passport Sections 'Claims' (dlg_limits), 'Chain Validation'"
+  ],
+  "setup": [
+    "Receipt with dlg_limits.max_calls = N (use N = 5). Two RPs: S1 in domain A, S2 in domain B."
+  ],
+  "cases": [
+    {
+      "name": "per-rp-counting",
+      "do": "Receipt aud [S1, S2]; each RP counts on its own; agent alternates calls until both refuse.",
+      "expect": {
+        "decision": "deny at issuance or at first RP",
+        "reason": "limit-aud-not-single"
+      },
+      "basis": "-01",
+      "note": "Under -00 an implementation that accepted it would allow 2N calls in total: the reason -01 forbids it."
+    },
+    {
+      "name": "single-accounting-rp",
+      "do": "Receipt aud [S1] only; S1 counts; agent makes N + 1 calls to S1.",
+      "expect": {
+        "decision": "allow N, deny call N + 1",
+        "reason": "limit-exceeded"
+      },
+      "basis": "-01"
+    },
+    {
+      "name": "child-limit-wider",
+      "do": "Child receipt max_calls N + 1 under a parent with N.",
+      "expect": {
+        "decision": "deny",
+        "reason": "attenuation:max_calls"
+      },
+      "basis": "-00"
+    }
+  ],
+  "log": [
+    "reason",
+    "receipt_iss",
+    "receipt_jti",
+    "count",
+    "limit"
+  ],
+  "format": "ietf127-wimse-scenario/1",
+  "log_line": {
+    "one JSON object per decision": [
+      "scenario",
+      "case",
+      "impl",
+      "hop",
+      "domain",
+      "txn_id",
+      "decision",
+      "reason",
+      "ts"
+    ],
+    "plus": "the scenario's own `log` fields"
+  },
+  "reasons": {
+    "status-revoked": "the status list says revoked (confirmed revocation)",
+    "status-stale": "the RP's cached list is past its ttl and a fresh one could not be fetched",
+    "status-unavailable": "no valid list and no cached copy (service down, invalid list)",
+    "status-grace": "allowed under a bounded low-value grace period (log on every use)",
+    "ok": "accepted"
+  },
+  "reason_mapping": "Implementations keep their own codes; state the mapping to these names once per implementation in the run notes. The point is that the three status refusals stay distinguishable in the log even when policy denies all three."
+}

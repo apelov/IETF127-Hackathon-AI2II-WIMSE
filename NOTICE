@@ -21,6 +21,9 @@ confirmed with them.
     scenarios/p1_p8/protected_op.py, run_local.py, run_mintid_sandbox.py,
     mintid_outside.py (outside-verifier hook design)
     scenarios/p1_p8/originals/redthread-*.zip
+    scenarios/p1_p8/P1-*.json, P3-*.json, P4-*.json, P5-*.json, P6-*.json
+      (scenario definitions)
+    scenarios/p1_p8/originals/ietf127-scenarios.zip
 
   MintID (Marc Miro i Rierola):
     scenarios/p1_p8/revocation-trace-testnet-20261114T104257Z.*

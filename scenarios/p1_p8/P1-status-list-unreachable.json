@@ -1,0 +1,97 @@
+{
+  "id": "P1",
+  "title": "Status list unreachable",
+  "proposed_by": "Ben Le (Redthread)",
+  "drafts": [
+    "draft-le-agent-passport Section 'Status and Revocation'",
+    "draft-ietf-oauth-status-list"
+  ],
+  "setup": [
+    "Agent A (domain A) calls service S1 (domain B) with a passport whose `status` points at list L.",
+    "S1 has fetched L once: not revoked, ttl 60 s. Status-list TTL the RP trusts: 60 s."
+  ],
+  "cases": [
+    {
+      "name": "confirmed-revocation",
+      "do": "Issuer marks A revoked in L; S1 fetches L.",
+      "expect": {
+        "decision": "deny",
+        "reason": "status-revoked",
+        "effect": "none"
+      },
+      "basis": "-00"
+    },
+    {
+      "name": "expired-cache",
+      "do": "Make L unreachable; wait until S1's copy is past its ttl (t > 60 s); A calls S1.",
+      "expect": {
+        "decision": "deny",
+        "reason": "status-stale",
+        "effect": "none"
+      },
+      "basis": "-01",
+      "note": "-00 left this to local policy (SHOULD deny for high-value). -01: MUST treat as revoked."
+    },
+    {
+      "name": "service-unavailable",
+      "do": "S1 has never fetched L (cold start) and L is unreachable; A calls S1.",
+      "expect": {
+        "decision": "deny",
+        "reason": "status-unavailable",
+        "effect": "none"
+      },
+      "basis": "-01"
+    },
+    {
+      "name": "low-value-grace",
+      "do": "As expired-cache, operation designated low value, grace 120 s, call at t = 100 s then t = 200 s.",
+      "expect": {
+        "decision": "allow then deny",
+        "reason": "status-grace then status-stale",
+        "effect": "first call only"
+      },
+      "basis": "-01",
+      "note": "Grace starts when the ttl ends, never applies to a high-value operation, and is logged each time it is used."
+    },
+    {
+      "name": "one-element-in-chain",
+      "do": "A delegates to B; only A's status is undeterminable; B calls S1.",
+      "expect": {
+        "decision": "deny",
+        "reason": "status-unavailable",
+        "effect": "none"
+      },
+      "basis": "-01",
+      "note": "One undeterminable status anywhere in the chain invalidates the chain."
+    }
+  ],
+  "log": [
+    "reason",
+    "status_url",
+    "cached_age_s",
+    "ttl_s"
+  ],
+  "format": "ietf127-wimse-scenario/1",
+  "log_line": {
+    "one JSON object per decision": [
+      "scenario",
+      "case",
+      "impl",
+      "hop",
+      "domain",
+      "txn_id",
+      "decision",
+      "reason",
+      "ts"
+    ],
+    "plus": "the scenario's own `log` fields"
+  },
+  "reasons": {
+    "status-revoked": "the status list says revoked (confirmed revocation)",
+    "status-stale": "the RP's cached list is past its ttl and a fresh one could not be fetched",
+    "status-unavailable": "no valid list and no cached copy (service down, invalid list)",
+    "status-grace": "allowed under a bounded low-value grace period (log on every use)",
+    "ok": "accepted"
+  },
+  "reason_mapping": "Implementations keep their own codes; state the mapping to these names once per implementation in the run notes. The point is that the three status refusals stay distinguishable in the log even when policy denies all three."
+}

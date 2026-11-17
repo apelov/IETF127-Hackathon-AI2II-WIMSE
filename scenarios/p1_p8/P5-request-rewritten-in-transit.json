@@ -1,0 +1,78 @@
+{
+  "id": "P5",
+  "title": "Request rewritten in transit",
+  "proposed_by": "Ben Le (Redthread)",
+  "drafts": [
+    "draft-le-agent-passport Sections 'Signing', 'Intermediaries'",
+    "RFC 9421"
+  ],
+  "setup": [
+    "Agent signs @method, @authority, @target-uri, agent-passport (and agent-delegation). A proxy sits in front of the RP."
+  ],
+  "cases": [
+    {
+      "name": "rewrite-authority",
+      "do": "Proxy changes Host / @authority.",
+      "expect": {
+        "decision": "deny",
+        "reason": "signature-invalid"
+      },
+      "basis": "-00"
+    },
+    {
+      "name": "rewrite-path",
+      "do": "Proxy rewrites the path.",
+      "expect": {
+        "decision": "deny",
+        "reason": "signature-invalid"
+      },
+      "basis": "-00"
+    },
+    {
+      "name": "authenticated-proxy-verifies",
+      "do": "Proxy verifies the signature itself and forwards its decision over an authenticated channel the RP trusts.",
+      "expect": {
+        "decision": "allow",
+        "reason": "ok"
+      },
+      "basis": "-01"
+    },
+    {
+      "name": "forwarded-headers-unauthenticated",
+      "do": "RP rebuilds the target URI from X-Forwarded-Host set by an unauthenticated proxy.",
+      "expect": {
+        "decision": "deny",
+        "reason": "forwarded-target-uri-unauthenticated"
+      },
+      "basis": "-01"
+    }
+  ],
+  "log": [
+    "reason",
+    "covered_components",
+    "intermediary"
+  ],
+  "format": "ietf127-wimse-scenario/1",
+  "log_line": {
+    "one JSON object per decision": [
+      "scenario",
+      "case",
+      "impl",
+      "hop",
+      "domain",
+      "txn_id",
+      "decision",
+      "reason",
+      "ts"
+    ],
+    "plus": "the scenario's own `log` fields"
+  },
+  "reasons": {
+    "status-revoked": "the status list says revoked (confirmed revocation)",
+    "status-stale": "the RP's cached list is past its ttl and a fresh one could not be fetched",
+    "status-unavailable": "no valid list and no cached copy (service down, invalid list)",
+    "status-grace": "allowed under a bounded low-value grace period (log on every use)",
+    "ok": "accepted"
+  },
+  "reason_mapping": "Implementations keep their own codes; state the mapping to these names once per implementation in the run notes. The point is that the three status refusals stay distinguishable in the log even when policy denies all three."
+}

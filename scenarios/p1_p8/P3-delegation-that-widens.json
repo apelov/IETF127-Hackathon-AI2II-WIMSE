@@ -1,0 +1,98 @@
+{
+  "id": "P3",
+  "title": "Delegation that widens",
+  "proposed_by": "Ben Le (Redthread)",
+  "drafts": [
+    "draft-le-agent-passport Section 'Grants and Attenuation'"
+  ],
+  "setup": [
+    "Parent receipt grant: host api.b.example, port 443, methods [GET], paths [/orders/*], tools [list_orders], max_body_bytes 0, exp T, aud [https://api.b.example]."
+  ],
+  "cases": [
+    {
+      "name": "wider-host",
+      "do": "Child grant host *.b.example.",
+      "expect": {
+        "decision": "deny",
+        "reason": "attenuation:host"
+      },
+      "basis": "-00"
+    },
+    {
+      "name": "more-methods",
+      "do": "Child methods [GET, POST].",
+      "expect": {
+        "decision": "deny",
+        "reason": "attenuation:methods"
+      },
+      "basis": "-00"
+    },
+    {
+      "name": "longer-lifetime",
+      "do": "Child exp T + 1.",
+      "expect": {
+        "decision": "deny",
+        "reason": "attenuation:exp"
+      },
+      "basis": "-00"
+    },
+    {
+      "name": "dropped-tools",
+      "do": "Child omits tools.",
+      "expect": {
+        "decision": "deny",
+        "reason": "attenuation:tools"
+      },
+      "basis": "-00"
+    },
+    {
+      "name": "absent-means-default",
+      "do": "Parent omits methods (default GET, HEAD); child methods [GET].",
+      "expect": {
+        "decision": "allow",
+        "reason": "ok"
+      },
+      "basis": "-01",
+      "note": "-01 states that an absent member is compared as its default."
+    },
+    {
+      "name": "unknown-member",
+      "do": "Child grant adds a member the RP does not understand.",
+      "expect": {
+        "decision": "deny",
+        "reason": "attenuation:unknown-member"
+      },
+      "basis": "-00"
+    }
+  ],
+  "log": [
+    "reason",
+    "parent_jti",
+    "child_jti",
+    "member"
+  ],
+  "reference": "docs/spec/attenuation-by-constraint.md (one row per constraint type)",
+  "format": "ietf127-wimse-scenario/1",
+  "log_line": {
+    "one JSON object per decision": [
+      "scenario",
+      "case",
+      "impl",
+      "hop",
+      "domain",
+      "txn_id",
+      "decision",
+      "reason",
+      "ts"
+    ],
+    "plus": "the scenario's own `log` fields"
+  },
+  "reasons": {
+    "status-revoked": "the status list says revoked (confirmed revocation)",
+    "status-stale": "the RP's cached list is past its ttl and a fresh one could not be fetched",
+    "status-unavailable": "no valid list and no cached copy (service down, invalid list)",
+    "status-grace": "allowed under a bounded low-value grace period (log on every use)",
+    "ok": "accepted"
+  },
+  "reason_mapping": "Implementations keep their own codes; state the mapping to these names once per implementation in the run notes. The point is that the three status refusals stay distinguishable in the log even when policy denies all three."
+}

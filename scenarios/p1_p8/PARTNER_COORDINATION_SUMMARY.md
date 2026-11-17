@@ -126,6 +126,11 @@ To connect Redthread's `ProtectedOperation` executor (`E`) with MintID's live te
 | `P2-revocation-after-delegation-before-effect.json` | 4,772 | `3a84a26c4e644e2cd04a7b7b6cfb75f1e65d0cd8eeb16783433d9cf619b21538` | Redthread `v0.7.584` (`358c1ad`, v2 with MintID + Redthread `implementations_offered`) |
 | `P7-approval-display-differs-from-the-executed-action.json` | 3,046 | `3e6e023f0a9158fbdd0aefd14803b1bdba26f5393212ef8d7b0ba8c2c7c27370` | Redthread `v0.7.584` + OmniArx (`358c1ad`) |
 | `P8-final-hop-to-a-bearer-only-third-party-api.json` | 3,069 | `1e1aa9ccffefe27ab1624198cbde7045c393b443e70417e198322f504e881cb8` | Redthread `v0.7.584` + Cred (`358c1ad`) |
+| `P1-status-list-unreachable.json` | 3,169 | `0d0cb494bfbc0790019efef9a96692f95376b782f26d70a5a0b6b298804dd0bd` | Ben Le (Redthread), scenario definition, 14 Nov 2026 |
+| `P3-delegation-that-widens.json` | 2,798 | `2377cdad5da8bb1131def4b5d51d093eebe66e3dc7979aa5b93b3c63ec1aa47d` | Ben Le (Redthread), scenario definition, 14 Nov 2026 |
+| `P4-cumulative-limit-across-two-services.json` | 2,275 | `7c5fc7aaf111d3f17462bbf61a0b3a313d91e066620e38974eb2e8f38290916b` | Ben Le (Redthread), scenario definition, 14 Nov 2026 |
+| `P5-request-rewritten-in-transit.json` | 2,347 | `1f43f86d7f2c8cc1fd93222f23d29168960e95548fea093b1e446cacaadad533` | Ben Le (Redthread), scenario definition, 14 Nov 2026 |
+| `P6-tool-description-or-build-changes-between-hops.json` | 2,109 | `cb5db97d24331faef25caf1b91ccb072a93a0585eace7c389666de70503e6714` | Ben Le (Redthread), scenario definition, 14 Nov 2026 |
 | `protected_op.py` | 10,847 | `03a09c75d28d073aaf090bb5db478d122a0b63e019b5cf2f82ac50d475fc56ce` | Adapted in this repository (WP07/WP09) from Redthread's `protected_op.py` (`v0.7.584`, `ac4d088`); Redthread's original is inside `originals/redthread-p1-p6-local-runs.zip` |
 | `run_local.py` | 9,866 | `26fc784f267ec4bed7d5cf7f792487bae4026a0b2ce35e8612e7d554adda5bb4` | Redthread `v0.7.584` (`39f7531`) |
 | `redthread-local.manifest.json` | 5,167 | `1d2145bd44814b0645d39f55e55e1442ea11bd40da548b6a6f3aee4e2dd6d8df` | Redthread `v0.7.584` (`P1–P6` 22/22 manifest) |
@@ -152,3 +157,4 @@ To connect Redthread's `ProtectedOperation` executor (`E`) with MintID's live te
 | `P2-revocation-after-delegation-before-effect-v1.json` | 3,636 | `bdfaf486c5639addddc3c318aa6fd18f338bc5cdf27be5a87c630730aa261218` | Initial `P2` JSON revision with single-string MintID `implementations_offered` entry |
 | `redthread-p1-p6-local-runs.zip` | 16,428 | `b86918ac89f293305aae3e58824c2eaf76dc563078a22e925e98168a07a77739` | Exact zip archive from Ben Le (`v0.7.584`) |
 | `redthread-p2-mintid-sandbox.zip` | 5,789 | `415722e426dd56c054cae0b319243157a2dee8638348964d0b12b988f4e67a1a` | Downloaded archive from Ben Le (`v0.7.586`). **Truncated as received** (864 bytes missing; the copy in `~/Downloads` is identical): `redthread-P2-mintid-sandbox-negative.jsonl`, `.manifest.json`, `run_mintid_sandbox.py` and `protected_op.py` extract intact and the first three match the copies in `scenarios/p1_p8/`; `mintid_outside.py` cannot be recovered. A fresh copy has been requested from Ben Le. |
+| `ietf127-scenarios.zip` | 11,474 | `112591867a0fd7eccf6db09ba2c3899db382c9e7cc9aa32ffc41c3e6c9c244cf` | Original ZIP from Ben Le, 14 Nov 2026: scenario definitions `P1`–`P8` and README (intact; `P2`, `P7`, `P8` later revised) |

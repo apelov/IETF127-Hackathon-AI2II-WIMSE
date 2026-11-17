@@ -1,0 +1,62 @@
+{
+  "id": "P6",
+  "title": "Tool description or build changes between hops",
+  "proposed_by": "Ben Le (Redthread); the listing-swap pattern measured in the MCP registry",
+  "drafts": [
+    "draft-le-agent-passport Sections 'Agent Passport' (agent_build.tools[].attestation), 'Claims' (dlg_build)",
+    "draft-nandakumar-agent-sd-card"
+  ],
+  "setup": [
+    "B's passport pins each tool by digest; A's child receipt to B carries dlg_build = B's build digest."
+  ],
+  "cases": [
+    {
+      "name": "tool-swapped",
+      "do": "Mid-chain, the MCP server behind tool t serves a changed definition; B calls the next hop.",
+      "expect": {
+        "decision": "deny",
+        "reason": "tool-digest-mismatch"
+      },
+      "basis": "-00",
+      "note": "-01 adds agent_card: with an Agent SD-Card the same change also fails at discovery."
+    },
+    {
+      "name": "build-changed",
+      "do": "B presents a new passport with a different build under the same key.",
+      "expect": {
+        "decision": "deny",
+        "reason": "build-mismatch"
+      },
+      "basis": "-00"
+    }
+  ],
+  "log": [
+    "reason",
+    "tool_id",
+    "expected_digest",
+    "presented_digest"
+  ],
+  "format": "ietf127-wimse-scenario/1",
+  "log_line": {
+    "one JSON object per decision": [
+      "scenario",
+      "case",
+      "impl",
+      "hop",
+      "domain",
+      "txn_id",
+      "decision",
+      "reason",
+      "ts"
+    ],
+    "plus": "the scenario's own `log` fields"
+  },
+  "reasons": {
+    "status-revoked": "the status list says revoked (confirmed revocation)",
+    "status-stale": "the RP's cached list is past its ttl and a fresh one could not be fetched",
+    "status-unavailable": "no valid list and no cached copy (service down, invalid list)",
+    "status-grace": "allowed under a bounded low-value grace period (log on every use)",
+    "ok": "accepted"
+  },
+  "reason_mapping": "Implementations keep their own codes; state the mapping to these names once per implementation in the run notes. The point is that the three status refusals stay distinguishable in the log even when policy denies all three."
+}
