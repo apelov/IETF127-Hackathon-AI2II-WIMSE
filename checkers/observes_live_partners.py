@@ -69,7 +69,8 @@ def verify_live_endpoints(networks: dict) -> tuple[int, int, str]:
         else:
             mode = "DEGRADED"
     else:
-        print(f"CHECK LIVE_VERIFIER_STATUS url={verifier_url}/v1/status status={st} (fallback to SIMULATED)")
+        errors += 1
+        print(f"FAIL LIVE_VERIFIER_STATUS url={verifier_url}/v1/status status={st}: unreachable", file=sys.stderr)
 
     # 2. Verifier build info
     ok, st, body = check_url(f"{verifier_url}/v1/build-info")
@@ -77,6 +78,9 @@ def verify_live_endpoints(networks: dict) -> tuple[int, int, str]:
         cases_checked += 1
         ver = body.get("version", "unknown")
         print(f"CHECK LIVE_VERIFIER_BUILD url={verifier_url}/v1/build-info status={st} version={ver}")
+    else:
+        errors += 1
+        print(f"FAIL LIVE_VERIFIER_BUILD url={verifier_url}/v1/build-info status={st}: unreachable", file=sys.stderr)
 
     # 3. RPC Node status
     ok, st, body = check_url(f"{rpc_url}/status")
@@ -84,6 +88,9 @@ def verify_live_endpoints(networks: dict) -> tuple[int, int, str]:
         cases_checked += 1
         height = body.get("result", {}).get("sync_info", {}).get("latest_block_height", "unknown")
         print(f"CHECK LIVE_RPC_STATUS url={rpc_url}/status status={st} latest_block_height={height}")
+    else:
+        errors += 1
+        print(f"FAIL LIVE_RPC_STATUS url={rpc_url}/status status={st}: unreachable", file=sys.stderr)
 
     return cases_checked, errors, mode
 

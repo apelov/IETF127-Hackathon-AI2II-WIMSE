@@ -44,7 +44,7 @@ if command -v tshark >/dev/null 2>&1; then
 
     echo "  -> Checking Suite 2 (observes_chain.py on validation/bundle-chain/chain/capture.pcap)"
     .venv/bin/python checkers/observes_chain.py validation/bundle-chain/chain/capture.pcap
-    for neg in checkers/negatives/chain_unrelated.pcap checkers/negatives/chain_request_only.pcap checkers/negatives/chain_leaked_txn.pcap; do
+    for neg in checkers/negatives/chain_unrelated.pcap checkers/negatives/chain_request_only.pcap checkers/negatives/chain_leaked_txn.pcap checkers/negatives/chain_hop_flipped.pcap; do
         if .venv/bin/python checkers/observes_chain.py "$neg" >/dev/null 2>&1; then
             echo "ERROR: negative mutant $neg unexpectedly passed observes_chain.py!" >&2
             exit 1

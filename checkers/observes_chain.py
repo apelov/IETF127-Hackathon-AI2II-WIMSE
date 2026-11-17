@@ -153,12 +153,16 @@ def verify_capture(capture_path: pathlib.Path) -> None:
         dstport = int(_first_str(tcp.get("tcp.dstport", "0")) or 0)
         if not sid:
             continue
+        frame = layers.get("frame", {})
+        frame_no = int(_first_str(frame.get("frame.number", "0")) or 0) if isinstance(frame, dict) else 0
         if _is_request(http):
-            streams[sid]["reqs"].append((srcport, dstport, http))
+            streams[sid]["reqs"].append((frame_no, dstport, http))
         elif _extract_status(http) > 0:
             streams[sid]["resps"].append((srcport, dstport, http))
 
     case_statuses: dict[str, list[int]] = defaultdict(list)
+    # (request frame number, "port status reason") per case, compared hop by hop with expected_hops
+    case_hops: dict[str, list[tuple[int, str]]] = defaultdict(list)
     case_reasons: dict[str, set[str]] = defaultdict(set)
     b_chain_txns: set[str] = set()
     b_chain_ports: set[int] = set()
@@ -167,7 +171,7 @@ def verify_capture(capture_path: pathlib.Path) -> None:
     errors = 0
 
     for sid, sr in streams.items():
-        for idx, (srcport, dstport, req) in enumerate(sr["reqs"]):
+        for idx, (frame_no, dstport, req) in enumerate(sr["reqs"]):
             req_lines = _extract_lines(req, "http.request.line")
             uri = _first_str(req.get("http.request.uri", ""))
             case_id = None
@@ -229,6 +233,10 @@ def verify_capture(capture_path: pathlib.Path) -> None:
             status = _extract_status(resp)
             case_statuses[case_id].append(status)
             resp_body = _decode_body(resp)
+            hop_reason = "-"
+            if isinstance(resp_body, dict):
+                hop_reason = str(resp_body.get("reason") or resp_body.get("error") or "-")
+            case_hops[case_id].append((frame_no, f"{dstport} {status} {hop_reason}"))
             if isinstance(resp_body, dict):
                 body_reason = resp_body.get("reason") or resp_body.get("error")
                 if body_reason:
@@ -296,10 +304,12 @@ def verify_capture(capture_path: pathlib.Path) -> None:
             )
             errors += 1
             continue
-        exp_set = set(spec["expected_statuses"])
-        if not exp_set.issubset(set(observed)):
+        # Every hop, in order: a 200 that turns into a 403 on any hop is a failure, even if the
+        # case's set of statuses is unchanged (Mistral Vibe review, finding F1).
+        observed_hops = [h for _, h in sorted(case_hops.get(cid, []))]
+        if observed_hops != spec["expected_hops"]:
             print(
-                f"FAIL {cid}: expected statuses {sorted(exp_set)} not all in observed {observed}",
+                f"FAIL {cid}: hops {observed_hops} differ from expected_hops {spec['expected_hops']}",
                 file=sys.stderr,
             )
             errors += 1

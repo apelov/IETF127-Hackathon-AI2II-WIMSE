@@ -2,6 +2,13 @@
 Runs on 127.0.0.1:5064 to execute live loopback HTTP exchanges for P2, P7, and P8
 so they appear in capture.pcap as real wire traffic and emit ietf127-wimse-scenario/1
 log lines to JOURNAL.
+
+What answers each case:
+- P2: a copy of Redthread's ProtectedOperation with a simulated verifier on a fake clock,
+  plus two replayed MintID sandbox outcomes.
+- P7 and P8: fixed answers (impl "p7-fixed-answer-mock" / "p8-fixed-answer-mock"). P7 compares a
+  presented digest string with a constant; P8 maps each case name to a fixed status. No OmniArx or
+  Cred code runs, and no token, signature, key or action is verified.
 """
 import argparse
 import http.server
@@ -353,7 +360,7 @@ class ExecutorHTTPHandler(http.server.BaseHTTPRequestHandler):
         log_line = {
             "scenario": "P7",
             "case": case,
-            "impl": "omniarx",
+            "impl": "p7-fixed-answer-mock",
             "hop": "E",
             "domain": "B",
             "txn_id": txn_id,
@@ -369,7 +376,7 @@ class ExecutorHTTPHandler(http.server.BaseHTTPRequestHandler):
         resp = {
             "scenario": "P7",
             "case": case,
-            "impl": "omniarx",
+            "impl": "p7-fixed-answer-mock",
             "decision": decision,
             "reason": reason,
             "effect": effect,
@@ -430,7 +437,7 @@ class ExecutorHTTPHandler(http.server.BaseHTTPRequestHandler):
         log_line = {
             "scenario": "P8",
             "case": case,
-            "impl": "cred",
+            "impl": "p8-fixed-answer-mock",
             "hop": "E",
             "domain": "B",
             "txn_id": txn_id,
@@ -447,7 +454,7 @@ class ExecutorHTTPHandler(http.server.BaseHTTPRequestHandler):
         resp = {
             "scenario": "P8",
             "case": case,
-            "impl": "cred",
+            "impl": "p8-fixed-answer-mock",
             "decision": decision,
             "reason": reason,
             "effect": effect,

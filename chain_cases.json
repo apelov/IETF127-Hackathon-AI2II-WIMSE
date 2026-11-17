@@ -3,135 +3,267 @@
     "id": "B_CHAIN",
     "ref": "Phase-B",
     "title": "3-Agent 2-domain call chain (TTS-A -> Agent1:Maurice -> AS-A -> AS-B -> Agent2:Coordinator -> TTS-B -> Agent3:Research -> TTS-B -> FileTool)",
-    "expected_statuses": [200],
+    "expected_statuses": [
+      200
+    ],
     "expected_reason": "accept",
-    "hops": ["tts-a", "maurice", "as-a", "as-b", "agent2-coordinator", "tts-b", "agent3-research", "tts-b", "file-tool"]
+    "hops": [
+      "tts-a",
+      "maurice",
+      "as-a",
+      "as-b",
+      "agent2-coordinator",
+      "tts-b",
+      "agent3-research",
+      "tts-b",
+      "file-tool"
+    ],
+    "expected_hops": [
+      "5051 200 -",
+      "5050 200 -",
+      "5051 200 -",
+      "5061 200 -",
+      "5060 200 -",
+      "5061 200 -",
+      "5062 200 -",
+      "5061 200 -",
+      "5063 200 -"
+    ]
   },
   {
     "id": "C5",
     "ref": "ATK-5",
     "title": "Txn-Token swapped after signing HTTP-Sig",
-    "expected_statuses": [400],
-    "expected_reason": "proof-invalid"
+    "expected_statuses": [
+      400
+    ],
+    "expected_reason": "proof-invalid",
+    "expected_hops": [
+      "5063 400 proof-invalid"
+    ]
   },
   {
     "id": "C6",
     "ref": "ATK-6",
     "title": "Foreign Txn-Token (Domain A aud presented to Domain B File Tool)",
-    "expected_statuses": [403],
-    "expected_reason": "txn-token-invalid"
+    "expected_statuses": [
+      403
+    ],
+    "expected_reason": "txn-token-invalid",
+    "expected_hops": [
+      "5063 403 txn-token-invalid"
+    ]
   },
   {
     "id": "C7",
     "ref": "ATK-7",
     "title": "Prompt injection attempting out-of-scope file read (salaries.xlsx under Q3.pdf tctx)",
-    "expected_statuses": [200, 403],
-    "expected_reason": "not-authorized"
+    "expected_statuses": [
+      200,
+      403
+    ],
+    "expected_reason": "not-authorized",
+    "expected_hops": [
+      "5062 200 -",
+      "5061 200 -",
+      "5063 200 -",
+      "5063 403 not-authorized"
+    ]
   },
   {
     "id": "C8",
     "ref": "ATK-8",
     "title": "Prompt injection attempting credential exfiltration from caller_context",
-    "expected_statuses": [200],
-    "expected_reason": "accept"
+    "expected_statuses": [
+      200
+    ],
+    "expected_reason": "accept",
+    "expected_hops": [
+      "5062 200 -",
+      "5061 200 -",
+      "5063 200 -",
+      "5063 403 not-authorized"
+    ],
+    "wire_note": "The research agent's outer response is 200 with no leaked credentials; the last hop is the injected out-of-scope read, which the File Tool refuses."
   },
   {
     "id": "C9",
     "ref": "ATK-9a",
     "title": "Autonomous workload call (no Txn-Token) to delegated-only route /files/read",
-    "expected_statuses": [403],
-    "expected_reason": "not-authorized"
+    "expected_statuses": [
+      403
+    ],
+    "expected_reason": "not-authorized",
+    "expected_hops": [
+      "5063 403 not-authorized"
+    ]
   },
   {
     "id": "C9b",
     "ref": "ATK-9b",
     "title": "Delegated call (with Txn-Token) to autonomous-only route /files/index",
-    "expected_statuses": [403],
-    "expected_reason": "not-authorized"
+    "expected_statuses": [
+      403
+    ],
+    "expected_reason": "not-authorized",
+    "expected_hops": [
+      "5063 403 not-authorized"
+    ]
   },
   {
     "id": "C10",
     "ref": "ATK-10",
     "title": "Mid-transaction workload revocation (accept before revoke, 403 revoked after)",
-    "expected_statuses": [200, 403],
-    "expected_reason": "revoked"
+    "expected_statuses": [
+      200,
+      403
+    ],
+    "expected_reason": "revoked",
+    "expected_hops": [
+      "5063 200 -",
+      "5063 200 -",
+      "5063 403 revoked",
+      "5063 200 -"
+    ]
   },
   {
     "id": "D1",
     "ref": "TXN-1",
     "title": "Txn-Token header present on HTTP-Sig request but omitted from @signature-params",
-    "expected_statuses": [400],
-    "expected_reason": "proof-invalid"
+    "expected_statuses": [
+      400
+    ],
+    "expected_reason": "proof-invalid",
+    "expected_hops": [
+      "5063 400 proof-invalid"
+    ]
   },
   {
     "id": "D2",
     "ref": "TXN-2",
     "title": "Txn-Token header present on WPT request with wrong tth hash",
-    "expected_statuses": [401],
+    "expected_statuses": [
+      401
+    ],
     "expected_reason": "proof-invalid",
-    "www_authenticate": "WPT"
+    "www_authenticate": "WPT",
+    "expected_hops": [
+      "5063 401 proof-invalid",
+      "5050 401 -"
+    ]
   },
   {
     "id": "D3_exp",
     "ref": "TXN-3a",
     "title": "Expired Txn-Token rejected by File Tool",
-    "expected_statuses": [403],
-    "expected_reason": "txn-token-invalid"
+    "expected_statuses": [
+      403
+    ],
+    "expected_reason": "txn-token-invalid",
+    "expected_hops": [
+      "5063 403 txn-token-invalid"
+    ]
   },
   {
     "id": "D3_sig",
     "ref": "TXN-3b",
     "title": "Txn-Token signed with untrusted rogue key rejected by File Tool",
-    "expected_statuses": [403],
-    "expected_reason": "txn-token-invalid"
+    "expected_statuses": [
+      403
+    ],
+    "expected_reason": "txn-token-invalid",
+    "expected_hops": [
+      "5063 403 txn-token-invalid"
+    ]
   },
   {
     "id": "D3_typ",
     "ref": "TXN-3c",
     "title": "Txn-Token with wrong typ=jwt rejected by File Tool",
-    "expected_statuses": [403],
-    "expected_reason": "txn-token-invalid"
+    "expected_statuses": [
+      403
+    ],
+    "expected_reason": "txn-token-invalid",
+    "expected_hops": [
+      "5063 403 txn-token-invalid"
+    ]
   },
   {
     "id": "D3_reqwl",
     "ref": "TXN-3d",
     "title": "Txn-Token missing required req_wl claim rejected by File Tool",
-    "expected_statuses": [403],
-    "expected_reason": "txn-token-invalid"
+    "expected_statuses": [
+      403
+    ],
+    "expected_reason": "txn-token-invalid",
+    "expected_hops": [
+      "5063 403 txn-token-invalid"
+    ]
   },
   {
     "id": "D3_dup",
     "ref": "TXN-3e",
     "title": "Request with duplicate Txn-Token headers rejected by File Tool",
-    "expected_statuses": [403],
-    "expected_reason": "txn-token-invalid"
+    "expected_statuses": [
+      403
+    ],
+    "expected_reason": "txn-token-invalid",
+    "expected_hops": [
+      "5063 403 txn-token-invalid"
+    ]
   },
   {
     "id": "D4",
     "ref": "TXN-4",
     "title": "Txn-Token with scope=profile:view rejected on files:read route",
-    "expected_statuses": [403],
-    "expected_reason": "not-authorized"
+    "expected_statuses": [
+      403
+    ],
+    "expected_reason": "not-authorized",
+    "expected_hops": [
+      "5063 403 not-authorized"
+    ]
   },
   {
     "id": "D5",
     "ref": "CHAIN-1",
     "title": "Cross-domain guard blocks Domain A Txn-Token from leaving Domain A / AS-B rejects raw Txn-Token",
-    "expected_statuses": [403],
-    "expected_reason": "grant-invalid"
+    "expected_statuses": [
+      403
+    ],
+    "expected_reason": "grant-invalid",
+    "expected_hops": [
+      "5061 403 grant-invalid"
+    ]
   },
   {
     "id": "D6",
     "ref": "TXO-4/5",
     "title": "Replacement Txn-Token scope narrowing accepted; widened scope and mutated txn rejected",
-    "expected_statuses": [200],
-    "expected_reason": "accept"
+    "expected_statuses": [
+      200
+    ],
+    "expected_reason": "accept",
+    "expected_hops": [
+      "5051 200 -",
+      "5051 200 -",
+      "5051 200 -",
+      "5051 200 -"
+    ],
+    "wire_note": "On the wire TTS-A issues all four tokens (200). The rejection of the widened and the txn-mutated replacements is checked by the driver, so it is not wire evidence."
   },
   {
     "id": "D7",
     "ref": "CHAIN-2",
     "title": "Cross-domain JWT grant with wrong audience rejected by AS-B",
-    "expected_statuses": [403],
-    "expected_reason": "grant-invalid"
+    "expected_statuses": [
+      403
+    ],
+    "expected_reason": "grant-invalid",
+    "expected_hops": [
+      "5051 200 -",
+      "5051 200 -",
+      "5061 403 grant-invalid"
+    ]
   }
 ]

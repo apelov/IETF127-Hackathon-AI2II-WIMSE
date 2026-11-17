@@ -29,8 +29,9 @@ cd ../opena2a-wimse-aep
 mkdir -p specs assets
 
 # 3. Copy the specification and architecture diagram from this repo
-cp /Users/apelov/Code/IETF127-Hackathon/WIMSE/specs/OPENA2A_WIMSE_AEP_SPEC.md specs/OPENA2A_WIMSE_AEP_SPEC.md
-cp /Users/apelov/Code/IETF127-Hackathon/WIMSE/assets/opena2a-wimse-aep-architecture.jpg assets/opena2a-wimse-aep-architecture.jpg
+#    (WIMSE_REPO is the path of your IETF127-Hackathon-AI2II-WIMSE checkout)
+cp "$WIMSE_REPO"/specs/OPENA2A_WIMSE_AEP_SPEC.md specs/OPENA2A_WIMSE_AEP_SPEC.md
+cp "$WIMSE_REPO"/assets/opena2a-wimse-aep-architecture.jpg assets/opena2a-wimse-aep-architecture.jpg
 
 # 4. Launch an agent in the new workspace
 agy
@@ -50,7 +51,7 @@ Once `agy` starts in `../opena2a-wimse-aep`, paste this prompt:
 
 ## Deliverables Generated in the Parallel Workspace
 
-Per the specification in [`specs/OPENA2A_WIMSE_AEP_SPEC.md`](file:///Users/apelov/Code/IETF127-Hackathon/WIMSE/specs/OPENA2A_WIMSE_AEP_SPEC.md):
+Per the specification in [`specs/OPENA2A_WIMSE_AEP_SPEC.md`](OPENA2A_WIMSE_AEP_SPEC.md):
 
 - `handover/wimse_ai2ii/capture_scenario1.pcap`
 - `handover/wimse_ai2ii/decision-journal.jsonl`

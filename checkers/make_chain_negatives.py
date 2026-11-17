@@ -1,6 +1,7 @@
-"""Derive three capture mutants from a valid multi-hop WIMSE chain run."""
+"""Derive four capture mutants from a valid multi-hop WIMSE chain run."""
 import argparse
 import pathlib
+import re
 import struct
 import subprocess
 import time
@@ -35,6 +36,44 @@ def add_leaked_txn(source: pathlib.Path, target: pathlib.Path):
     target.write_bytes(data + record + frame)
 
 
+def flip_hop_status(source: pathlib.Path, target: pathlib.Path, case: str = "C7", port: int = 5061):
+    """Turn one intermediate hop's 200 into 403, leaving the case's set of statuses unchanged."""
+    out = subprocess.run(
+        [
+            "tshark", "-2", "-r", str(source), "-d", f"tcp.port=={port},http",
+            "-Y", f'tcp.dstport=={port} && http.request.line contains "X-Test-Case: {case}"',
+            "-T", "fields", "-e", "http.response_in",
+        ],
+        capture_output=True, text=True, check=True,
+    ).stdout.split()
+    if len(out) != 1:
+        raise ValueError(f"expected one {case} request to port {port}, found {out}")
+    resp = int(out[0])
+    # The status line may sit in an earlier TCP segment of a reassembled response.
+    segs = subprocess.run(
+        ["tshark", "-2", "-r", str(source), "-d", f"tcp.port=={port},http",
+         "-Y", f"frame.number=={resp}", "-T", "fields", "-e", "tcp.segment"],
+        capture_output=True, text=True, check=True,
+    ).stdout.replace(",", " ").split()
+    frames = [int(f) for f in segs] or [resp]
+    data = bytearray(source.read_bytes())
+    if data[:4] != b"\xd4\xc3\xb2\xa1":
+        raise ValueError("expected little-endian classic pcap")
+    off, n = 24, 0
+    while off < len(data):
+        incl = struct.unpack_from("<I", data, off + 8)[0]
+        n += 1
+        if n in frames:
+            m = re.search(rb"HTTP/1\.[01] 200 ", bytes(data[off + 16 : off + 16 + incl]))
+            if m:
+                i = off + 16 + m.start() + 9
+                data[i : i + 3] = b"403"
+                target.write_bytes(bytes(data))
+                return
+        off += 16 + incl
+    raise ValueError(f"no 200 status line in frames {frames}")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("capture", type=pathlib.Path)
@@ -57,7 +96,8 @@ def main():
         check=True,
     )
     add_leaked_txn(args.capture, OUT / "chain_leaked_txn.pcap")
-    for name in ("chain_unrelated", "chain_request_only", "chain_leaked_txn"):
+    flip_hop_status(args.capture, OUT / "chain_hop_flipped.pcap")
+    for name in ("chain_unrelated", "chain_request_only", "chain_leaked_txn", "chain_hop_flipped"):
         print(name, (OUT / f"{name}.pcap").stat().st_size)
 
 
