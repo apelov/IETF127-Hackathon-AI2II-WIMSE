@@ -32,6 +32,9 @@ confirmed with them.
     scenarios/p1_p8/P7-*.json  (OmniArx)
     scenarios/p1_p8/P8-*.json  (Cred)
 
+  Cred (Kieran Sweeney):
+    scenarios/p1_p8/cred-P8.jsonl, cred-P8.manifest.json
+
   Iman Schrock (EMILIA Protocol): before-effect test design for P2. Credit
   for test design only; no EMILIA Protocol code is included.
 

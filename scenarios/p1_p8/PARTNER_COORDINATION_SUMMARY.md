@@ -27,8 +27,8 @@ This document summarizes the technical coordination, scenario definitions (`form
 | **P4** | **Cumulative limit across two services** | Multi-RP call-count limit enforcement (`limit-aud-not-single`, `limit-exceeded`, `attenuation:max_calls`) | Redthread Security `v0.7.584` (`redthread-P4-local.jsonl`, 3 cases, 8 lines, simulated clock) |
 | **P5** | **Request rewritten in transit** | Transit request target/header tampering (`signature-invalid`, `forwarded-target-uri-unauthenticated`) and `allow: ok` for an authenticated proxy | Redthread Security `v0.7.584` (`redthread-P5-local.jsonl`, 4 cases, simulated clock) |
 | **P6** | **Tool or build change between hops** | Pinned build/tool digest verification at invocation time (`build-mismatch`, `tool-digest-mismatch`) | Redthread Security `v0.7.584` (`redthread-P6-local.jsonl`, 2 cases, simulated clock; `tool-digest-mismatch` added in commit `39f7531`) |
-| **P7** | **Approval display differs from the executed action** | Cryptographic binding between human approval UI display text and executed action at fixed clock `1800000000` (`A.1` key, `A.2`/`V1` action, `A.5`/`V4` request, fresh replay state: `V5` `allow: ok`, `R2` `deny: display-mismatch`) | OmniArx verifier external run + Redthread scenario spec (`P7-approval-display-differs-from-the-executed-action.json`) + local `:5064/p7/execute` simulation |
-| **P8** | **Final hop to a bearer-only third-party API** | Upstream chain verification before bearer release (`no-delegation`, `scope-exceeded`, `status-revoked` with `token_released: false` vs `token-released` with `token_released: true`) | Cred + Redthread Security (`P8-final-hop-to-a-bearer-only-third-party-api.json`) + `:5064/p8/execute` |
+| **P7** | **Approval display differs from the executed action** | Cryptographic binding between human approval UI display text and executed action at fixed clock `1800000000` (`A.1` key, `A.2`/`V1` action, `A.5`/`V4` request, fresh replay state: `V5` `allow: ok`, `R2` `deny: display-mismatch`) | OmniArx verifier external run + Redthread scenario spec (`P7-approval-display-differs-from-the-executed-action.json`) + local `:5064/p7/execute` (mocked: fixed digest constants, no OmniArx code) |
+| **P8** | **Final hop to a bearer-only third-party API** | Upstream chain verification before bearer release (`no-delegation`, `scope-exceeded`, `status-revoked` with `token_released: false` vs `token-released` with `token_released: true`) | Cred's own run (`cred-P8.jsonl`, partner-attested) + Redthread scenario spec (`P8-final-hop-to-a-bearer-only-third-party-api.json`) + local `:5064/p8/execute` (mocked: fixed answers, no Cred code) |
 
 ---
 
@@ -123,30 +123,32 @@ To connect Redthread's `ProtectedOperation` executor (`E`) with MintID's live te
 
 | File | Size (Bytes) | SHA-256 | Source |
 |---|---:|---|---|
-| `P2-revocation-after-delegation-before-effect.json` | 4,772 | `54e5d3a826fd9c4ee2c3bf50db8289be4bd43479a5ca3ef6414f741c249895ca` | Redthread `v0.7.584` (`358c1ad`, v2 with MintID + Redthread `implementations_offered`) |
-| `P7-approval-display-differs-from-the-executed-action.json` | 3,046 | `0f8527bd09ba719d0f6a82d2093a67b14eb9f21f9bf92e367a42bc1a444d695b` | Redthread `v0.7.584` + OmniArx (`358c1ad`) |
-| `P8-final-hop-to-a-bearer-only-third-party-api.json` | 3,069 | `c2a42eb3eb949b21cd0d6b267b56a0e4b0107a0f4db9f91bc2f20b706d8ab2b2` | Redthread `v0.7.584` + Cred (`358c1ad`) |
-| `protected_op.py` | 3,740 | `781f9740900d2dc89d47e947f79a2682550b211a9d16db2d8dc0ec1743931d21` | Redthread `v0.7.584` (`ac4d088`) |
-| `run_local.py` | 9,866 | `1a2bdbf71975fb009dfcbeb2a51eb67413edfd0ac166c86a5bc2a96a71dddc3f` | Redthread `v0.7.584` (`39f7531`) |
-| `redthread-local.manifest.json` | 5,167 | `b00501fa5a0b384718a627490315238c5e565e1bd249218f8dc7d7f4aa4dd50f` | Redthread `v0.7.584` (`P1–P6` 22/22 manifest) |
-| `redthread-P2-local.manifest.json` | 491 | `e21e0a31a8ec262fb0ec97bb5304f1e2e89275cbef9d35b17357b4a07cf6c8a8` | Redthread `v0.7.584` (`P2` manifest) |
-| `redthread-P1-local.jsonl` | 3,178 | `da65a31d198a359f9dc1baeb5a039dc96b01518b49ef180e8eb6ddaa84457b79` | Redthread `v0.7.584` |
-| `redthread-P2-local.jsonl` | 41,977 | `b31868c824bf891ca977dc6d8da5baad9a690628510f7f29fa23a75772ab12e2` | Redthread `v0.7.584` |
-| `redthread-P3-local.jsonl` | 2,109 | `9915d87e2d52c7da3e5b733cfbbab0e834410d7023c67ff013f78b62a9d22473` | Redthread `v0.7.584` |
-| `redthread-P4-local.jsonl` | 2,909 | `e2309025f45dc04ac50995bfbbdfee3da5f9fa1f0a69503df9941ba018a57a94` | Redthread `v0.7.584` |
-| `redthread-P5-local.jsonl` | 1,500 | `32888f0917e649f778bb47f6e68a2352c4dbcccf1dfbc49b0d1de646d1f6127c` | Redthread `v0.7.584` |
-| `redthread-P6-local.jsonl` | 708 | `258ab62052c44f570d88b1a749b2be0d20b34c3cbbfab9cfbc944b53445ab254` | Redthread `v0.7.584` |
+| `P2-revocation-after-delegation-before-effect.json` | 4,772 | `3a84a26c4e644e2cd04a7b7b6cfb75f1e65d0cd8eeb16783433d9cf619b21538` | Redthread `v0.7.584` (`358c1ad`, v2 with MintID + Redthread `implementations_offered`) |
+| `P7-approval-display-differs-from-the-executed-action.json` | 3,046 | `3e6e023f0a9158fbdd0aefd14803b1bdba26f5393212ef8d7b0ba8c2c7c27370` | Redthread `v0.7.584` + OmniArx (`358c1ad`) |
+| `P8-final-hop-to-a-bearer-only-third-party-api.json` | 3,069 | `1e1aa9ccffefe27ab1624198cbde7045c393b443e70417e198322f504e881cb8` | Redthread `v0.7.584` + Cred (`358c1ad`) |
+| `protected_op.py` | 10,847 | `03a09c75d28d073aaf090bb5db478d122a0b63e019b5cf2f82ac50d475fc56ce` | Adapted in this repository (WP07/WP09) from Redthread's `protected_op.py` (`v0.7.584`, `ac4d088`); Redthread's original is inside `originals/redthread-p1-p6-local-runs.zip` |
+| `run_local.py` | 9,866 | `26fc784f267ec4bed7d5cf7f792487bae4026a0b2ce35e8612e7d554adda5bb4` | Redthread `v0.7.584` (`39f7531`) |
+| `redthread-local.manifest.json` | 5,167 | `1d2145bd44814b0645d39f55e55e1442ea11bd40da548b6a6f3aee4e2dd6d8df` | Redthread `v0.7.584` (`P1–P6` 22/22 manifest) |
+| `redthread-P2-local.manifest.json` | 491 | `d59d59eb844f6e5d23e45de607c46e084bfc07a5d79779d219cf71bf267ac3ee` | Redthread `v0.7.584` (`P2` manifest) |
+| `redthread-P1-local.jsonl` | 3,178 | `8a296088ddc17d8255c6708075ea216c859ee53e2c9afa350a4708134046688a` | Redthread `v0.7.584` |
+| `redthread-P2-local.jsonl` | 41,977 | `3f4f9436ba1c1e01f5c7b47ad400ef9bfed36fa53a2f24495fa8f6174f4460f7` | Redthread `v0.7.584` |
+| `redthread-P3-local.jsonl` | 2,109 | `00d23a57ef9542a5856de7aa419a600b18b12fbf1705817ff771d610c24cdae2` | Redthread `v0.7.584` |
+| `redthread-P4-local.jsonl` | 2,909 | `df75a31c1f23c4c1c8d3be234c44f16ed1c3acae3a0a6d27e8182ccd21435992` | Redthread `v0.7.584` |
+| `redthread-P5-local.jsonl` | 1,500 | `4c67da7c46481542f0f8d48539db874aa96640f84670babf2eba668ab261abbf` | Redthread `v0.7.584` |
+| `redthread-P6-local.jsonl` | 708 | `39d197814178be946754423de1d505086682cab2aba06058170b61385c94fe3e` | Redthread `v0.7.584` |
 | `revocation-trace-testnet-20261114T104257Z.jsonl` | 59,523 | `7090edc46994cbd039d281841043a68a41919188eb952a9b4da117b980182a32` | MintID `public-v2026-11-13.1` (`dca3d605`) |
 | `revocation-trace-testnet-20261114T104257Z.manifest.json` | 32,623 | `ca1703c3e7c0c40c71d80d8be046d2c1ba3bd7f06e7d4f35d0ef4e4604100963` | MintID `public-v2026-11-13.1` (`dca3d605`) |
 | `revocation-trace-testnet-20261114T104257Z.md` | 9,653 | `dd0dbdf619da23fd622ed707a19711b636f1bd56663edf4adbb1e0f5bea4cd5f` | MintID `public-v2026-11-13.1` (`dca3d605`) |
-| `redthread-P2-mintid-sandbox-negative.jsonl` | 1,080 | `ac9c2463a5f6f97da10497c1094e8aa60264e995eb208fbdaaa84654231c922c` | Redthread `v0.7.586` + MintID `mintid-testnet-3` |
-| `redthread-P2-mintid-sandbox-negative.manifest.json` | 971 | `fb4e9b65884ef59be4916ab7263ba6280d6c011cb0e9133407740ab5ec0bc45c` | Redthread `v0.7.586` + MintID `mintid-testnet-3` |
-| `run_mintid_sandbox.py` | 3,359 | `f66c8e0db1fa3efdd1330dd9fa95a496f82a4fc541f577492184ef8dc511c295` | Redthread `v0.7.586` |
+| `redthread-P2-mintid-sandbox-negative.jsonl` | 1,080 | `1f038bbc79acd416915c0f9f6268634539c2ac54c6bdcc35041e6d6aefa1ef75` | Redthread `v0.7.586` + MintID `mintid-testnet-3` |
+| `redthread-P2-mintid-sandbox-negative.manifest.json` | 971 | `4fe8b37ded9501f3a04857ed9637b6553a8de9f7767341f06ee06c35b04b28e2` | Redthread `v0.7.586` + MintID `mintid-testnet-3` |
+| `run_mintid_sandbox.py` | 3,359 | `3ac9462b43a481386f3e1d8c8417b1a6b8be0bf941261473e44782ed0fd18b19` | Redthread `v0.7.586` |
+| `cred-P8.jsonl` | 5,315 | `b52794003e98d9e9bf6f9779080ad3af4d870d9a651a56872e1222523d7af7fc` | Cred (Kieran Sweeney), own run of `p8.mjs` at `cred-ninja/sdk` `83e9cec`, 15 Nov 2026 (partner-attested) |
+| `cred-P8.manifest.json` | 2,554 | `cd2e4839dbd1266a002b212b67e2c0308f28fdfa05d35c477fcf401cf86062fb` | Cred (Kieran Sweeney), manifest for `cred-P8.jsonl` (reason mapping, reproduction command) |
 
 ### Preserved Originals (`scenarios/p1_p8/originals/`)
 
 | File | Size (Bytes) | SHA-256 | Notes |
 |---|---:|---|---|
 | `P2-revocation-after-delegation-before-effect-v1.json` | 3,636 | `bdfaf486c5639addddc3c318aa6fd18f338bc5cdf27be5a87c630730aa261218` | Initial `P2` JSON revision with single-string MintID `implementations_offered` entry |
-| `redthread-p1-p6-local-runs.zip` | 17,973 | `b86918ac89f293305aae3e58824c2eaf76dc563078a22e925e98168a07a77739` | Exact zip archive from Ben Le (`v0.7.584`) |
-| `redthread-p2-mintid-sandbox.zip` | 5,789 | `415722e426dd56c054cae0b319243157a2dee8638348964d0b12b988f4e67a1a` | Downloaded archive from Ben Le (`v0.7.586`; contains intact `redthread-P2-mintid-sandbox-negative.jsonl`, `.manifest.json`, and `run_mintid_sandbox.py`) |
+| `redthread-p1-p6-local-runs.zip` | 16,428 | `b86918ac89f293305aae3e58824c2eaf76dc563078a22e925e98168a07a77739` | Exact zip archive from Ben Le (`v0.7.584`) |
+| `redthread-p2-mintid-sandbox.zip` | 5,789 | `415722e426dd56c054cae0b319243157a2dee8638348964d0b12b988f4e67a1a` | Downloaded archive from Ben Le (`v0.7.586`). **Truncated as received** (864 bytes missing; the copy in `~/Downloads` is identical): `redthread-P2-mintid-sandbox-negative.jsonl`, `.manifest.json`, `run_mintid_sandbox.py` and `protected_op.py` extract intact and the first three match the copies in `scenarios/p1_p8/`; `mintid_outside.py` cannot be recovered. A fresh copy has been requested from Ben Le. |

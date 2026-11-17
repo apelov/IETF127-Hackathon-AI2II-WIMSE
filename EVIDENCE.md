@@ -29,7 +29,7 @@ PASS	chain	8f8441e4af00	validation/bundle-chain/chain
 | Capture File | Cell / Scope | Total Packets | HTTP Messages | SHA-256 Digest | `tshark` / Wireshark Inspection Command |
 |---|---|---:|---:|---|---|
 | [`validation/bundle-inbound/inbound/capture.pcap`](validation/bundle-inbound/inbound/capture.pcap) | Suite 1: 34 WIMSE inbound cases (`A2–A13j`, `C2–C12b`, `IN4–IN15`) on loopback `:5050` & `:47999` | 536 | 72 | `85442bc4bb3051bcdcad88e63aebc0fb47502c062dac52c6c6da3cad344cad56` | `tshark -X lua_script:dissectors/wimse.lua -r validation/bundle-inbound/inbound/capture.pcap -Y http` |
-| [`validation/bundle-chain/chain/capture.pcap`](validation/bundle-chain/chain/capture.pcap) | Suite 2 & 3: 19 3-agent cross-domain call-chain cases (`:5050–5063`) + 10 live `P2/P7/P8` cases (`:5064`) | 824 | 106 (53 exchanges; 104 with default `tshark -Y http`) | `fdad7743ec8a69288cef24bfccab1a2740a2f10e8b7063d2426fdbe067f2ca88` | `tshark -X lua_script:dissectors/wimse.lua -r validation/bundle-chain/chain/capture.pcap -Y 'wimse.test_case == "B_CHAIN"' -O wimse` |
+| [`validation/bundle-chain/chain/capture.pcap`](validation/bundle-chain/chain/capture.pcap) | Suite 2 & 3: 19 3-agent cross-domain call-chain cases (`:5050–5063`) + 10 `P2/P7/P8` loopback cases (`:5064`: 2 simulated, 2 replayed, 6 mocked) | 824 | 106 (53 exchanges; 104 with default `tshark -Y http`) | `fdad7743ec8a69288cef24bfccab1a2740a2f10e8b7063d2426fdbe067f2ca88` | `tshark -X lua_script:dissectors/wimse.lua -r validation/bundle-chain/chain/capture.pcap -Y 'wimse.test_case == "B_CHAIN"' -O wimse` |
 
 ### 2.2 Negative Mutant Captures (Rejected by Independent Checkers)
 
@@ -78,6 +78,8 @@ For background context on how these partner artifacts were coordinated and cross
 | [`scenarios/p1_p8/revocation-trace-testnet-20261114T104257Z.jsonl`](scenarios/p1_p8/revocation-trace-testnet-20261114T104257Z.jsonl) | MintID Nov 14 live testnet trace (`status_root_stale` + `holder_refresh` `credential_revoked` vs `sibling_control`) | 92 | `7090edc46994cbd039d281841043a68a41919188eb952a9b4da117b980182a32` |
 | [`scenarios/p1_p8/redthread-P2-mintid-sandbox-negative.manifest.json`](scenarios/p1_p8/redthread-P2-mintid-sandbox-negative.manifest.json) | Ben Le (`v0.7.586`) + Marc Miro — recorded live sandbox negative control manifest (`15 Nov 2026 01:23 UTC`) | — | `4fe8b37ded9501f3a04857ed9637b6553a8de9f7767341f06ee06c35b04b28e2` |
 | [`scenarios/p1_p8/redthread-P2-mintid-sandbox-negative.jsonl`](scenarios/p1_p8/redthread-P2-mintid-sandbox-negative.jsonl) | Redthread (`v0.7.586`) + MintID recorded live sandbox negative control JSONL (`proof_invalid`, `no-agent-answer`, run `15 Nov 2026 01:23 UTC`) | 4 | `1f038bbc79acd416915c0f9f6268634539c2ac54c6bdcc35041e6d6aefa1ef75` |
+| [`scenarios/p1_p8/cred-P8.manifest.json`](scenarios/p1_p8/cred-P8.manifest.json) | Cred (Kieran Sweeney) manifest for its own `P8` run (`cred-ninja/sdk` `83e9cec`, 15 Nov 2026; reason mapping, reproduction command) | 34 | `cd2e4839dbd1266a002b212b67e2c0308f28fdfa05d35c477fcf401cf86062fb` |
+| [`scenarios/p1_p8/cred-P8.jsonl`](scenarios/p1_p8/cred-P8.jsonl) | Cred (Kieran Sweeney) own `P8` run, partner-attested, wall clock, local mock provider; not verified by `observes_p1_p8.py` | 11 | `b52794003e98d9e9bf6f9779080ad3af4d870d9a651a56872e1222523d7af7fc` |
 
 ### 3.3 Unmodified Original Partner Archives (`scenarios/p1_p8/originals/`)
 

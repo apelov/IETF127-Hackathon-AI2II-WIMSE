@@ -155,7 +155,7 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
     p.font.color.rgb = c_navy_dark
 
     bullets1 = [
-        ("18 RFCs & Internet-Drafts", "Tested across 7 runtimes (Maurice, Redthread, MintID, OmniArx, Cred, OpenA2A, AEP)."),
+        ("18 RFCs & Internet-Drafts", "Run here: Maurice + RICH. Partner runs: Redthread, MintID, OmniArx, Cred. Continuation: OpenA2A + AEP."),
         ("Monotonic Scope Narrowing", "OAuth Txn-Tokens narrow privileges across hops (files:read files:list → files:read)."),
         ("Dual Token PoP Bindings", "WPT cryptographically binds both WIT hash (wth) and Txn-Token hash (tth)."),
         ("Security Vectors Tested", "Token swap, body tampering, replay attacks, cross-domain isolation, and SSRF jku/x5u defense."),
@@ -230,7 +230,7 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
     p.font.bold = True
     p.font.color.rgb = c_navy_dark
 
-    table_shape = slide1.shapes.add_table(6, 3, c3_x + Inches(0.15), col_y + Inches(0.55), col_w - Inches(0.3), Inches(2.2))
+    table_shape = slide1.shapes.add_table(7, 3, c3_x + Inches(0.15), col_y + Inches(0.55), col_w - Inches(0.3), Inches(2.2))
     table = table_shape.table
     table.columns[0].width = Inches(1.95)
     table.columns[1].width = Inches(0.68)
@@ -239,7 +239,8 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
     scores = [
         ("Suite 1: Inbound Matrix", "34/34", "✅ PASS"),
         ("Suite 2: 9-Hop Chain & Attacks", "19/19", "✅ PASS"),
-        ("Suite 3: Partner Manifests", "32/32", "✅ PASS"),
+        ("Suite 3: Partner traces (simulated clock)", "22/22", "✅ PASS"),
+        ("Suite 3: P7/P8 on :5064 (fixed answers)", "6", "MOCKED"),
         ("Suite 4: Live probes (4 hook cases mocked)", "3/3", "✅ PASS"),
         ("Negative Control Mutants", "9/9", "🛡️ REJ"),
         ("Live positive/revoked P2", "0/2", "NOT RUN"),
@@ -402,28 +403,28 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
             "testnet.mintid.net",
             "External Live Testnet",
             "draft-mintid-zk-credentials\nTendermint RPC (:443)",
-            "Live ZK status-root verification over live Tendermint RPC. Revocation attributed via holder witness refresh (credential_revoked) + sibling control.",
+            "MintID's recorded 14 Nov testnet trace (partner-attested): revocation attributed via holder witness refresh (credential_revoked) + sibling control.",
         ),
         (
             "OmniArx",
             "Vector V5 / R2",
             "External Spec / :5064",
             "draft-thallapelly-oasnt-02",
-            "Scenario P7: Approval display digest matches executed action (allow: ok, 200) vs display mismatch (deny: display-mismatch, 403).",
+            "Scenario P7, OmniArx's own run: V5 accepted, R2 refused (display-mismatch). The :5064 cases are mocked (fixed digests).",
         ),
         (
             "Cred Delegation",
             "Boundary check",
             "External Spec / :5064",
             "draft-sweeney-wimse-credential-delegation",
-            "Scenario P8: Third-party bearer exposure boundary (pre-release gate 403 status-revoked vs post-release 200 token-released).",
+            "Scenario P8, Cred's own run: denials 401/403; bearer token not released by default. The :5064 cases are mocked (fixed answers).",
         ),
         (
             "OpenA2A & AEP",
-            "Side-track / Offline",
-            "External Partners",
+            "Continuation",
+            "branch feature/opena2a-wimse-aep",
             "ATX Credential, AAP Grants\nAction Evidence Packages",
-            "Cross-domain agent payment specification (Scenario 1 legitimate transfer, Scenario 2 prompt injection containment, offline .aep verification).",
+            "Next step: cross-domain agent payment (legitimate transfer; prompt injection contained). Prototype stand-ins built here; OpenA2A and official AEP (eatf-verifier) runs pending.",
         ),
     ]
 
