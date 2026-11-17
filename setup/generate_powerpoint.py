@@ -195,8 +195,8 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
     bullets2 = [
         ("AI2II Rule L4 (Zero Log Trust)", "Packet checkers inspect ONLY raw .pcap bytes via tshark. Zero reliance on application logs."),
         ("Wireshark Dissector (dissectors/wimse.lua)", "Custom Lua dissector visually decodes WIT, WPT, Txn-Tokens, and RFC 9421 signatures in Wireshark GUI."),
-        ("Live Testnet Probes (WP09)", "3 live endpoint probes (MintID RPC, verifier status/build-info). Live positive and revoked-agent P2 cases: NOT RUN (mocked)."),
-        ("Multi-Partner Revocation", "Simulated-clock bounds (Redthread), recorded MintID testnet trace, OmniArx vectors (reported externally)."),
+        ("Live Testnet Probes (WP09)", "3 live endpoint probes (MintID RPC, verifier status/build-info). Live P2 hook cases here: mocked."),
+        ("P2 Live Sandbox (Redthread, partner-reported)", "Issuer route: refused at once. Kill switch: allowed on held witness, refused after next commitment (40 s)."),
         ("4 Independent AI Family Audits", "Full code and PCAP verification by Claude Opus, Gemini, NVIDIA Nemotron, and Mistral Vibe."),
     ]
     for b_title, b_desc in bullets2:
@@ -243,7 +243,7 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
         ("Suite 3: P7/P8 on :5064 (fixed answers)", "6", "MOCKED"),
         ("Suite 4: Live probes (4 hook cases mocked)", "3/3", "✅ PASS"),
         ("Negative Control Mutants", "9/9", "🛡️ REJ"),
-        ("Live positive/revoked P2", "0/2", "NOT RUN"),
+        ("P2 live sandbox, Redthread 17 Nov", "6", "PARTNER"),
     ]
     for row_idx, (name, count, res) in enumerate(scores):
         for col_idx, val in enumerate((name, count, res)):

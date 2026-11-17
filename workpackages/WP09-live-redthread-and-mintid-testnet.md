@@ -118,4 +118,4 @@ PYTHONPATH=external/redthread/app:external/redthread/tests \
 
 **EMILIA Protocol** is Iman Schrock's affiliation. Iman's contribution is the `P2` before-effect test design. No EMILIA Protocol runtime is integrated or exercised by this repository.
 
-The live positive (valid-agent) and revoked-agent `P2` sandbox cases have **not been run** and are mocked in `checkers/observes_live_partners.py`. Next useful result: one valid-agent operation followed by a revoked-agent attempt, recording the fresh verifier decision and the actual operation outcome together, with each implementation's time origin and propagation bound beside it.
+This repository has **not run** the live positive (valid-agent) and revoked-agent `P2` sandbox cases; they are mocked in `checkers/observes_live_partners.py`. Redthread ran them through its own executor on 17 Nov 2026 (partner-reported, record pending; see `TEST_RESULTS_SUMMARY.md`). Next useful result: one valid-agent operation followed by a revoked-agent attempt, recording the fresh verifier decision and the actual operation outcome together, with each implementation's time origin and propagation bound beside it.
