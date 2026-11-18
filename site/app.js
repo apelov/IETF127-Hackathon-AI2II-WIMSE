@@ -49,7 +49,20 @@ function header() {
       el("div", { class: "cmd" }, el("pre", {}, live), copyButton(() => live)),
       el("p", {}, el("a", { href: IDX.repo }, "Repository"), " · ", el("a", { href: IDX.repo + "#readme" }, "README"), " · ",
         el("a", { href: IDX.repo + "/blob/main/CONTRIBUTING.md" }, "Contribute a result (pull request)"))));
-  return el("header", { class: "top" }, el("h1", {}, el("a", { href: "index.html" }, "WIMSE interop explorer"), el("span", { class: "muted" }, " — IETF 127 hackathon")), gh);
+  const raw = IDX.repo.replace("github.com", "raw.githubusercontent.com") + "/main/";
+  const unix = `mkdir -p ~/.local/lib/wireshark/plugins && curl -fsSL ${raw}dissectors/wimse.lua -o ~/.local/lib/wireshark/plugins/wimse.lua`;
+  const win = `New-Item -ItemType Directory -Force "$env:APPDATA\\Wireshark\\plugins" | Out-Null; Invoke-WebRequest ${raw}dissectors/wimse.lua -OutFile "$env:APPDATA\\Wireshark\\plugins\\wimse.lua"`;
+  const cmd = (t) => el("div", { class: "cmd" }, el("pre", {}, t), copyButton(() => t));
+  const ws = el("details", { class: "gh" },
+    el("summary", {}, "Wireshark decoder \u25BE"),
+    el("div", { class: "pop" },
+      el("p", {}, el("b", {}, "Open the PCAPs with the WIMSE decoder switched on."), " It decodes HTTP on ports 5050\u20135064, tags each packet with its test case, decodes the WIT, WPT and Txn-Token, and adds filters such as ", el("code", {}, "wimse.test_case"), "."),
+      el("p", {}, el("b", {}, "Install once"), " (a web page cannot write into Wireshark itself, so this copies one file into your personal plugins folder; Wireshark loads it every time it starts):"),
+      el("p", { class: "muted" }, "macOS / Linux, Terminal:"), cmd(unix),
+      el("p", { class: "muted" }, "Windows, PowerShell (not tested):"), cmd(win),
+      el("p", {}, "Then restart Wireshark (or Analyze \u25B8 Reload Lua Plugins, Ctrl+Shift+L), open a capture downloaded from any scenario, and filter, for example ", el("code", {}, 'wimse.test_case == "B_CHAIN"'), "."),
+      el("p", {}, "Check or remove it with ", el("a", { href: raw + "setup/install_wireshark_dissector.sh" }, "the installer script"), " (", el("code", {}, "check"), " / ", el("code", {}, "uninstall"), "), or just download ", el("a", { href: raw + "dissectors/wimse.lua" }, "wimse.lua"), " and put it in the plugins folder shown under Help \u25B8 About Wireshark \u25B8 Folders.")));
+  return el("header", { class: "top" }, el("h1", {}, el("a", { href: "index.html" }, "WIMSE interop explorer"), el("span", { class: "muted" }, " \u2014 IETF 127 hackathon")), ws, gh);
 }
 
 /* ------------------------------------------------------------------ index */
@@ -215,6 +228,12 @@ function panelMessage(st) {
     const cmd = `tshark -r ${cap.file.split("/").pop()} ${sc.capture.file.includes("chain") ? "-d tcp.port==5051,http -d tcp.port==5060,http -d tcp.port==5061,http -d tcp.port==5062,http -d tcp.port==5063,http -d tcp.port==5064,http " : "-d tcp.port==5050,http "}-Y "frame.number==${h.frame}" -V`;
     box.append(el("div", { class: "row" }, el("pre", {}, cmd), copyButton(() => cmd)),
       el("div", { class: "row" }, el("span", {}, "Wireshark filter: "), el("code", {}, `frame.number == ${h.frame}`), copyButton(() => `frame.number == ${h.frame}`), el("a", { href: cap.url }, "Download the capture (.pcap)")));
+    const tc = ((h.req.headers.find((x) => /^x-test-case:/i.test(x)) || "").split(":")[1] || "").trim();
+    if (tc) {
+      const f2 = `wimse.test_case == "${tc}"`, c2 = `tshark -r ${cap.file.split("/").pop()} -Y '${f2}' -O wimse`;
+      box.append(el("div", { class: "row" }, el("span", {}, "With the WIMSE decoder installed (header: Wireshark decoder): "), el("code", {}, f2), copyButton(() => f2)),
+        el("div", { class: "row" }, el("pre", {}, c2), copyButton(() => c2)));
+    }
     if (S.full) box.append(el("div", { class: "row" }, el("button", { type: "button", onclick: () => { S.full = false; render(); } }, "Shorten tokens")));
   } else if (st.record) {
     box.append(el("div", { class: "meta" }, "A decision line from the partner's committed record"), el("pre", {}, JSON.stringify(st.record, null, 2)),

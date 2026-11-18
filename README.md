@@ -33,12 +33,13 @@ The AI2II `wire` harness is vendored directly in `wire/`, and `reproduce.sh` aut
 
 A custom Lua post-dissector in [`dissectors/wimse.lua`](dissectors/wimse.lua) automatically binds loopback ports `5050–5064` to HTTP, tags packets with `[Case: <ID>]` in the Info column, and base64url-decodes WIMSE `Workload-Identity-Token` (WIT), `Workload-Proof-Token` (WPT), OAuth `Txn-Token`, `Authorization: Bearer` tokens, and RFC 9421 `Signature-Input` parameters into a collapsible **IETF WIMSE & OAuth Agent Call Chain** protocol tree.
 
-To install it permanently into your personal Wireshark Lua plugins directory (macOS / Linux):
+To install it permanently, so that it is on whenever you open a capture (macOS / Linux):
 
 ```sh
-mkdir -p ~/.local/lib/wireshark/plugins
-cp dissectors/wimse.lua ~/.local/lib/wireshark/plugins/wimse.lua
+setup/install_wireshark_dissector.sh            # also: check | uninstall
 ```
+
+The script asks Wireshark for its personal Lua plugins folder and copies `wimse.lua` there, nothing else. Without cloning the repository, the [scenario explorer](https://apelov.github.io/IETF127-Hackathon-AI2II-WIMSE/) has a "Wireshark decoder" button with a one-line copy command (macOS / Linux, and PowerShell for Windows, which is not tested). A web page cannot write into Wireshark itself, so a copy command is as close to "one click" as it gets. Restart Wireshark afterwards (or Analyze > Reload Lua Plugins), open a capture, and filter, for example `wimse.test_case == "B_CHAIN"`.
 
 Or pass it on demand to `wireshark` or `tshark`:
 

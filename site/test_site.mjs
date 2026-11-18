@@ -45,7 +45,8 @@ await send("Runtime.enable"); await send("Page.enable");
 await go(`${BASE}/index.html`);
 check("index lists scenarios", (await ev(`document.querySelectorAll('ul.list li').length`)) >= 99);
 check("filter by class works", (await ev(`(()=>{const b=[...document.querySelectorAll('.filters button')].find(x=>x.textContent.startsWith('Mocked'));b.click();return document.querySelectorAll('ul.list li').length})()`)) === 6);
-check("GitHub pop-over holds the clone command", (await ev(`document.querySelector('details.gh pre').textContent`)).includes("git clone https://github.com/apelov/IETF127-Hackathon-AI2II-WIMSE.git"));
+check("Wireshark decoder pop-over has the install command", (await ev(`document.querySelectorAll('details.gh')[0].textContent`)).includes("raw.githubusercontent.com/apelov/IETF127-Hackathon-AI2II-WIMSE/main/dissectors/wimse.lua -o ~/.local/lib/wireshark/plugins/wimse.lua"));
+check("GitHub pop-over holds the clone command", (await ev(`[...document.querySelectorAll('details.gh')].find((d) => d.textContent.includes('git clone')).querySelector('pre').textContent`)).includes("git clone https://github.com/apelov/IETF127-Hackathon-AI2II-WIMSE.git"));
 
 // packets: one request is many packets
 await go(`${BASE}/scenario.html#A12a/1`);
@@ -53,6 +54,7 @@ check("A12a: its connection shows 14 packets", (await ev(`document.querySelector
 check("A12a: 3 packets carry the message (request in 2 parts, response)", (await ev(`document.querySelectorAll('#p-packets tr.pk.content').length`)) === 3);
 check("A12a: the 0.1 s pause is shown", (await ev(`document.querySelector('#p-packets tr.pause')?.textContent`) || "").includes("pause of 107 ms"));
 check("A12a: message panel says the request starts at frame 139", (await ev(`document.querySelector('#p-message .meta').textContent`)).includes("frames 139\u2013141"));
+check("A12a: the decoder filter for this case is shown", (await ev(`document.querySelector('#p-message').textContent`)).includes('wimse.test_case == "A12a"'));
 check("A12a: Wireshark filter for the stream", (await ev(`document.querySelector('#p-packets code').textContent`)) === "tcp.stream == 26");
 await go(`${BASE}/scenario.html#redthread-p1-confirmed-revocation/2`);
 check("partner steps explain there are no packets", (await ev(`document.querySelector('#p-packets .body').textContent`)).includes("Not a packet capture"));
@@ -111,6 +113,12 @@ check("report scenario shows 5.8 s", (await ev(`document.body.textContent`)).inc
 await go(`${BASE}/scenario.html#mintid-issuer/2`);
 check("MintID scenario draws the bound bar", (await ev(`!!document.querySelector('#p-timeline .bar')`)) === true);
 
+if (process.env.SHOT_WS) {  // optional: screenshot of the open Wireshark pop-over
+  await go(`${BASE}/scenario.html#A12a/1`);
+  await ev(`document.querySelector('details.gh').open = true`);
+  const shot = await send("Page.captureScreenshot", { format: "png" });
+  (await import("node:fs")).writeFileSync(process.env.SHOT_WS, Buffer.from(shot.result.data, "base64"));
+}
 // phone width (device emulation): the page must not scroll sideways
 await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 800, deviceScaleFactor: 1, mobile: true });
 for (const url of ["index.html", "scenario.html#B_CHAIN/5", "scenario.html#C7/2/b2", "scenario.html#mintid-kill_switch/4"]) {
