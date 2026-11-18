@@ -30,4 +30,9 @@ jobs:
       - name: Reproduce
         run: ./reproduce.sh
       - name: Peer regression tests (no Maurice)
-        run: .venv/bin/python -m unittest discover -s tests -v
+        # CI=true makes a busy peer port a failure instead of a skip; the greps make sure the chain tests really ran.
+        run: |
+          CI=true .venv/bin/python -m unittest discover -s tests -v 2>&1 | tee unittest.log
+          grep -q "test_every_case_passes .* ok" unittest.log
+          grep -q "test_replayed_signed_request_is_refused .* ok" unittest.log
+          if grep -qi "skipped" unittest.log; then echo "tests were skipped"; exit 1; fi

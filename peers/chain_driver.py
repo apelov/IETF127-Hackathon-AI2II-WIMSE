@@ -4,7 +4,7 @@
 Executes and verifies:
 - Normal Path (B_CHAIN): 3-agent 2-domain call chain with unified txn correlation
 - Negative / Attack Cases (C5, C6, C7, C8, C9, C9b, C10, D1, D2, D3_exp, D3_sig,
-  D3_typ, D3_reqwl, D3_dup, D4, D5, D6, D7, T1-T5)
+  D3_typ, D3_reqwl, D3_dup, D4, D5, D6, D7, T1-T6)
 """
 from __future__ import annotations
 
@@ -1163,6 +1163,19 @@ def run_t4() -> tuple[bool, list[str], list[dict]]:
     return ok, notes, journal
 
 
+def run_t6() -> tuple[bool, list[str], list[dict]]:
+    """The same signed TTS-A request sent twice: the first is served, the replay is refused (nonce already used)."""
+    wkey = w.new_workload_key("ES256")
+    req = signed_form(TTS_A_URL, new_txn_form("files:read"), peer_wit(wkey), wkey, TTS_A_PROOF_AUD)
+    r1 = safe_send(req, case="T6")
+    r2 = safe_send(req, case="T6")
+    err = error_of(r2)
+    ok = r1.status == 200 and r2.status == 400 and err == "invalid_client"
+    return ok, [f"first={r1.status} replay={r2.status} {err} want=400 invalid_client"], [
+        {"case": "T6", "step": 1, "service": "tts-a", "status": r1.status, "decision": "accept"},
+        {"case": "T6", "step": 2, "service": "tts-a", "status": r2.status, "decision": "reject", "reason": err}]
+
+
 def run_t5() -> tuple[bool, list[str], list[dict]]:
     """A requester named in the request body is ignored: req_wl is the verified WIT subject."""
     wkey = w.new_workload_key("ES256")
@@ -1206,6 +1219,7 @@ RUNNERS = {
     "T3": lambda with_m: run_t3(),
     "T4": lambda with_m: run_t4(),
     "T5": lambda with_m: run_t5(),
+    "T6": lambda with_m: run_t6(),
 }
 
 
@@ -1244,8 +1258,9 @@ def main():
     parser.add_argument("--with-p1-p8", action="store_true", help="Include P1-P8 executor on 127.0.0.1:5064")
     args = parser.parse_args()
 
-    with_maurice = (args.with_maurice or is_port_open(5050)) and not args.no_maurice
-    with_p1_p8 = args.with_p1_p8 or is_port_open(5064)
+    # --no-maurice short-circuits: nothing connects to :5050 (or probes :5064, where the real stack may listen)
+    with_maurice = False if args.no_maurice else (args.with_maurice or is_port_open(5050))
+    with_p1_p8 = args.with_p1_p8 or (False if args.no_maurice else is_port_open(5064))
 
     if args.cases == "all":
         case_ids = list(RUNNERS.keys())

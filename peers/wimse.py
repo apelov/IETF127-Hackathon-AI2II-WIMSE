@@ -3,7 +3,7 @@
 Written for testing: every function takes the knobs needed to build a *bad* request on purpose.
 Test keys only. Drafts: CREDS-03 (WIT), WPT-02, HTTPSIG-08, RFC 9421, RFC 9530.
 """
-import base64, hashlib, http.client, json, os, time, urllib.parse
+import base64, hashlib, http.client, json, os, re, threading, time, urllib.parse
 from dataclasses import dataclass, field
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519
@@ -471,9 +471,37 @@ def _valid_wimse_id(sub: str) -> str | None:
     return u.hostname.lower()
 
 
+# http-signature-08 s3: "Recipients MUST reject signatures that fall outside their validity time window" and `expires`
+# MUST be short, "on the order of minutes". CLOCK_SKEW tolerates a peer whose clock runs ahead or behind by up to
+# 30 s; MAX_SIG_LIFETIME rejects a signature that stays valid for more than 10 minutes.
+CLOCK_SKEW = 30
+MAX_SIG_LIFETIME = 600
+
+
+class NonceCache:
+    """Bounded replay cache: entries live until the signature (or WPT) they came from can no longer verify."""
+
+    def __init__(self, max_entries: int = 10000):
+        self._seen: dict[str, int] = {}
+        self._max = max_entries
+        self._lock = threading.Lock()
+
+    def seen(self, key: str, now: int) -> bool:
+        with self._lock:
+            return self._seen.get(key, 0) > now
+
+    def add(self, key: str, expires: int, now: int) -> None:
+        with self._lock:
+            if len(self._seen) >= self._max:
+                self._seen = {k: e for k, e in self._seen.items() if e > now}
+                while len(self._seen) >= self._max:  # still full: drop the entry that expires first
+                    self._seen.pop(min(self._seen, key=self._seen.get))
+            self._seen[key] = expires + CLOCK_SKEW
+
+
 def verify_wimse_proof(method: str, path_and_query: str, headers: dict[str, str], body: bytes,
                        trust_jwks: dict[str, dict], *, expected_aud: str,
-                       seen_nonces: set[str] | None = None, now: int | None = None) -> tuple[bool, int, str, dict | None]:
+                       seen_nonces: NonceCache | None = None, now: int | None = None) -> tuple[bool, int, str, dict | None]:
     now = int(now if now is not None else time.time())
     lower = {k.lower(): v for k, v in headers.items()}
     wit = lower.get("workload-identity-token")
@@ -522,19 +550,27 @@ def verify_wimse_proof(method: str, path_and_query: str, headers: dict[str, str]
         for req_c in ("@method", "@path", "@query", "workload-identity-token"):
             if req_c not in comps:
                 return False, 400, "proof-invalid", None
-        if "txn-token" in lower and "txn-token" not in comps:
+        # http-signature-08 s3: these request headers MUST be signed when they exist
+        for hdr in ("content-type", "authorization", "txn-token"):
+            if hdr in lower and hdr not in comps:
+                return False, 400, "proof-invalid", None
+        # created, expires, nonce are required; the signature must be inside its validity window
+        m_created = re.search(r";created=(\d+)", params)
+        m_expires = re.search(r";expires=(\d+)", params)
+        m_nonce = re.search(r';nonce="([^"]+)"', params)
+        if not (m_created and m_expires and m_nonce):
+            return False, 400, "proof-invalid", None
+        created, expires = int(m_created.group(1)), int(m_expires.group(1))
+        if (expires <= created or expires - created > MAX_SIG_LIFETIME
+                or now < created - CLOCK_SKEW or now > expires + CLOCK_SKEW):
             return False, 400, "proof-invalid", None
         if body:
             expected_digest = f"sha-256=:{base64.b64encode(hashlib.sha256(body).digest()).decode()}:"
             if lower.get("content-digest") != expected_digest or "content-digest" not in comps:
                 return False, 400, "digest-mismatch", None
-        import re
-        m_nonce = re.search(r';nonce="([^"]+)"', params)
-        if m_nonce and seen_nonces is not None:
-            nonce = m_nonce.group(1)
-            if nonce in seen_nonces:
-                return False, 400, "replay", None
-            seen_nonces.add(nonce)
+        nonce_key = f"sig|{sub}|{m_nonce.group(1)}"
+        if seen_nonces is not None and seen_nonces.seen(nonce_key, now):
+            return False, 400, "replay", None
         u = urllib.parse.urlsplit(path_and_query)
         values = {"@method": method.upper(), "@path": u.path, "@query": "?" + u.query, **lower}
         try:
@@ -547,6 +583,8 @@ def verify_wimse_proof(method: str, path_and_query: str, headers: dict[str, str]
             return False, 400, "proof-invalid", None
         if not verify_raw_sig(cnf_jwk, base_bytes, raw_s):
             return False, 400, "proof-invalid", None
+        if seen_nonces is not None:  # only a verified signature may use up a nonce
+            seen_nonces.add(nonce_key, expires, now)
         return True, 200, "accept", {"peer_id": sub, "wit_claims": wit_claims, "mechanism": "http-sig"}
 
     # WPT verification
@@ -569,9 +607,9 @@ def verify_wimse_proof(method: str, path_and_query: str, headers: dict[str, str]
         if wpt_claims.get("tth") != expected_tth:
             return False, 401, "proof-invalid", None
     if seen_nonces is not None and wpt_claims.get("jti"):
-        jti = wpt_claims["jti"]
-        if jti in seen_nonces:
+        jti_key = f"wpt|{sub}|{wpt_claims['jti']}"
+        if seen_nonces.seen(jti_key, now):
             return False, 401, "replay", None
-        seen_nonces.add(jti)
+        seen_nonces.add(jti_key, int(wpt_claims["exp"]), now)
     return True, 200, "accept", {"peer_id": sub, "wit_claims": wit_claims, "mechanism": "wpt"}
 

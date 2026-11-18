@@ -7,15 +7,19 @@ check, RFC 6749 s5.2 token-endpoint errors). The committed capture
 with the live stack, the cases below are tolerated as follows, by checkers/observes_chain.py and setup/build_site.py:
 
   * not in the capture            -> skipped, reported as PENDING;
-  * in the capture with the hops that chain_cases.json lists as "legacy_expected_hops" -> accepted, reported as PENDING;
+  * in the capture with the hops that chain_cases.json lists as "legacy_expected_hops" -> held to the LEGACY expectations
+    ("legacy_expected_hops", "legacy_expected_statuses", "legacy_expected_reason": the same hop, status and reason checks,
+    with the old values), not exempted from them, and reported as PENDING;
   * in the capture with the NEW expected_hops, or any other hops that are not the legacy ones -> FAIL.
 
 The last rule is the point: a re-recorded capture must make the checkers fail until the case is removed from this
 list, so the list cannot go stale. After re-recording, empty it (and drop "legacy_expected_hops" from chain_cases.json).
-Nothing else is tolerated.
+Nothing else is tolerated. A pending case is never validated against the new behaviour, so observes_chain.py ends with a
+loud "N cases NOT validated against the new behaviour (pending re-record)" line (stdout and stderr) and a
+pending_not_validated=N figure in its SUMMARY: a run with pending cases is not a clean pass of the new behaviour.
 """
 
-PENDING_RERECORD = ["C5", "D1", "D2", "D5", "D6", "D7", "T1", "T2", "T3", "T4", "T5"]
+PENDING_RERECORD = ["C5", "D1", "D2", "D5", "D6", "D7", "T1", "T2", "T3", "T4", "T5", "T6"]
 
 
 def check_list(cases: dict) -> None:

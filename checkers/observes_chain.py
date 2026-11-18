@@ -198,6 +198,7 @@ def verify_capture(capture_path: pathlib.Path) -> None:
     b_chain_wpt_bound = False
     d2_www_auth_ok = False
     errors = 0
+    not_validated: list[str] = []
 
     for sid, sr in streams.items():
         for idx, (frame_no, dstport, req) in enumerate(sr["reqs"]):
@@ -330,9 +331,18 @@ def verify_capture(capture_path: pathlib.Path) -> None:
         if cid in PENDING_RERECORD:
             verdict = classify(cid, [h for _, h in sorted(case_hops.get(cid, []))], spec)
             if verdict == "pending":
-                print(f"PENDING {cid} ref={spec['ref']}: not yet re-recorded (PENDING_RERECORD in checkers/pending_rerecord.py)")
-                continue
-            if verdict != "ok":
+                not_validated.append(cid)
+                if not case_hops.get(cid):
+                    print(f"PENDING {cid} ref={spec['ref']}: not in this capture (PENDING_RERECORD in checkers/pending_rerecord.py)")
+                    continue
+                # in the capture with the legacy hops: hold it to the legacy status/reason checks, not to nothing
+                spec = {k: v for k, v in spec.items() if k not in ("expected_reason",)}
+                spec["expected_hops"] = spec["legacy_expected_hops"]
+                spec["expected_statuses"] = spec.get("legacy_expected_statuses", spec.get("expected_statuses"))
+                if spec.get("legacy_expected_reason"):
+                    spec["expected_reason"] = spec["legacy_expected_reason"]
+                print(f"PENDING {cid} ref={spec['ref']}: checked against the LEGACY behaviour only")
+            elif verdict != "ok":
                 print(f"FAIL {verdict}", file=sys.stderr)
                 errors += 1
                 continue
@@ -389,7 +399,12 @@ def verify_capture(capture_path: pathlib.Path) -> None:
         )
         errors += 1
 
-    print(f"SUMMARY cases={len(cases)} errors={errors}")
+    if not_validated:
+        msg = (f"WARNING: {len(not_validated)} cases NOT validated against the new behaviour (pending re-record): "
+               f"{not_validated}")
+        print(msg)
+        print(msg, file=sys.stderr)
+    print(f"SUMMARY cases={len(cases)} errors={errors} pending_not_validated={len(not_validated)}")
     if errors > 0:
         raise SystemExit(1)
 

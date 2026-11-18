@@ -7,9 +7,12 @@ chain stack) the tests are skipped rather than disturbing whatever listens there
     .venv/bin/python -m unittest discover -s tests -v
 """
 import json
+import os
 import pathlib
+import re
 import socket
 import sys
+import time
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -34,6 +37,8 @@ class ChainTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         busy = [p for p in PORTS if _busy(p)]
+        if busy and os.environ.get("CI") == "true":
+            raise RuntimeError(f"CI: ports {busy} are in use, the chain tests cannot run (a skip would hide that)")
         if busy:
             raise unittest.SkipTest(f"ports in use, not starting the peers: {busy}")
         cls.srv_a = domain_a.start_in_thread(5051)
@@ -102,6 +107,13 @@ class ChainTest(unittest.TestCase):
         self.assertEqual(failed, [b'{"error": "invalid_client"}'])
 
 
+    def test_replayed_signed_request_is_refused(self):
+        wkey = w.new_workload_key("ES256")
+        req = cd.signed_form(cd.TTS_A_URL, cd.new_txn_form("files:read"), cd.peer_wit(wkey), wkey, cd.TTS_A_PROOF_AUD)
+        self.assertEqual(cd.safe_send(req, case="UT").status, 200)
+        r = cd.safe_send(req, case="UT")
+        self.assertEqual((r.status, json.loads(r.body)), (400, {"error": "invalid_client"}))
+
     def test_authentication_failures_do_not_name_the_failed_check(self):
         """http-signature-08 s3.6: every 400 from a failed authentication has one body, whatever check failed."""
         causes = {
@@ -159,6 +171,87 @@ class ChainTest(unittest.TestCase):
         r = cd.safe_send(w.Req("POST", "http://127.0.0.1:5061/oauth/token", {"Content-Type": "application/json"},
                                json.dumps({"assertion": at}).encode()), case="UT")
         self.assertEqual((r.status, json.loads(r.body)), (400, {"error": "invalid_request"}))
+
+
+class ProofTest(unittest.TestCase):
+    """verify_wimse_proof, offline: validity window, covered components, replay (http-signature-08 s3)."""
+
+    AUD = "http://t.example"
+
+    def setUp(self):
+        self.issuer = w.new_workload_key("ES256")
+        self.trust = {"t.example": {"keys": [w.jwk_from_public(self.issuer.public_key(), kid="i-1")]}}
+        self.key = w.new_workload_key("ES256")
+        self.wit = w.issue_wit(self.issuer, kid="i-1", iss="http://t.example", sub="wimse://t.example/w",
+                               workload_pub_jwk=w.jwk_from_public(self.key.public_key()))
+
+    def sign(self, key=None, body=b'{"a":1}', **kw):
+        return w.http_sig("POST", "http://127.0.0.1:1/x?q=1", body, self.wit, key or self.key, aud=self.AUD, **kw)
+
+    def verify(self, req, **kw):
+        return w.verify_wimse_proof("POST", "/x?q=1", req.headers, req.body, self.trust, expected_aud=self.AUD, **kw)[:3]
+
+    def test_baseline_is_accepted(self):
+        self.assertEqual(self.verify(self.sign()), (True, 200, "accept"))
+
+    def test_created_in_1970_is_refused(self):
+        self.assertEqual(self.verify(self.sign(now=1)), (False, 400, "proof-invalid"))
+
+    def test_expired_and_future_signatures_are_refused(self):
+        self.assertFalse(self.verify(self.sign(now=int(time.time()) - 3600))[0])
+        self.assertFalse(self.verify(self.sign(now=int(time.time()) + 3600))[0])
+
+    def test_small_clock_skew_is_tolerated(self):
+        self.assertTrue(self.verify(self.sign(now=int(time.time()) + 10))[0])
+
+    def test_lifetime_over_the_maximum_is_refused(self):
+        self.assertFalse(self.verify(self.sign(lifetime=w.MAX_SIG_LIFETIME + 1))[0])
+        self.assertTrue(self.verify(self.sign(lifetime=w.MAX_SIG_LIFETIME))[0])
+
+    def test_missing_created_expires_or_nonce_is_refused(self):
+        for param in (r";created=\d+", r";expires=\d+", r';nonce="[^"]+"'):
+            req = self.sign()
+            req.headers["Signature-Input"] = re.sub(param, "", req.headers["Signature-Input"])
+            self.assertEqual(self.verify(req), (False, 400, "proof-invalid"), param)
+        self.assertFalse(self.verify(self.sign(nonce=None))[0])
+
+    def test_every_required_component_must_be_covered(self):
+        cases = {
+            "@method": {}, "@path": {}, "@query": {}, "workload-identity-token": {},
+            "content-type": {}, "content-digest": {},
+            "authorization": {"headers": {"Authorization": "Bearer x"}},
+            "txn-token": {"headers": {"Txn-Token": "a.b.c"}},
+        }
+        for comp, kw in cases.items():
+            ok = self.verify(self.sign(**kw))
+            self.assertTrue(ok[0], f"baseline with {comp}: {ok}")
+            bad = self.verify(self.sign(drop_components=(comp,), **kw))
+            want = (False, 400, "digest-mismatch" if comp == "content-digest" else "proof-invalid")
+            self.assertEqual(bad, want, comp)
+
+    def test_replay_is_refused_and_only_after_the_signature_verified(self):
+        cache = w.NonceCache()
+        forged = self.sign(key=w.new_workload_key("ES256"), nonce="n1")  # wrong key: refused, must not burn the nonce
+        self.assertFalse(self.verify(forged, seen_nonces=cache)[0])
+        good = self.sign(nonce="n1")
+        self.assertEqual(self.verify(good, seen_nonces=cache), (True, 200, "accept"))
+        self.assertEqual(self.verify(good, seen_nonces=cache), (False, 400, "replay"))
+
+    def test_wpt_jti_replay_is_refused(self):
+        cache = w.NonceCache()
+        req = w.wpt_request("POST", "http://127.0.0.1:1/x", b"{}", self.wit, self.key, aud=self.AUD, alg="ES256")
+
+        def verify():
+            return w.verify_wimse_proof("POST", "/x", req.headers, req.body, self.trust, expected_aud=self.AUD,
+                                        seen_nonces=cache)[:3]
+        self.assertEqual(verify(), (True, 200, "accept"))
+        self.assertEqual(verify(), (False, 401, "replay"))
+
+    def test_nonce_cache_is_bounded(self):
+        cache = w.NonceCache(max_entries=5)
+        for i in range(50):
+            cache.add(f"k{i}", 2_000_000_000, 1)
+        self.assertLessEqual(len(cache._seen), 5)
 
 
 class WptAlgTest(unittest.TestCase):

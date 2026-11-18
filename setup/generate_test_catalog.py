@@ -95,6 +95,7 @@ CASES = [
     C("proof", "D2", "WPT names the wrong Txn-Token (tth)", "Proof says 'I come with slip X', slip Y attached", "5063 401 (no reason in the body), then Maurice 401", "wire", ["D2"]),
     C("proof", "T1", "Txn-Token request without WIT and signature (TTS-A)", "The token office asks who you are before it prints a slip", "5051 401 invalid_client", "wire", ["T1"]),
     C("proof", "T2", "Txn-Token request with a Txn-Token but no WIT proof (TTS-B)", "A slip is not an ID card: it cannot identify who asks for the next slip", "5061 401 invalid_client", "wire", ["T2"]),
+    C("proof", "T6", "A signed Txn-Token request sent twice", "A photocopy of a signed form is not accepted by the token office", "5051 200, then 400 invalid_client (replay, in the journal)", "wire", ["T6"]),
     C("proof", "T3", "Research's WIT with the Coordinator's key", "Someone else's ID card with your own signature", "5063 400 wimse-signature-invalid", "wire", ["T3"]),
     C("proof", "P5 rewrite-authority, rewrite-path", "Redthread: a proxy changes host or path", "The signature no longer matches the request", "signature-invalid (2 cases)", "record", n=2),
     C("proof", "P5 forwarded-headers", "Redthread: 'the real target was X', unauthenticated", "A claim nobody signed is not believed", "forwarded-target-uri-unauthenticated", "record"),

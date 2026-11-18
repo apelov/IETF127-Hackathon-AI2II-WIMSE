@@ -47,7 +47,11 @@
     "journal": [
       "file-tool proof-invalid"
     ],
-    "wire_note": "The 400 body only carries the problem type wimse-signature-invalid (http-signature-08 s3.6: the response MUST NOT distinguish which check failed); the precise cause is in the peer journal."
+    "wire_note": "The 400 body only carries the problem type wimse-signature-invalid (http-signature-08 s3.6: the response MUST NOT distinguish which check failed); the precise cause is in the peer journal.",
+    "legacy_expected_statuses": [
+      400
+    ],
+    "legacy_expected_reason": "proof-invalid"
   },
   {
     "id": "C6",
@@ -150,7 +154,11 @@
     "journal": [
       "file-tool proof-invalid"
     ],
-    "wire_note": "The 400 body only carries the problem type wimse-signature-invalid (http-signature-08 s3.6: the response MUST NOT distinguish which check failed); the precise cause is in the peer journal."
+    "wire_note": "The 400 body only carries the problem type wimse-signature-invalid (http-signature-08 s3.6: the response MUST NOT distinguish which check failed); the precise cause is in the peer journal.",
+    "legacy_expected_statuses": [
+      400
+    ],
+    "legacy_expected_reason": "proof-invalid"
   },
   {
     "id": "D2",
@@ -171,7 +179,11 @@
     "journal": [
       "file-tool proof-invalid"
     ],
-    "wire_note": "The 401 body carries no reason (the cause, proof-invalid, is in the peer journal); the WWW-Authenticate: WPT challenge is checked on the wire."
+    "wire_note": "The 401 body carries no reason (the cause, proof-invalid, is in the peer journal); the WWW-Authenticate: WPT challenge is checked on the wire.",
+    "legacy_expected_statuses": [
+      401
+    ],
+    "legacy_expected_reason": "proof-invalid"
   },
   {
     "id": "D3_exp",
@@ -262,7 +274,11 @@
     ],
     "journal": [
       "as-b typ-mismatch"
-    ]
+    ],
+    "legacy_expected_statuses": [
+      403
+    ],
+    "legacy_expected_reason": "grant-invalid"
   },
   {
     "id": "D6",
@@ -289,7 +305,11 @@
     "journal": [
       "tts-a scope-widened",
       "tts-a token-expired"
-    ]
+    ],
+    "legacy_expected_statuses": [
+      200
+    ],
+    "legacy_expected_reason": "accept"
   },
   {
     "id": "D7",
@@ -313,7 +333,12 @@
     "journal": [
       "as-a unknown-target",
       "as-b aud-mismatch"
-    ]
+    ],
+    "legacy_expected_statuses": [
+      200,
+      403
+    ],
+    "legacy_expected_reason": "grant-invalid"
   },
   {
     "id": "T1",
@@ -392,6 +417,23 @@
     "expected_reason": "accept",
     "expected_hops": [
       "5051 200 -"
+    ]
+  },
+  {
+    "id": "T6",
+    "ref": "TTS-4",
+    "title": "A signed TTS-A request replayed is refused (the nonce was already used)",
+    "expected_statuses": [
+      200,
+      400
+    ],
+    "expected_reason": "invalid_client",
+    "expected_hops": [
+      "5051 200 -",
+      "5051 400 invalid_client"
+    ],
+    "journal": [
+      "tts-a replay"
     ]
   }
 ]

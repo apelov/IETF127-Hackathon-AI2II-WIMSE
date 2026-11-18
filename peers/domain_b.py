@@ -84,6 +84,8 @@ def workload_wit(key, sub: str) -> str:
                        workload_pub_jwk=w.jwk_from_public(key.public_key()))
 
 
+NONCES = {n: w.NonceCache() for n in ("tts-b", "coordinator", "research", "admin", "file-tool")}  # replay caches
+
 # Module-level state
 JOURNAL: list[dict[str, Any]] = []
 JOURNAL_LOCK = threading.Lock()
@@ -236,7 +238,7 @@ class TokenServicesHandler(WimseBaseHandler):
     def handle_tts(self, body: bytes, case: str | None) -> None:
         """TTS-B: Txn-Token request per txn-tokens-11 s11. The requester is the verified WIT subject."""
         ok, status, reason, info = w.verify_wimse_proof(
-            "POST", self.path, dict(self.headers), body, TRUST_JWKS, expected_aud=TTS_B_PROOF_AUD)
+            "POST", self.path, dict(self.headers), body, TRUST_JWKS, expected_aud=TTS_B_PROOF_AUD, seen_nonces=NONCES["tts-b"])
         if ok and not pinned_key_ok(info["peer_id"], info):
             ok, status, reason = False, 400, "proof-invalid"
         if not ok:
@@ -303,8 +305,7 @@ class CoordinatorHandler(WimseBaseHandler):
         # 1. Verify caller WIMSE proof
         ok, status, reason, info = w.verify_wimse_proof(
             "POST", self.path, dict(self.headers), body,
-            TRUST_JWKS, expected_aud="http://rich.ietf127.example:5060"
-        )
+            TRUST_JWKS, expected_aud="http://rich.ietf127.example:5060", seen_nonces=NONCES["coordinator"])
         if ok and not pinned_key_ok(info["peer_id"], info):
             ok, status, reason = False, 400, "proof-invalid"
         if not ok:
@@ -427,8 +428,7 @@ class ResearchHandler(WimseBaseHandler):
         # 1. Verify caller WIMSE proof & Check revocation
         ok, status, reason, info = w.verify_wimse_proof(
             "POST", self.path, dict(self.headers), body,
-            TRUST_JWKS, expected_aud="http://rich.ietf127.example:5062"
-        )
+            TRUST_JWKS, expected_aud="http://rich.ietf127.example:5062", seen_nonces=NONCES["research"])
         if ok and not pinned_key_ok(info["peer_id"], info):
             ok, status, reason = False, 400, "proof-invalid"
         if not ok:
@@ -588,8 +588,7 @@ class FileToolHandler(WimseBaseHandler):
             # Only an authenticated operator workload may change the revocation set: WIT + HTTP signature
             ok, status, reason, info = w.verify_wimse_proof(
                 "POST", self.path, dict(self.headers), body,
-                TRUST_JWKS, expected_aud="http://rich.ietf127.example:5063"
-            )
+                TRUST_JWKS, expected_aud="http://rich.ietf127.example:5063", seen_nonces=NONCES["admin"])
             if ok and not pinned_key_ok(info["peer_id"], info):
                 ok, status, reason = False, 400, "proof-invalid"
             if not ok:
@@ -628,8 +627,7 @@ class FileToolHandler(WimseBaseHandler):
         # 2. Verify WIMSE proof
         ok, status, reason, info = w.verify_wimse_proof(
             "POST", self.path, dict(self.headers), body,
-            TRUST_JWKS, expected_aud="http://rich.ietf127.example:5063"
-        )
+            TRUST_JWKS, expected_aud="http://rich.ietf127.example:5063", seen_nonces=NONCES["file-tool"])
         if ok and not pinned_key_ok(info["peer_id"], info):
             ok, status, reason = False, 400, "proof-invalid"
         if not ok:

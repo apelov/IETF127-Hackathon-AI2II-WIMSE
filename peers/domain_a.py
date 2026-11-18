@@ -60,6 +60,7 @@ AS_B_TARGETS = {
 }
 GRANT_TTL = 60
 
+NONCES = {n: w.NonceCache() for n in ("tts-a", "as-a", "maurice")}  # replay caches, one per service
 JOURNAL: list[dict] = []
 
 
@@ -115,7 +116,7 @@ class DomainAHandler(http.server.BaseHTTPRequestHandler):
         """
         case_id = self.headers.get("X-Test-Case", "")
         ok, status, reason, ctx = w.verify_wimse_proof(
-            self.command, self.path, dict(self.headers), raw_body, TRUST_JWKS, expected_aud=PROOF_AUD)
+            self.command, self.path, dict(self.headers), raw_body, TRUST_JWKS, expected_aud=PROOF_AUD, seen_nonces=NONCES["tts-a"])
         if not ok:
             _log_journal({"service": "tts-a", "direction": "issue", "decision": "reject", "reason": reason,
                           "status": status, "case": case_id})
@@ -173,7 +174,7 @@ class DomainAHandler(http.server.BaseHTTPRequestHandler):
         """AS-A: RFC 8693 token exchange that returns a JWT authorization grant (identity-chaining-17 s2.3)."""
         case_id = self.headers.get("X-Test-Case", "")
         ok, status, reason, ctx = w.verify_wimse_proof(
-            self.command, self.path, dict(self.headers), raw_body, TRUST_JWKS, expected_aud=PROOF_AUD)
+            self.command, self.path, dict(self.headers), raw_body, TRUST_JWKS, expected_aud=PROOF_AUD, seen_nonces=NONCES["as-a"])
         if not ok:
             _log_journal({"service": "as-a", "direction": "exchange", "decision": "reject", "reason": reason,
                           "status": status, "case": case_id})
@@ -279,8 +280,7 @@ class MauriceFallbackHandler(http.server.BaseHTTPRequestHandler):
             dict(self.headers),
             raw_body,
             trust_jwks,
-            expected_aud="http://maurice.ietf127.example:5050",
-        )
+            expected_aud="http://maurice.ietf127.example:5050", seen_nonces=NONCES["maurice"])
         if not ok:
             _log_journal({
                 "service": "maurice",
