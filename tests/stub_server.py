@@ -25,7 +25,7 @@ ROUTE_PREFIX = "/api/v2/agents/"
 
 def make_server(port, audience, keys_dir=ROOT / "keys", status_400_only=False):
     trust = {"peer.ietf127.example": json.loads((keys_dir / "peer.jwks.json").read_text())}
-    seen = set()
+    seen = w.NonceCache()
 
     class H(BaseHTTPRequestHandler):
         def log_message(self, *a):
