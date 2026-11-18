@@ -52,10 +52,10 @@ RESULT_CLASSES = ["wire", "record", "report", "sim", "mock"]
 FINDINGS = [
     ("Finding", "Evidence", "Draft"),
     ("A changed approval screen (R2) is caught only by a verifier that holds the action", "Partner report", "oasnt-02; oasnt-enforce-01 5.1"),
-    ("Action binding alone accepts R2; a root receipt from the person's authenticator is still open", "Partner report", "le-agent-passport, App. B"),
+    ("Action binding alone accepts R2; a root receipt from the person's authenticator is still open", "Partner report", "le-agent-passport-00, Open Issues"),
     ("Once a bearer token is released, revocation cannot stop the provider call", "Partner record", "sweeney-wimse-credential-delegation"),
     ("A ZK status check refuses revoked and stale alike; only a refused witness refresh shows revocation", "Partner record", "P2 status reasons"),
-    ("Holder self-revocation: a window until the next status commitment (refused after 40 s)", "Partner report", "revocation bounds"),
+    ("Kill-switch route: accepted 5.8 s after self-revocation on a held witness, refused at 47.6 s (issuer route: refused at the first attempt)", "Partner report", "revocation bounds"),
     ("Latency depends on where t = 0 is: request vs trigger root, 13.9 s apart", "Partner record", "scenario schema, any bound"),
     ("An unreachable status list fails closed, also when one link of a chain is unknown", "Partner record", "le-agent-passport (-01)"),
     ("%7E equals ~ and the host is case-insensitive, but %2F is not /", "Wire", "wimse-identifier-04"),
@@ -110,7 +110,7 @@ def slide_findings(s):
     title(s, "What it means for the drafts", "Each finding names its evidence class and the draft it bears on (draft- prefix omitted)")
     table(s, 0.5, 1.45, 12.33, [7.6, 1.75, 2.98], FINDINGS, size=12, row_h=0.5)
     text(s, 0.5, 6.15, 12.3, 0.7,
-         "Next: Redthread's 17 Nov record  |  a P7 verifier written from the OASNT draft  |  "
+         "Next: add Redthread's 17 Nov record (sent 17 Nov) to the repository  |  a P7 verifier written from the OASNT draft  |  "
          "live P2 from this harness against the MintID sandbox  |  more implementations for any role "
          "(a pinned revision and a sample request and response)", size=13)
 

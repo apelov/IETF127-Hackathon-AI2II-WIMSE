@@ -120,7 +120,7 @@ CASES = [
     C("revocation", "P2 sandbox, 15 Nov", "Redthread vs the live MintID verifier", "A made-up proof and an agent that never answers", "both denied, no effect", "record", n=2),
     C("revocation", "MintID trace, 14 Nov", "Issuer, kill switch, two cascade agents", "How long after cancelling until refusal", "23.1 s (185), 17.1 s (245), 189.1 and 40.8 s (395)", "record", n=4),
     C("revocation", "P8 revoked (Cred)", "Revoked before and after the token is released", "Before release: refused. After: Cred will not release a raw token by default", "401 delegation_revoked; 403 raw_token_disabled", "record", n=2),
-    C("revocation", "P2 sandbox, 17 Nov", "Redthread: issuer route and kill switch, 6 attempts", "Issuer route refuses at once; kill switch until the next status update", "issuer: denied at once; kill switch: allowed once, denied after 40 s", "report", n=6),
+    C("revocation", "P2 sandbox, 17 Nov", "Redthread: issuer route and kill switch, 6 attempts", "Issuer route: refused at the first attempt. Kill switch: accepted on a held witness, then refused", "issuer: refused at first attempt; kill switch: accepted at 5.8 s, refused at 47.6 s", "report", n=6),
     C("revocation", "P2 on :5064", "Redthread's code (simulated) and 2 replayed sandbox outcomes", "The same P2 decisions, over loopback HTTP", "403, no effect (4 cases)", "sim", n=4),
     C("revocation", "P8 revoked (:5064)", "Fixed answers on loopback", "Fixed answers, no Cred code runs", "403; 200 token-released", "mock", n=2),
     C("revocation", "WP09 hook cases", "Outside-verifier hook in-process", "Fixed responses", "deny / allow", "mock", n=4),
@@ -151,7 +151,7 @@ LIMITS = [
     ("D5 and D6", "The driver's outbound guard (D5) and its rejection of widened or altered tokens (D6) are not on the wire"),
     ("Test peers", "test_mode is read from request bodies; /admin/revoke has no authentication. No published result depends on them"),
     ("Checker independence", "Nemotron wrote the checkers; Claude and Gemini, which wrote the peers, edited them later: separation is partial"),
-    ("Revocation", "The strongest revocation evidence is partner records; our own revocation cases are simulated, replayed or mocked"),
+    ("Revocation", "Our harness's own revocation cases are simulated, replayed or mocked. Partner evidence: Redthread P1-P6 on a simulated clock; Redthread's 17 Nov P2 calls to the MintID sandbox were real"),
 ]
 
 

@@ -196,7 +196,7 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
         ("AI2II Rule L4 (Zero Log Trust)", "Packet checkers inspect ONLY raw .pcap bytes via tshark. Zero reliance on application logs."),
         ("Wireshark Dissector (dissectors/wimse.lua)", "Custom Lua dissector visually decodes WIT, WPT, Txn-Tokens, and RFC 9421 signatures in Wireshark GUI."),
         ("Live Testnet Probes (WP09)", "3 live endpoint probes (MintID RPC, verifier status/build-info). Live P2 hook cases here: mocked."),
-        ("P2 Live Sandbox (Redthread, partner-reported)", "Issuer route: refused at once. Kill switch: allowed on held witness, refused after next commitment (40 s)."),
+        ("P2 Live Sandbox (Redthread, partner-reported)", "Issuer route: refused at the first attempt. Kill switch: accepted 5.8 s after self-revocation on a held witness, refused at 47.6 s."),
         ("Reviews by 4 AI Families", "Claude Opus, Gemini, NVIDIA Nemotron and Mistral Vibe reviewed code and captures; findings and fixes are in validation/."),
     ]
     for b_title, b_desc in bullets2:
@@ -415,7 +415,7 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
             "Redthread Security",
             "Simulated / :5064",
             "Partner runtime",
-            "draft-le-agent-passport\n(0.7.591, commit 3a6560c)",
+            "draft-le-agent-passport-00\n(runner 0.7.591, 3a6560c)",
             "Scenarios P1–P6 on a simulated clock: status revoked, stale, unavailable (P1), attenuation (P3), cumulative limit (P4), request rewritten (P5), tool and build pinning (P6).",
         ),
         (

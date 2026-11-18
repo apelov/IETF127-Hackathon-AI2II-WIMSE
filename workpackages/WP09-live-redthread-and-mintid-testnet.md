@@ -19,7 +19,7 @@ When a developer clones both external partner repositories alongside this reposi
 ## 2. External Repositories & Live Testnet Endpoints
 
 ### 2.1 Redthread Security (Ben Le)
-- **Implementation:** `draft-le-agent-passport`, version `0.7.591`, commit `3a6560c`. Verifier `app/atpp_verify.py` with `app/delegation.py`; protected-operation executor `app/protected_op.py`.
+- **Implementation:** Redthread runner `0.7.591`, commit `3a6560c`, implementing `draft-le-agent-passport-00`; the 17 Nov sandbox records are in commit `64f7a64` (manifest version `0.7.591`). Verifier `app/atpp_verify.py` with `app/delegation.py`; protected-operation executor `app/protected_op.py`.
 - **Repository:** none linked. Ben Le will provide the public citation location; do not link or clone a repository for Redthread until then. Redthread is **not** EMILIA Protocol and `emilia-protocol` is a separate project that is not a Redthread dependency.
 - **Earlier trace provenance:** the committed `P1–P6` traces are headed `0.7.584` and the sandbox run `0.7.586`; reconcile with the `0.7.591` attribution and the file hashes mentioned in Ben Le's message of 15 Nov 17:59 UTC (not received; not in this repo).
 - **Modules referenced by the plan below (names from Redthread's `app/` & `tests/`, unverified until a source location is given):**
@@ -118,4 +118,4 @@ PYTHONPATH=external/redthread/app:external/redthread/tests \
 
 **EMILIA Protocol** is Iman Schrock's affiliation. Iman's contribution is the `P2` before-effect test design. No EMILIA Protocol runtime is integrated or exercised by this repository.
 
-This repository has **not run** the live positive (valid-agent) and revoked-agent `P2` sandbox cases; they are mocked in `checkers/observes_live_partners.py`. Redthread ran them through its own executor on 17 Nov 2026 (partner-reported, record pending; see `TEST_RESULTS_SUMMARY.md`). Next useful result: one valid-agent operation followed by a revoked-agent attempt, recording the fresh verifier decision and the actual operation outcome together, with each implementation's time origin and propagation bound beside it.
+This repository has **not run** the live positive (valid-agent) and revoked-agent `P2` sandbox cases; they are mocked in `checkers/observes_live_partners.py`. Redthread ran them through its own executor on 17 Nov 2026 (partner-reported; record sent 17 Nov, not yet committed here; see `TEST_RESULTS_SUMMARY.md`). Next useful result: one valid-agent operation followed by a revoked-agent attempt, recording the fresh verifier decision and the actual operation outcome together, with each implementation's time origin and propagation bound beside it.
