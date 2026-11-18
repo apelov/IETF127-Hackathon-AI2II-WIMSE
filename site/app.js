@@ -88,7 +88,7 @@ function renderIndex() {
 }
 
 /* ------------------------------------------------------------------ scenario page */
-const PANELS = [["entities", "Entities"], ["sequence", "Sequence"], ["message", "Message"], ["comment", "Comment"], ["drafts", "Drafts"], ["verdict", "Checker"], ["timeline", "Timeline"]];
+const PANELS = [["entities", "Entities"], ["sequence", "Sequence"], ["message", "Message"], ["packets", "Packets"], ["comment", "Comment"], ["drafts", "Drafts"], ["verdict", "Checker"], ["timeline", "Timeline"]];
 const S = { sc: null, step: 0, brk: -1, full: false, timer: null, panels: store.get("wimse-panels", {}) };
 
 function viewSteps() {
@@ -127,7 +127,7 @@ function drawEntities(steps) {
   const xs = all.flatMap((e) => [e.x, e.x + e.w]).concat((sc.frames || []).flatMap((f) => [f.x, f.x + f.w]));
   const ys = all.flatMap((e) => [e.y, e.y + e.h]).concat((sc.frames || []).flatMap((f) => [f.y, f.y + f.h]));
   const x0 = Math.min(...xs) - 20, y0 = Math.min(...ys) - 20, w = Math.max(...xs) - x0 + 20, h = Math.max(...ys) - y0 + 20;
-  const svg = sv("svg", { viewBox: `${x0} ${y0} ${w} ${h}`, width: "100%", role: "img", "aria-label": "Entities and the messages between them" });
+  const svg = sv("svg", { viewBox: `${x0} ${y0} ${w} ${h}`, width: "100%", role: "img", "aria-label": "Entities and the messages between them", style: "max-height:460px;display:block;margin:0 auto" });
   svg.append(heads("e"));
   for (const f of sc.frames || []) svg.append(sv("rect", { class: "frame fz-" + f.zone, x: f.x, y: f.y, width: f.w, height: f.h }), sv("text", { class: "framelabel fz-" + f.zone, x: f.x + 10, y: f.y + 20, "font-size": 15, "font-weight": "bold" }, f.label));
   const cur = steps[S.step], used = new Set(steps.slice(0, S.step + 1).flatMap((x) => [x.from, x.to]));
@@ -209,7 +209,7 @@ function panelMessage(st) {
   const sc = S.sc, box = el("div", { class: "msg" });
   if (st.http) {
     const h = st.http, cap = sc.capture, stripped = st.stripped;
-    box.append(el("div", { class: "meta" }, `Frame ${h.frame}` + (stripped ? "" : ` (request), ${h.resp_frame} (response)`) + `, TCP stream ${h.stream}`),
+    box.append(el("div", { class: "meta" }, (h.req_first && h.req_first !== h.frame ? `Request: frames ${h.req_first}\u2013${h.frame}` : `Request: frame ${h.frame}`) + (stripped ? "" : `; response: frame ${h.resp_frame}`) + `; TCP stream ${h.stream}`),
       el("h4", {}, "Request"), el("pre", {}, fmtHttp(h.req.line, h.req.headers, h.req.body, false)),
       el("h4", {}, "Response"), el("pre", {}, stripped ? "(removed in this mutant capture)" : fmtHttp(h.resp.line, h.resp.headers, h.resp.body, true)));
     const cmd = `tshark -r ${cap.file.split("/").pop()} ${sc.capture.file.includes("chain") ? "-d tcp.port==5051,http -d tcp.port==5060,http -d tcp.port==5061,http -d tcp.port==5062,http -d tcp.port==5063,http -d tcp.port==5064,http " : "-d tcp.port==5050,http "}-Y "frame.number==${h.frame}" -V`;
@@ -224,6 +224,27 @@ function panelMessage(st) {
   } else {
     box.append(el("p", { class: "muted" }, "No packet or record for this step: it is described by the partner's report (see the checker panel for the evidence class)."));
   }
+  return box;
+}
+
+function panelPackets(st) {
+  const sc = S.sc, box = el("div", { class: "msg" });
+  if (!st.packets) {
+    box.append(el("p", { class: "muted" }, sc.capture ? "This step has no packets of its own: it is what the mutant capture adds." : "Not a packet capture: this step comes from the partner's record or report, so there is no TCP conversation to show."));
+    return box;
+  }
+  const pk = st.packets, content = pk.filter((p) => p.kind === "content").length, h = st.http;
+  box.append(el("p", { style: "margin:0 0 8px" }, el("b", {}, `${pk.length} packets for this one request.`), ` ${content} carry the message; the other ${pk.length - content} are housekeeping that every TCP connection needs: dial, say it, wait, answer, hang up.`));
+  const rows = [];
+  for (const p of pk) {
+    if (p.gap_ms) rows.push(el("tr", { class: "pause" }, el("td", { colspan: "5" }, `\u23F3 pause of ${p.gap_ms} ms: the server is working on its answer`)));
+    rows.push(el("tr", { class: "pk " + p.kind },
+      el("td", {}, String(p.n)), el("td", { class: "tm" }, `+${p.t.toFixed(1)} ms`), el("td", { class: "dir " + p.dir, title: p.dir === "c2s" ? "client to server" : "server to client" }, p.dir === "c2s" ? "\u2192" : "\u2190"),
+      el("td", {}, el("b", {}, p.label), p.len ? ` (${p.len} bytes)` : ""), el("td", { class: "muted" }, p.text)));
+  }
+  box.append(el("table", { class: "pk" }, el("thead", {}, el("tr", {}, ["Frame", "Time", "", "What", "In plain words"].map((x) => el("th", {}, x)))), el("tbody", {}, rows)));
+  const f = `tcp.stream == ${h.stream}`;
+  box.append(el("div", { class: "row" }, el("span", {}, "Wireshark filter for the whole conversation: "), el("code", {}, f), copyButton(() => f)));
   return box;
 }
 
@@ -273,7 +294,7 @@ function render() {
   $("#prev").disabled = S.step === 0; $("#next").disabled = last; $("#play").textContent = S.timer ? "Pause" : "Play";
   history.replaceState(null, "", `#${sc.id}/${S.step + 1}` + (S.brk >= 0 ? `/b${S.brk + 1}` : ""));
   const put = (id, node) => { const p = $("#p-" + id + " .body"); p.replaceChildren(node); };
-  put("entities", drawEntities(steps)); put("sequence", drawSequence(steps)); put("message", panelMessage(st));
+  put("entities", drawEntities(steps)); put("sequence", drawSequence(steps)); put("message", panelMessage(st)); put("packets", panelPackets(st));
   put("comment", el("p", { style: "margin:0;font-size:16px" }, st.comment || ""));
   put("drafts", panelDrafts(st)); put("verdict", panelVerdict(st, last)); put("timeline", panelTimeline(steps));
   const bk = $("#brk"); bk.replaceChildren();
@@ -317,7 +338,7 @@ function renderScenario() {
     return el("label", {}, cb, " " + label);
   }));
   const mkPanel = (id, label) => el("section", { class: "panel", id: "p-" + id }, el("h3", {}, label), el("div", { class: "body" }));
-  const left = el("div", { class: "col" }, mkPanel("entities", "Entities"), mkPanel("sequence", "Sequence of messages"));
+  const left = el("div", { class: "col" }, mkPanel("entities", "Entities"), mkPanel("sequence", "Sequence of messages"), mkPanel("packets", "Whole conversation: every packet of this request"));
   const right = el("div", { class: "col" }, mkPanel("comment", "What is happening"), mkPanel("message", "Message contents (from the capture)"), mkPanel("drafts", "Drafts concerned"), mkPanel("verdict", "Checker verdict"), mkPanel("timeline", "Timeline"));
   main.append(
     el("div", { class: "scen-head" }, sel, el("a", { href: "index.html" }, "All scenarios")),

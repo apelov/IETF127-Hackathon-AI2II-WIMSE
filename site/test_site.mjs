@@ -46,6 +46,16 @@ check("index lists scenarios", (await ev(`document.querySelectorAll('ul.list li'
 check("filter by class works", (await ev(`(()=>{const b=[...document.querySelectorAll('.filters button')].find(x=>x.textContent.startsWith('Mocked'));b.click();return document.querySelectorAll('ul.list li').length})()`)) === 6);
 check("GitHub pop-over holds the clone command", (await ev(`document.querySelector('details.gh pre').textContent`)).includes("git clone https://github.com/apelov/IETF127-Hackathon-AI2II-WIMSE.git"));
 
+// packets: one request is many packets
+await go(`${BASE}/scenario.html#A12a/1`);
+check("A12a: its connection shows 14 packets", (await ev(`document.querySelectorAll('#p-packets tr.pk').length`)) === 14);
+check("A12a: 3 packets carry the message (request in 2 parts, response)", (await ev(`document.querySelectorAll('#p-packets tr.pk.content').length`)) === 3);
+check("A12a: the 0.1 s pause is shown", (await ev(`document.querySelector('#p-packets tr.pause')?.textContent`) || "").includes("pause of 107 ms"));
+check("A12a: message panel says the request starts at frame 139", (await ev(`document.querySelector('#p-message .meta').textContent`)).includes("frames 139\u2013141"));
+check("A12a: Wireshark filter for the stream", (await ev(`document.querySelector('#p-packets code').textContent`)) === "tcp.stream == 26");
+await go(`${BASE}/scenario.html#redthread-p1-confirmed-revocation/2`);
+check("partner steps explain there are no packets", (await ev(`document.querySelector('#p-packets .body').textContent`)).includes("Not a packet capture"));
+
 // scenario: stepping
 await go(`${BASE}/scenario.html#B_CHAIN/1`);
 check("B_CHAIN has 9 steps", (await ev(`document.getElementById('count').textContent`)) === "Step 1 of 9");
@@ -54,7 +64,7 @@ check("only message 1 is drawn at step 1", (await ev(`document.querySelectorAll(
 await ev(`document.getElementById('next').click()`); await ev(`document.getElementById('next').click()`);
 check("Next adds messages (3 arrows at step 3)", (await ev(`document.querySelectorAll('#p-sequence svg line.arr').length`)) === 3);
 check("hash follows the step", (await ev(`location.hash`)) === "#B_CHAIN/3");
-check("message panel shows a real frame", /^Frame 268 \(request\), 272/.test(await ev(`document.querySelector('#p-message .meta').textContent`)));
+check("message panel shows a real frame", /^Request: (frames \d+\u2013268|frame 268); response: frame 272/.test(await ev(`document.querySelector('#p-message .meta').textContent`)));
 check("comment panel has text", (await ev(`document.querySelector('#p-comment .body').textContent`)).length > 40);
 check("drafts panel names a draft", (await ev(`document.querySelector('#p-drafts .body').textContent`)).includes("identity-chaining-17"));
 check("verdict panel: step matches", (await ev(`document.querySelector('#p-verdict .body').textContent`)).includes("matches"));

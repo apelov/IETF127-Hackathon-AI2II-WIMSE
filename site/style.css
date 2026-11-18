@@ -133,3 +133,15 @@ table.tl tr.cur td { font-weight: bold; background: var(--accent-bg); }
 .bar b { position: absolute; top: 4px; font-size: 11px; white-space: nowrap; color: var(--bad); }
 footer.page { padding: 20px 16px; border-top: 1px solid var(--faint); font-size: 13px; color: var(--mute); }
 svg .mh-ok { fill: var(--ok); } svg .mh-bad { fill: var(--bad); }
+/* packets */
+table.pk { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.pk th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--mute); padding: 2px 6px; }
+table.pk td { padding: 3px 6px; border-top: 1px solid var(--faint); vertical-align: top; }
+table.pk tr.pk.content td { background: var(--accent-bg); }
+table.pk tr.pk.content td b { color: var(--accent); }
+table.pk tr.pk.plumbing { opacity: .8; }
+table.pk td.tm { white-space: nowrap; color: var(--mute); }
+table.pk td.dir { font-weight: bold; text-align: center; }
+table.pk td.dir.c2s { color: var(--accent); } table.pk td.dir.s2c { color: var(--ok); }
+table.pk tr.pause td { text-align: center; font-style: italic; color: var(--warn); background: color-mix(in srgb, var(--warn) 8%, transparent); }
+#p-packets { --pc: var(--c-control); }

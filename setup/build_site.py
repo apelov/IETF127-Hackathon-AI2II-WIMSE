@@ -47,27 +47,31 @@ ENT = {
     "executor": ("Loopback executor", ":5064", 860, 40, 210, 64),
 }
 FRAMES = [
-    {"label": "Domain A (maurice.ietf127.example)", "x": 10, "y": 10, "w": 440, "h": 380},
-    {"label": "Domain B (rich.ietf127.example)", "x": 470, "y": 10, "w": 620, "h": 380},
+    {"zone": "a", "label": "Domain A (maurice.ietf127.example)", "x": 10, "y": 10, "w": 440, "h": 380},
+    {"zone": "b", "label": "Domain B (rich.ietf127.example)", "x": 470, "y": 10, "w": 620, "h": 380},
 ]
 PORT_ENT = {5050: "maurice", 5051: "ttsa", 5060: "coord", 5061: "asb", 5062: "research", 5063: "filetool",
             5064: "executor", 47999: "attacker"}
 
+ZONE = {"client": "a", "ttsa": "a", "maurice": "a", "attacker": "x", "asb": "b", "coord": "b", "research": "b",
+        "filetool": "b", "executor": "b"}
+
+
 def ent(eid):
     label, sub, x, y, w, h = ENT[eid]
-    return {"id": eid, "label": label, "sub": sub, "x": x, "y": y, "w": w, "h": h}
+    return {"id": eid, "label": label, "sub": sub, "x": x, "y": y, "w": w, "h": h, "zone": ZONE[eid]}
 
 
 def row_layout(items):
     """Entities in one row for partner scenarios: items = [(id, label, sub)]."""
     n = len(items)
     if n == 3:  # a triangle, so that no arrow passes through a third box
-        return [{"id": i, "label": lab, "sub": sub, "x": x, "y": y, "w": 240, "h": 80}
+        return [{"id": i, "label": lab, "sub": sub, "x": x, "y": y, "w": 240, "h": 80, "zone": "p"}
                 for (i, lab, sub), x, y in zip(items, (30, 430, 830), (200, 30, 200))]
     w = 240 if n == 2 else 190
     gap = (1060 - n * w) // max(n - 1, 1) if n > 1 else 0
     x0 = (1100 - (n * w + (n - 1) * gap)) // 2
-    return [{"id": i, "label": lab, "sub": sub, "x": x0 + k * (w + gap), "y": 150, "w": w, "h": 80}
+    return [{"id": i, "label": lab, "sub": sub, "x": x0 + k * (w + gap), "y": 150, "w": w, "h": 80, "zone": "p"}
             for k, (i, lab, sub) in enumerate(items)]
 
 
@@ -294,7 +298,9 @@ def build_wire(by_case, cases_meta, group_of, kind):
             "expected": (row["expected"] if row else ""),
             "capture": {"file": INBOUND if kind == "inbound" else CHAIN, "url": RAW + (INBOUND if kind == "inbound" else CHAIN)},
             "checker": "observes_wimse.py" if kind == "inbound" else "observes_chain.py",
-            "entities": [ent(e) for e in used], "frames": FRAMES if kind == "chain" else [],
+            "entities": [ent(e) for e in used] if kind == "chain" else
+            [{**e, "zone": ZONE[e["id"]]} for e in row_layout([(i, ENT[i][0], ENT[i][1]) for i in used])],
+            "frames": FRAMES if kind == "chain" else [],
             "steps": steps,
         }
         out.append(scen)
@@ -587,6 +593,67 @@ def add_breaks(scens):
             s["breaks"] = [{"name": "Responses stripped", "mutant": "p1_p8_request_only.pcap", "description": "Every response removed from the capture.", "strip_responses": True, "checker_output": out["p1_p8_request_only.pcap"]}]
 
 
+# ------------------------------------------------------------------ whole TCP conversations
+def stream_packets(capture):
+    """All TCP packets of a capture, grouped by TCP stream."""
+    cmd = ["tshark", "-r", str(ROOT / capture), "-Y", "tcp", "-T", "fields", "-e", "tcp.stream", "-e", "frame.number",
+           "-e", "frame.time_relative", "-e", "tcp.srcport", "-e", "tcp.dstport", "-e", "tcp.flags", "-e", "tcp.len",
+           "-e", "tcp.analysis.window_update"]
+    out = subprocess.run(cmd, capture_output=True, text=True, check=True).stdout
+    streams = defaultdict(list)
+    for line in out.splitlines():
+        f = line.split("\t")
+        if len(f) < 7 or not f[0]:
+            continue
+        streams[int(f[0])].append({"frame": int(f[1]), "t": float(f[2]), "src": int(f[3]), "dst": int(f[4]),
+                                   "flags": int(f[5], 16), "len": int(f[6] or 0), "wu": len(f) > 7 and f[7] == "1"})
+    return streams
+
+
+def label_packets(pkts):
+    """Plain-language label for each packet of one connection (the 'phone call' view)."""
+    pkts = sorted(pkts, key=lambda p: p["frame"])
+    for p in pkts:
+        p["dir"] = "c2s" if p["dst"] in PORT_ENT else "s2c"
+    n_req = sum(1 for p in pkts if p["len"] and p["dir"] == "c2s")
+    n_resp = sum(1 for p in pkts if p["len"] and p["dir"] == "s2c")
+    out, k_req, k_resp, t0, prev = [], 0, 0, pkts[0]["t"], None
+    for p in pkts:
+        f, d = p["flags"], p["dir"]
+        syn, ack, fin, rst = f & 2, f & 16, f & 1, f & 4
+        kind = "plumbing"
+        if syn and not ack:
+            title, text = "Dial", "The client asks the server to open a connection, like dialing a phone."
+        elif syn:
+            title, text = "Pick up", "The server says yes, it is listening."
+        elif rst:
+            title, text = "Refused or cut", "Nobody is listening there, or one side hung up abruptly."
+        elif p["len"] and d == "c2s":
+            k_req += 1
+            kind = "content"
+            title = "Request" + (f", part {k_req} of {n_req}" if n_req > 1 else "")
+            text = "What the client says" + (": the request line and headers (badge, signature)." if k_req == 1 else ": the rest of the request (the body).")
+        elif p["len"]:
+            k_resp += 1
+            kind = "content"
+            title = "Response" + (f", part {k_resp} of {n_resp}" if n_resp > 1 else "")
+            text = "What the server says back: the status and the answer."
+        elif fin:
+            title, text = "Hang up", "This side says it is done and closes its end of the connection."
+        elif p["wu"]:
+            title, text = "Room for more", "Housekeeping: the receiver announces how much more data it can take."
+        elif prev is not None and prev["flags"] & 2 and prev["flags"] & 16:
+            title, text = "Line open", "The client confirms: the connection is established."
+        else:
+            title, text = "Got it", "Housekeeping: confirms that the data just sent arrived."
+        rec = {"n": p["frame"], "t": round((p["t"] - t0) * 1000, 3), "dir": d, "label": title, "kind": kind, "len": p["len"], "text": text}
+        if prev is not None and p["t"] - prev["t"] > 0.02:
+            rec["gap_ms"] = round((p["t"] - prev["t"]) * 1000)
+        out.append(rec)
+        prev = p
+    return out
+
+
 # ------------------------------------------------------------------ main
 def main():
     DATA.mkdir(parents=True, exist_ok=True)
@@ -616,6 +683,15 @@ def main():
     if dup:
         raise SystemExit(f"duplicate scenario ids: {sorted(dup)}")
     add_breaks(scens)
+    pk = {INBOUND: stream_packets(INBOUND), CHAIN: stream_packets(CHAIN)}
+    for s in scens:
+        for st in s["steps"]:
+            h = st.get("http")
+            if h and s.get("capture"):
+                pkts = label_packets(pk[s["capture"]["file"]][h["stream"]])
+                st["packets"] = pkts
+                h["req_first"] = min((p["n"] for p in pkts if p["kind"] == "content" and p["dir"] == "c2s"), default=h["frame"])
+                h["resp_first"] = min((p["n"] for p in pkts if p["kind"] == "content" and p["dir"] == "s2c"), default=h["resp_frame"])
     for s in scens:
         s.setdefault("breaks", [])
         if s["frames"]:
