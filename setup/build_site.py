@@ -25,7 +25,8 @@ ROOT = HERE.parent
 sys.path.insert(0, str(ROOT / "checkers"))
 sys.path.insert(0, str(HERE))
 import observes_chain as oc
-from generate_test_catalog import CASES, CLASSES, GROUPS
+from generate_test_catalog import CASES, CLASSES, GROUPS, LIMITS
+from pending_rerecord import PENDING_RERECORD
 
 SITE = ROOT / "site"
 DATA = SITE / "data"
@@ -34,6 +35,53 @@ RAW = REPO + "/raw/main/"
 P1P8 = ROOT / "scenarios" / "p1_p8"
 INBOUND = "validation/bundle-inbound/inbound/capture.pcap"
 CHAIN = "validation/bundle-chain/chain/capture.pcap"
+
+BASIS_FILE = HERE / "scenario_basis.json"
+BASIS_FACETS = [  # (id, label, short chip label, meaning)
+    ("draft-required", "The draft requires this outcome", "Draft requires",
+     "A specific requirement of the cited draft section decides this outcome."),
+    ("draft-silent", "The draft says nothing; this is an implementation's behaviour", "Draft silent",
+     "No draft text decides the outcome; what is shown is how that implementation behaves."),
+    ("implementation-policy", "Depends on the verifier's own configuration", "Verifier config",
+     "The draft leaves it open; the outcome comes from the verifier's own configuration or policy."),
+    ("partner-design", "Tests a partner's design, not an IETF draft", "Partner design",
+     "A partner's own design (for example Redthread, Cred, MintID or OmniArx), not defined by an IETF draft."),
+    ("harness-only", "Tests our own test mechanism", "Harness only",
+     "Exercises our own test endpoint or driver, not anything a draft defines."),
+]
+PREFIX_NOTICE = ("Recorded before our token services were corrected: in this recording they did not authenticate callers "
+                 "(txn-tokens-11 s11.3, s11.5) and used custom JSON instead of RFC 8693 forms. Fixed in code; re-recording pending.")
+REDTHREAD_PREFIX = "Redthread design (draft-le-agent-passport): "
+
+# Corrected descriptions: these replace the generated text for the listed ids.
+DESCRIPTION_OVERRIDES = {
+    "C7": "Scripted extra read outside the token's tctx.file is refused (file-tool policy; our peers on both ends)",
+    "C8": "Scripted agent does not echo a token and its extra read is refused (our peers)",
+    "C10": "Our test endpoint /admin/revoke blocks a workload; not a WIMSE-defined mechanism",
+    "B_CHAIN": "Nine-hop chain run by our peers; hop 2 is an independent Maurice",
+    "D6": "A narrowed replacement token is issued (on the wire); widened or altered tokens are rejected by our driver, not by a verifier (recorded before the peers were corrected)",
+    "D5": "AS-B (our peer) refuses a token with our own required typ",
+    "IN6": "Maurice's own issuer allowlist refuses this issuer (policy, not a draft requirement)",
+    "C12": "No fetch of an attacker's iss URL (supported by workload-creds-03 s9.1); the refusal reason is Maurice's configuration",
+    "C12b": "No fetch of an attacker's iss URL (supported by workload-creds-03 s9.1); the refusal reason is Maurice's configuration",
+    "A12b": "Ed25519 is the fully specified name; accepting the older EdDSA alias is Maurice's policy",
+    "A12d": "Ed25519 is the fully specified name; accepting the older EdDSA alias is Maurice's policy",
+    "A5": "A badge with no proof is refused. The status is not set by http-signature-08; wpt-02 suggests 401",
+}
+
+
+def load_basis(ids):
+    """setup/scenario_basis.json: {id: {basis, independent, draft, note}}. Must cover exactly the scenario ids."""
+    basis = json.loads(BASIS_FILE.read_text())
+    missing, extra = sorted(set(ids) - set(basis)), sorted(set(basis) - set(ids))
+    if missing or extra:
+        raise SystemExit(f"scenario_basis.json does not match the scenarios: missing {missing}, extra {extra}")
+    ok = {b[0] for b in BASIS_FACETS}
+    for k, v in basis.items():
+        if v.get("basis") not in ok or not isinstance(v.get("independent"), bool) or not v.get("note"):
+            raise SystemExit(f"scenario_basis.json: bad entry for {k}: {v}")
+    return basis
+
 
 # ------------------------------------------------------------------ entities and layout (1100 x 400)
 ENT = {
@@ -119,6 +167,10 @@ def drafts_for(sid, group, cls=None):
         keys = ["cred"]
     elif sid.startswith(("P1", "P2", "P3", "P4", "P5", "P6")):
         keys = ["passport"] + (["mintid"] if sid.startswith("P2") else [])
+    elif re.match(r"redthread-p[3456]-", sid):
+        # Redthread's own design: the WIMSE/OAuth drafts of the group do not define these checks. Only a path rewrite
+        # that breaks an RFC 9421 signature is consistent with http-signature-08 s3 (@path), so that one keeps it.
+        keys = ["passport"] + (["sig"] if sid == "redthread-p5-rewrite-path" else [])
     for k in keys:
         name, what = D[k]
         out.append({"name": name, "what": what, "section": ID_SECTIONS.get(sid) if k == "id" else None})
@@ -356,9 +408,19 @@ def eli5_for(cid):
     return None
 
 
+def recorded_gap(i, st):
+    """Old-format recording of B_CHAIN only: one sentence on what the recorded request lacked."""
+    hdrs = [h.strip().lower() for h in st["req"]["headers"]]
+    if i == 0 and not any(h.startswith("authorization:") for h in hdrs):
+        return " TTS-A issued this without authenticating the caller; the draft requires it."
+    if i in (2, 3, 5, 7) and any(h.startswith("content-type: application/json") for h in hdrs):
+        return " Custom JSON body instead of the OAuth form (RFC 8693 / 7523)."
+    return ""
+
+
 def step_comment(cid, i, st, cases):
     if cid == "B_CHAIN":
-        return BCHAIN[i][2]
+        return BCHAIN[i][2] + recorded_gap(i, st)
     verb = f"{st['method']} {st['uri'].split('?')[0]}"
     res = f"{st['status']}" + (f" {st['reason']}" if st["reason"] else "")
     if st["status"] < 300:
@@ -407,6 +469,8 @@ def build_wire(by_case, cases_meta, group_of, kind):
             "frames": FRAMES if kind == "chain" else [],
             "steps": steps,
         }
+        if kind == "chain":
+            scen["prefix_notice"] = PREFIX_NOTICE
         out.append(scen)
     return out
 
@@ -931,8 +995,18 @@ def main():
                 st["tokens"], st["reply"] = enrich(h)
                 h["req_first"] = min((p["n"] for p in pkts if p["kind"] == "content" and p["dir"] == "c2s"), default=h["frame"])
                 h["resp_first"] = min((p["n"] for p in pkts if p["kind"] == "content" and p["dir"] == "s2c"), default=h["resp_frame"])
+    basis = load_basis([s["id"] for s in scens])
     for s in scens:
         s["tags"] = tags_for(s)
+        b = basis[s["id"]]
+        s.update({"basis": b["basis"], "independent": b["independent"], "basis_draft": b.get("draft") or "", "basis_note": b["note"]})
+        if s["id"] in DESCRIPTION_OVERRIDES:
+            s["description"] = DESCRIPTION_OVERRIDES[s["id"]]
+        elif re.match(r"redthread-p[3456]-", s["id"]):
+            s["description"] = REDTHREAD_PREFIX + s["description"]
+    unknown = set(DESCRIPTION_OVERRIDES) - {s["id"] for s in scens}
+    if unknown:
+        raise SystemExit(f"DESCRIPTION_OVERRIDES has ids that are not scenarios: {sorted(unknown)}")
     unknown = set(CURATED) - {s["id"] for s in scens}
     if unknown:
         raise SystemExit(f"CURATED has ids that are not scenarios: {sorted(unknown)}")
@@ -951,7 +1025,14 @@ def main():
         "groups": [{"id": g, "name": n, "question": q} for g, n, q in GROUPS],
         "tag_facets": [{"id": fid, "name": fname, "items": [{"id": i, "label": lab, "meaning": m} for i, lab, m in items]}
                        for fid, fname, items in (("result", "Result", RESULT_ITEMS), ("checks", "Checks", CHECK_ITEMS), ("topic", "Topic", TOPIC_ITEMS))],
+        "basis_facets": [{"id": i, "label": lab, "short": sh, "meaning": m} for i, lab, sh, m in BASIS_FACETS],
+        "limits": [{"name": n, "text": t} for n, t in LIMITS],
+        "pending_rerecord": {
+            "no_page": [c for c in PENDING_RERECORD if c not in {s["id"] for s in scens}],
+            "with_page": [c for c in PENDING_RERECORD if c in {s["id"] for s in scens}],
+        },
         "scenarios": [{"id": s["id"], "title": s["title"], "group": s["group"], "cls": s["cls"], "tags": s["tags"], "steps": len(s["steps"]),
+                       "basis": s["basis"], "independent": s["independent"],
                        "messages": sum(2 if st.get("http") else 1 for st in s["steps"]),
                        "short": (s["description"] if len(s["description"]) <= 150 else s["description"][:150].rsplit(" ", 1)[0] + "\u2026")} for s in scens],
     }
