@@ -109,6 +109,17 @@ for (const url of ["index.html", "scenario.html#B_CHAIN/5", "scenario.html#C7/2/
 }
 await send("Emulation.clearDeviceMetricsOverride");
 
+// dark theme follows the system setting
+await send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: "dark" }] });
+await go(`${BASE}/scenario.html#C7/2/b2`);
+check("dark theme: dark background", (await ev(`getComputedStyle(document.body).backgroundColor`)) === "rgb(14, 18, 24)");
+check("dark theme: text is light", (await ev(`getComputedStyle(document.body).color`)) === "rgb(232, 236, 242)");
+if (process.env.SHOT_DARK) {
+  const shot = await send("Page.captureScreenshot", { format: "png" });
+  (await import("node:fs")).writeFileSync(process.env.SHOT_DARK, Buffer.from(shot.result.data, "base64"));
+}
+await send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: "light" }] });
+
 check("no console errors or exceptions", errors.length === 0, errors.join(" | "));
 ws.close(); chrome.kill();
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");

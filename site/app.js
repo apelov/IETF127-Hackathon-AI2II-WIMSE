@@ -63,7 +63,7 @@ function renderIndex() {
     for (const g of IDX.groups) {
       const items = IDX.scenarios.filter((s) => s.group === g.id && (!state.cls.size || state.cls.has(s.cls)) && (!state.q || (s.id + " " + s.title + " " + s.short).toLowerCase().includes(state.q)));
       if (!items.length) continue;
-      list.append(el("h2", { class: "grp" }, g.name), el("div", { class: "muted" }, g.question),
+      list.append(el("h2", { class: "grp g-" + g.id }, g.name), el("div", { class: "muted" }, g.question),
         el("ul", { class: "list" }, items.map((s) => el("li", {},
           el("a", { class: "t", href: "scenario.html#" + s.id }, s.title), el("span", { class: "s muted" }, s.short), badge(s.cls), el("span", { class: "muted" }, s.steps + (s.steps === 1 ? " step" : " steps"))))));
     }
@@ -116,6 +116,11 @@ function clip(box, tx, ty) { // point on the box edge towards (tx, ty)
   return [cx + dx * k, cy + dy * k];
 }
 
+function heads(p) {
+  const mk = (id, cls) => sv("marker", { id: `${p}-${id}`, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 8, markerHeight: 8, orient: "auto-start-reverse" }, sv("path", { d: "M0 0L10 5L0 10z", class: cls }));
+  return sv("defs", {}, mk("ok", "mh-ok"), mk("bad", "mh-bad"));
+}
+
 function drawEntities(steps) {
   const sc = S.sc, all = [...(sc.context || []).map((e) => ({ ...e, off: true })), ...sc.entities];
   const byId = Object.fromEntries(all.map((e) => [e.id, e]));
@@ -123,12 +128,12 @@ function drawEntities(steps) {
   const ys = all.flatMap((e) => [e.y, e.y + e.h]).concat((sc.frames || []).flatMap((f) => [f.y, f.y + f.h]));
   const x0 = Math.min(...xs) - 20, y0 = Math.min(...ys) - 20, w = Math.max(...xs) - x0 + 20, h = Math.max(...ys) - y0 + 20;
   const svg = sv("svg", { viewBox: `${x0} ${y0} ${w} ${h}`, width: "100%", role: "img", "aria-label": "Entities and the messages between them" });
-  svg.append(sv("defs", {}, sv("marker", { id: "ah", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 8, markerHeight: 8, orient: "auto-start-reverse" }, sv("path", { d: "M0 0L10 5L0 10z", fill: "currentColor" }))));
-  for (const f of sc.frames || []) svg.append(sv("rect", { class: "frame", x: f.x, y: f.y, width: f.w, height: f.h }), sv("text", { x: f.x + 10, y: f.y + 20, "font-size": 15, "font-weight": "bold" }, f.label));
+  svg.append(heads("e"));
+  for (const f of sc.frames || []) svg.append(sv("rect", { class: "frame fz-" + f.zone, x: f.x, y: f.y, width: f.w, height: f.h }), sv("text", { class: "framelabel fz-" + f.zone, x: f.x + 10, y: f.y + 20, "font-size": 15, "font-weight": "bold" }, f.label));
   const cur = steps[S.step], used = new Set(steps.slice(0, S.step + 1).flatMap((x) => [x.from, x.to]));
   for (const e of all) {
     const on = !e.off && used.has(e.id), isCur = cur && (cur.from === e.id || cur.to === e.id);
-    svg.append(sv("rect", { class: "box" + (e.off || !on ? " off" : "") + (isCur ? " cur" : ""), x: e.x, y: e.y, width: e.w, height: e.h }),
+    svg.append(sv("rect", { class: "box z-" + (e.zone || "p") + (e.off || !on ? " off" : "") + (isCur ? " cur" : ""), x: e.x, y: e.y, width: e.w, height: e.h }),
       sv("text", { x: e.x + e.w / 2, y: e.y + e.h / 2 - 3, "text-anchor": "middle", "font-size": 14, "font-weight": "bold", class: e.off || !on ? "off" : "" }, e.label),
       sv("text", { x: e.x + e.w / 2, y: e.y + e.h / 2 + 15, "text-anchor": "middle", "font-size": 12, class: e.off || !on ? "off" : "" }, e.sub || ""));
   }
@@ -142,7 +147,8 @@ function drawEntities(steps) {
     const nx = -(by - ay), ny = bx - ax, len = Math.hypot(nx, ny) || 1, sh = (off % 2 ? -1 : 1) * Math.ceil(off / 2) * 9 + (st.from > st.to ? 5 : -5);
     const p = (x, y) => [x + (nx / len) * sh, y + (ny / len) * sh];
     const [sx, sy] = p(ax, ay), [ex, ey] = p(bx, by);
-    svg.append(sv("line", { class: "arr " + (i === S.step ? "cur" : "old") + (st.dashed ? " dash" : ""), x1: sx, y1: sy, x2: ex, y2: ey, "marker-end": "url(#ah)", style: "color:currentColor" }),
+    const good = st.result !== false && !st.injected;
+    svg.append(sv("line", { class: "arr " + (good ? "good" : "bad") + (i === S.step ? " cur" : " old") + (st.dashed ? " dash" : ""), x1: sx, y1: sy, x2: ex, y2: ey, "marker-end": `url(#e-${good ? "ok" : "bad"})` }),
       sv("text", { x: (sx + ex) / 2, y: (sy + ey) / 2 - 4, "text-anchor": "middle", "font-size": 13, "font-weight": i === S.step ? "bold" : "normal" }, String(i + 1)));
   });
   return svg;
@@ -153,21 +159,21 @@ function drawSequence(steps) {
   const step = (W - 40 - bw) / Math.max(n - 1, 1), xs = ents.map((_, i) => (n === 1 ? W / 2 : left + bw / 2 + i * step));
   const row = 48, top = 92, H = top + steps.length * row + 20;
   const svg = sv("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", role: "img", "aria-label": "Sequence of messages" });
-  svg.append(sv("defs", {}, sv("marker", { id: "ah2", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 8, markerHeight: 8, orient: "auto-start-reverse" }, sv("path", { d: "M0 0L10 5L0 10z", fill: "currentColor" }))));
+  svg.append(heads("s"));
   ents.forEach((e, i) => {
-    svg.append(sv("rect", { class: "box", x: xs[i] - bw / 2, y: 6, width: bw, height: 50 }), sv("text", { x: xs[i], y: 28, "text-anchor": "middle", "font-size": 13, "font-weight": "bold" }, e.label), sv("text", { x: xs[i], y: 46, "text-anchor": "middle", "font-size": 11 }, e.sub || ""),
+    svg.append(sv("rect", { class: "box z-" + (e.zone || "p"), x: xs[i] - bw / 2, y: 6, width: bw, height: 50 }), sv("text", { x: xs[i], y: 28, "text-anchor": "middle", "font-size": 13, "font-weight": "bold" }, e.label), sv("text", { x: xs[i], y: 46, "text-anchor": "middle", "font-size": 11 }, e.sub || ""),
       sv("line", { class: "life", x1: xs[i], y1: 56, x2: xs[i], y2: H - 6 }));
   });
   const idx = Object.fromEntries(ents.map((e, i) => [e.id, i]));
   steps.slice(0, S.step + 1).forEach((st, i) => {
     const a = idx[st.from], b = idx[st.to], y = top + i * row, isCur = i === S.step;
     if (a == null || b == null) return;
-    const mark = st.injected || st.result === false ? " ✗" : " ✓";
-    const label = `${i + 1}. ${st.label}${mark}`;
-    svg.append(sv("line", { class: "arr " + (isCur ? "cur" : "old") + (st.dashed ? " dash" : ""), x1: xs[a], y1: y, x2: xs[b] + (xs[b] > xs[a] ? -2 : 2), y2: y, "marker-end": "url(#ah2)", style: "color:currentColor" }));
+    const bad = st.injected || st.result === false;
+    const label = `${i + 1}. ${st.label}`;
+    svg.append(sv("line", { class: "arr " + (bad ? "bad" : "good") + (isCur ? " cur" : " old") + (st.dashed ? " dash" : ""), x1: xs[a], y1: y, x2: xs[b] + (xs[b] > xs[a] ? -2 : 2), y2: y, "marker-end": `url(#s-${bad ? "bad" : "ok"})` }));
     const mx = (xs[a] + xs[b]) / 2, lw = Math.abs(xs[a] - xs[b]);
     const t = sv("text", { x: mx, y: y - 7, "text-anchor": "middle", "font-size": 12.5, "font-weight": isCur ? "bold" : "normal" }, lw < 260 && label.length * 6.2 > lw + 120 ? label.slice(0, Math.floor((lw + 120) / 6.2) - 1) + "…" : label);
-    if (st.result === false || st.injected) t.setAttribute("text-decoration", "underline");
+    t.append(sv("tspan", { class: "mk " + (bad ? "bad" : "ok") }, bad ? " ✗" : " ✓"));
     svg.append(t);
   });
   return svg;
@@ -187,13 +193,25 @@ function fmt(text) {
   return frag;
 }
 
+function fmtHttp(line, headers, body, resp) {
+  const frag = document.createDocumentFragment();
+  const m = resp ? /^(HTTP\/\S+ )(\d{3})(.*)$/.exec(line) : null;
+  frag.append(m ? el("span", {}, m[1], el("span", { class: m[2][0] === "2" ? "s2" : "s4" }, m[2]), m[3]) : el("span", { class: "req4" }, line), "\n");
+  for (const h of headers) {
+    const i = h.indexOf(":");
+    frag.append(i > 0 ? el("span", { class: "hn" }, h.slice(0, i)) : "", fmt(i > 0 ? h.slice(i) : h), "\n");
+  }
+  if (body) frag.append("\n", fmt(body));
+  return frag;
+}
+
 function panelMessage(st) {
   const sc = S.sc, box = el("div", { class: "msg" });
   if (st.http) {
     const h = st.http, cap = sc.capture, stripped = st.stripped;
     box.append(el("div", { class: "meta" }, `Frame ${h.frame}` + (stripped ? "" : ` (request), ${h.resp_frame} (response)`) + `, TCP stream ${h.stream}`),
-      el("h4", {}, "Request"), el("pre", {}, fmt([h.req.line, ...h.req.headers, "", h.req.body].join("\n").trim())),
-      el("h4", {}, "Response"), el("pre", {}, stripped ? "(removed in this mutant capture)" : fmt([h.resp.line, ...h.resp.headers, "", h.resp.body].join("\n").trim())));
+      el("h4", {}, "Request"), el("pre", {}, fmtHttp(h.req.line, h.req.headers, h.req.body, false)),
+      el("h4", {}, "Response"), el("pre", {}, stripped ? "(removed in this mutant capture)" : fmtHttp(h.resp.line, h.resp.headers, h.resp.body, true)));
     const cmd = `tshark -r ${cap.file.split("/").pop()} ${sc.capture.file.includes("chain") ? "-d tcp.port==5051,http -d tcp.port==5060,http -d tcp.port==5061,http -d tcp.port==5062,http -d tcp.port==5063,http -d tcp.port==5064,http " : "-d tcp.port==5050,http "}-Y "frame.number==${h.frame}" -V`;
     box.append(el("div", { class: "row" }, el("pre", {}, cmd), copyButton(() => cmd)),
       el("div", { class: "row" }, el("span", {}, "Wireshark filter: "), el("code", {}, `frame.number == ${h.frame}`), copyButton(() => `frame.number == ${h.frame}`), el("a", { href: cap.url }, "Download the capture (.pcap)")));
@@ -220,14 +238,14 @@ function panelDrafts(st) {
 function panelVerdict(st, last) {
   const sc = S.sc, b = S.brk >= 0 ? sc.breaks[S.brk] : null, box = el("div");
   const kv = el("div", { class: "kv" });
-  if (st.verdict) kv.append(el("b", {}, "Expected"), el("span", {}, st.verdict.expected || "—"), el("b", {}, "Observed"), el("span", {}, st.verdict.observed), el("b", {}, "This step"), el("span", { class: st.verdict.ok ? "ok" : "fail" }, st.verdict.ok ? "matches" : "does NOT match"));
+  if (st.verdict) kv.append(el("b", {}, "Expected"), el("span", {}, st.verdict.expected || "—"), el("b", {}, "Observed"), el("span", {}, st.verdict.observed), el("b", {}, "This step"), el("span", { class: st.verdict.ok ? "ok" : "fail" }, st.verdict.ok ? "✓ matches" : "✗ does NOT match"));
   kv.append(el("b", {}, "Checker"), el("span", {}, sc.checker), el("b", {}, "Evidence"), el("span", {}, badge(sc.cls), " ", IDX.classes[sc.cls].meaning));
   box.append(kv);
   if (st.verdict && st.verdict.note) box.append(el("p", { class: "muted" }, st.verdict.note));
   if (b) {
     box.append(el("h4", {}, "Mutant capture: " + b.name), el("p", {}, b.description), el("pre", { class: "fail" }, b.checker_output), el("p", { class: "muted" }, "Checker output recorded at build time on ", el("a", { href: IDX.repo + "/blob/main/checkers/negatives/" + b.mutant }, "checkers/negatives/" + b.mutant)));
   } else if (last) {
-    box.append(el("p", {}, el("b", {}, "Result: "), sc.result.verdict, ". ", sc.result.text));
+    box.append(el("p", {}, el("b", {}, "Result: "), el("span", { class: sc.result.verdict === "PASS" ? "ok" : sc.result.verdict === "FAIL" ? "fail" : "" }, sc.result.verdict), ". ", sc.result.text));
   }
   return box;
 }
@@ -261,7 +279,7 @@ function render() {
   const bk = $("#brk"); bk.replaceChildren();
   if (sc.breaks.length) {
     bk.append(el("b", {}, "Break it: "));
-    const mk = (i, label) => { const b = el("button", { type: "button", "aria-pressed": String(S.brk === i) }, label); b.addEventListener("click", () => { S.brk = i; S.step = Math.min(S.step, viewSteps().length - 1); render(); }); if (S.brk === i) { b.style.background = "var(--fg)"; b.style.color = "var(--bg)"; } return b; };
+    const mk = (i, label) => { const b = el("button", { type: "button", "aria-pressed": String(S.brk === i) }, label); b.addEventListener("click", () => { S.brk = i; S.step = Math.min(S.step, viewSteps().length - 1); render(); }); return b; };
     bk.append(mk(-1, "Real capture"), ...sc.breaks.map((b, i) => mk(i, b.name)));
   }
 }
@@ -278,7 +296,7 @@ async function loadScenario(id, step, brk) {
   S.sc = await getJSON(`data/${id}.json`); S.brk = brk > 0 && brk <= S.sc.breaks.length ? brk - 1 : -1; S.step = Math.max(0, (step || 1) - 1);
   document.title = S.sc.title + " — WIMSE interop explorer";
   $("#sel").value = id;
-  const head = $("#head"); head.replaceChildren(el("h2", { style: "margin:0;font-size:20px" }, S.sc.title), badge(S.sc.cls), el("span", { class: "muted" }, IDX.groups.find((g) => g.id === S.sc.group).name));
+  const head = $("#head"); head.replaceChildren(el("h2", { style: "margin:0;font-size:20px" }, S.sc.title), badge(S.sc.cls), el("span", { class: "gchip g-" + S.sc.group }, IDX.groups.find((g) => g.id === S.sc.group).name));
   $("#desc").textContent = S.sc.description;
   $("#exp").textContent = S.sc.expected ? "Expected: " + S.sc.expected : "";
   render();
@@ -306,7 +324,7 @@ function renderScenario() {
     el("div", { class: "scen-head", id: "head", style: "margin-top:8px" }),
     el("p", { class: "desc", id: "desc" }), el("p", { class: "exp muted", id: "exp" }),
     el("div", { class: "controls" },
-      el("button", { id: "prev", type: "button", onclick: () => go(-1) }, "← Previous"), el("button", { id: "next", type: "button", onclick: () => go(1) }, "Next step →"),
+      el("button", { id: "prev", type: "button", onclick: () => go(-1) }, "← Previous"), el("button", { id: "next", type: "button", class: "primary", onclick: () => go(1) }, "Next step →"),
       el("button", { id: "play", type: "button", onclick: () => { if (S.timer) { stop(); render(); } else { if (S.step >= viewSteps().length - 1) S.step = 0; S.timer = setInterval(() => { if (S.step >= viewSteps().length - 1) { stop(); render(); } else go(1); }, 1600); render(); } } }, "Play"),
       el("button", { type: "button", onclick: () => { stop(); S.step = 0; render(); } }, "Reset"), el("span", { class: "count", id: "count" }), toggles),
     el("div", { class: "brk", id: "brk" }),
