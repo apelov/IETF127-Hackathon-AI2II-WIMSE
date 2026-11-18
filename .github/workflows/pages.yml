@@ -1,0 +1,53 @@
+name: scenario-explorer
+
+# Builds site/ from the committed captures and records, tests it in headless Chrome, and publishes it
+# to GitHub Pages. Needs Settings > Pages > Source = "GitHub Actions".
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install tshark
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update -q
+          echo "wireshark-common wireshark-common/install-setuid boolean false" | sudo debconf-set-selections
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q tshark
+      - name: Build the scenario data
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -q -r requirements.txt python-pptx
+          .venv/bin/python setup/build_site.py
+      - name: Test the page in headless Chrome
+        run: |
+          python3 -m http.server -d site 8765 &
+          sleep 1
+          CHROME="$(command -v google-chrome)" node site/test_site.mjs
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
