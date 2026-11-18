@@ -40,6 +40,9 @@ confirmed with them.
   Cred (Kieran Sweeney):
     scenarios/p1_p8/cred-P8.jsonl, cred-P8.manifest.json
 
+  Agent Passport System (Tymofii Pidlisnyi), Apache-2.0:
+    scenarios/p1_p8/aps-P2.jsonl, aps-P2.manifest.json, aps_p2.mjs
+
   Iman Schrock (EMILIA Protocol): before-effect test design for P2. Credit
   for test design only; no EMILIA Protocol code is included.
 

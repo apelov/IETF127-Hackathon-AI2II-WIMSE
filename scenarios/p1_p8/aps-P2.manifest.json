@@ -1,0 +1,40 @@
+{
+  "scenario": "P2",
+  "format": "ietf127-wimse-scenario/1",
+  "impl": "aps",
+  "implementation": "Agent Passport System (APS), draft-pidlisnyi-aps-04 records aps:authority-delegation:v1 and aps:authority-revocation:v1",
+  "contributor": "Tymofii Pidlisnyi",
+  "repository": "https://github.com/agent-passport-system/agent-passport-system",
+  "commit": "5d966a7cdce8fb69223f724985109d179823a99c",
+  "package": "agent-passport-system@8.1.1 (npm, sha512-5GMULtYy84H3/tCqIhRKJjhkLdKiouIbnmIzufNo9r9e4nw4uUXtvytEhGMsOEIub/HO90QazXIbgHUHL2RAew==), the version in package.json at the commit above",
+  "runner": "scenarios/p1_p8/aps_p2.mjs (in this repository)",
+  "node": "v22.23.5",
+  "run_at_utc": "2026-11-18T23:07:23Z",
+  "clock": "wall",
+  "reproduce": "mkdir aps-run && cd aps-run && npm init -y && npm i agent-passport-system@8.1.1 && cp ../scenarios/p1_p8/aps_p2.mjs . && node aps_p2.mjs > aps-P2.jsonl",
+  "reproduce_note": "Keys are generated fresh and timestamps are wall clock, so a rerun produces the same decisions, reasons and effects with different ts and t_since_revocation_ms values and a different file digest.",
+  "chain": "issuer (domain A) -> root receipt -> agent A -> child receipt -> agent B; E (domain B) verifies the whole chain on every check",
+  "mapping": "'Revoke A's passport' is run as the issuer of A's root delegation signing an aps:authority-revocation:v1 record for it. APS revokes delegation records, not passports; revoking the root invalidates every chain that passes through it, which is the effect the case describes.",
+  "limits": [
+    "E's revocation store is in process. The signed revocation record is verified and written straight into the store E reads, so no status list, cache, TTL or network propagation is exercised. t_since_revocation_ms is local verification time after the record was written, not a propagation measurement, and bound_s is null for that reason.",
+    "The before-effect check is the runner calling verifyAuthorityDelegationChain a second time immediately before the protected operation. APS has no separate authorize then revalidate API; the second call is the same full chain verification as the first.",
+    "The protected operation is a local counter. The effect field is read from that counter after each decision is acted on, not derived from the decision. It ran once in this run, for ru-0, and not for ru-1 or be-0."
+  ],
+  "reason_mapping": {
+    "valid (chain verifies, scope covers payments:transfer)": "ok",
+    "invalid / REVOKED": "status-revoked",
+    "indeterminate / REVOCATION_UNKNOWN": "status-unavailable"
+  },
+  "reason_mapping_note": "status-unavailable did not occur in this run. It is what APS returns when E's store does not track the delegation; APS has no stale cache state, so status-stale and status-grace have no APS equivalent.",
+  "checker_note": "Not verified by observes_p1_p8.py. No packets; the run is in process.",
+  "files": {
+    "aps-P2.jsonl": {
+      "sha256": "0707e11e636e5abd871d5cc53527b0bcefa14157e88dcfe0a9c974ac23e28990",
+      "lines": 4
+    },
+    "aps_p2.mjs": {
+      "sha256": "8994a8b96837ff3365be25481fd3ed9ecfedd618c8640e333d518e34261adc32",
+      "lines": 141
+    }
+  }
+}
