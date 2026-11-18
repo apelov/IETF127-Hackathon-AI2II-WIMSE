@@ -1,1 +1,1 @@
-{"agent": "dbsccjan18nkaiapu9v0", "workflow": "text-stats", "base": "http://maurice.ietf127.example:5050"}
+{"agent": "dbsccjan18nkaiapu9v0", "workflow": "text-stats", "base": "http://maurice.ietf127.example:5050", "route": "/api/v2/agents/{agent}/workflows/{workflow}/executions", "journal": true}

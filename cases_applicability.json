@@ -1,0 +1,24 @@
+{
+  "_doc": "Which cases in cases.json need your server's own policy rather than the drafts, and where the drafts disagree. Every case not listed is 'draft': its status and problem type are fixed by draft-ietf-wimse-http-signature-08 s3.6 and the WIT/identifier drafts. Read by peers/driver.py. cases.json stays the single source of expected outcomes.",
+  "policy": {
+    "IN6": "issuer allowlist: the trust domain is trusted but the WIT iss http://other.ietf127.example must be refused; needs a per-trust-domain issuer allowlist",
+    "C12": "issuer allowlist: iss http://127.0.0.1:47999/jwks.json must be refused without fetching it; needs an issuer allowlist and no JWKS fetch from iss",
+    "C12b": "same as C12 for trust domain lax.ietf127.example (trusted keys, no issuer allowlist); expects 400 or 403 and no fetch",
+    "A13i": "needs a grant for wimse://peer.ietf127.example/a~b (the case sends a%7Eb in a mixed-case host and expects it to match)",
+    "A13j": "needs a grant for wimse://peer.ietf127.example/a/b and none for the escaped a%2Fb; expects 403 (not-authorized)",
+    "IN15": "needs a grant table: wimse://peer.ietf127.example/ungranted must be authenticated but refused with 403"
+  },
+  "draft_conflict": {
+    "_doc": "Cases whose cases.json outcome (401 + WWW-Authenticate: WPT) follows draft-ietf-wimse-wpt-02 s2.1 (SHOULD 401), while draft-ietf-wimse-http-signature-08 s3.6 says 400 wimse-signature-invalid and 401 is NOT RECOMMENDED. In --wire-only mode only, the alternative below is accepted too, and the output says which one matched. Journal mode (Maurice) never uses it.",
+    "A5": {
+      "label": "draft (wpt-02 SHOULD 401; conflicts with http-signature-08, which defines no error for an unsigned request and recommends 400 for failed signed requests)",
+      "alt_status": 400,
+      "alt_type": "wimse-signature-invalid"
+    },
+    "IN13": {
+      "label": "draft (wpt-02 SHOULD 401; conflicts with http-signature-08 s3.6: 400 wimse-signature-invalid, 401 NOT RECOMMENDED)",
+      "alt_status": 400,
+      "alt_type": "wimse-signature-invalid"
+    }
+  }
+}
