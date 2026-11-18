@@ -19,7 +19,7 @@ loud "N cases NOT validated against the new behaviour (pending re-record)" line 
 pending_not_validated=N figure in its SUMMARY: a run with pending cases is not a clean pass of the new behaviour.
 """
 
-PENDING_RERECORD = ["C5", "D1", "D2", "D5", "D6", "D7", "T1", "T2", "T3", "T4", "T5", "T6"]
+PENDING_RERECORD: list[str] = []  # emptied after the chain was re-recorded with the corrected peers and the real Maurice (18 Nov 2026)
 
 
 def check_list(cases: dict) -> None:

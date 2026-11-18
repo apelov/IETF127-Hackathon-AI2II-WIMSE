@@ -41,17 +41,10 @@
     "expected_hops": [
       "5063 400 wimse-signature-invalid"
     ],
-    "legacy_expected_hops": [
-      "5063 400 proof-invalid"
-    ],
     "journal": [
       "file-tool proof-invalid"
     ],
-    "wire_note": "The 400 body only carries the problem type wimse-signature-invalid (http-signature-08 s3.6: the response MUST NOT distinguish which check failed); the precise cause is in the peer journal.",
-    "legacy_expected_statuses": [
-      400
-    ],
-    "legacy_expected_reason": "proof-invalid"
+    "wire_note": "The 400 body only carries the problem type wimse-signature-invalid (http-signature-08 s3.6: the response MUST NOT distinguish which check failed); the precise cause is in the peer journal."
   },
   {
     "id": "C6",
@@ -148,17 +141,10 @@
     "expected_hops": [
       "5063 400 wimse-signature-invalid"
     ],
-    "legacy_expected_hops": [
-      "5063 400 proof-invalid"
-    ],
     "journal": [
       "file-tool proof-invalid"
     ],
-    "wire_note": "The 400 body only carries the problem type wimse-signature-invalid (http-signature-08 s3.6: the response MUST NOT distinguish which check failed); the precise cause is in the peer journal.",
-    "legacy_expected_statuses": [
-      400
-    ],
-    "legacy_expected_reason": "proof-invalid"
+    "wire_note": "The 400 body only carries the problem type wimse-signature-invalid (http-signature-08 s3.6: the response MUST NOT distinguish which check failed); the precise cause is in the peer journal."
   },
   {
     "id": "D2",
@@ -172,18 +158,10 @@
       "5063 401 -",
       "5050 401 -"
     ],
-    "legacy_expected_hops": [
-      "5063 401 proof-invalid",
-      "5050 401 -"
-    ],
     "journal": [
       "file-tool proof-invalid"
     ],
-    "wire_note": "The 401 body carries no reason (the cause, proof-invalid, is in the peer journal); the WWW-Authenticate: WPT challenge is checked on the wire.",
-    "legacy_expected_statuses": [
-      401
-    ],
-    "legacy_expected_reason": "proof-invalid"
+    "wire_note": "The 401 body carries no reason (the cause, proof-invalid, is in the peer journal); the WWW-Authenticate: WPT challenge is checked on the wire."
   },
   {
     "id": "D3_exp",
@@ -269,16 +247,9 @@
       "5061 400 invalid_grant"
     ],
     "wire_note": "The other half of D5, the driver's outbound guard refusing to send a Domain A Txn-Token to Domain B, happens before any packet is sent, so it is not wire evidence.",
-    "legacy_expected_hops": [
-      "5061 403 grant-invalid"
-    ],
     "journal": [
       "as-b typ-mismatch"
-    ],
-    "legacy_expected_statuses": [
-      403
-    ],
-    "legacy_expected_reason": "grant-invalid"
+    ]
   },
   {
     "id": "D6",
@@ -296,20 +267,10 @@
       "5051 400 invalid_grant"
     ],
     "wire_note": "On the wire TTS-A issues the original and the narrowed token (200) and refuses the widening request (invalid_scope) and the replacement from an expired token (invalid_grant). The rejection of forged widened, txn-, sub- and aud-mutated replacements is checked by the driver, so it is not wire evidence.",
-    "legacy_expected_hops": [
-      "5051 200 -",
-      "5051 200 -",
-      "5051 200 -",
-      "5051 200 -"
-    ],
     "journal": [
       "tts-a scope-widened",
       "tts-a token-expired"
-    ],
-    "legacy_expected_statuses": [
-      200
-    ],
-    "legacy_expected_reason": "accept"
+    ]
   },
   {
     "id": "D7",
@@ -325,20 +286,10 @@
       "5051 400 invalid_target",
       "5061 400 invalid_grant"
     ],
-    "legacy_expected_hops": [
-      "5051 200 -",
-      "5051 200 -",
-      "5061 403 grant-invalid"
-    ],
     "journal": [
       "as-a unknown-target",
       "as-b aud-mismatch"
-    ],
-    "legacy_expected_statuses": [
-      200,
-      403
-    ],
-    "legacy_expected_reason": "grant-invalid"
+    ]
   },
   {
     "id": "T1",
