@@ -8,13 +8,14 @@ import { join } from "node:path";
 const BASE = process.argv[2] || "http://localhost:8765";
 const CHROME = process.env.CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const port = 9300 + Math.floor(Math.random() * 500);
-const chrome = spawn(CHROME, ["--headless=new", "--disable-gpu", `--remote-debugging-port=${port}`, `--user-data-dir=${mkdtempSync(join(tmpdir(), "wimse-"))}`, "--window-size=1500,1200", "about:blank"], { stdio: "ignore" });
+const ci = !!process.env.CI;  // GitHub runners: no sandbox, and show Chrome's own output if it fails to start
+const chrome = spawn(CHROME, ["--headless=new", "--disable-gpu", ...(ci ? ["--no-sandbox", "--disable-dev-shm-usage"] : []), `--remote-debugging-port=${port}`, `--user-data-dir=${mkdtempSync(join(tmpdir(), "wimse-"))}`, "--window-size=1500,1200", "about:blank"], { stdio: ci ? "inherit" : "ignore" });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let failures = 0;
 const check = (name, ok, extra = "") => { console.log(`${ok ? "PASS" : "FAIL"}  ${name}${ok ? "" : "  " + extra}`); if (!ok) failures++; };
 
 async function connect() {
-  for (let i = 0; i < 50; i++) {
+  for (let i = 0; i < 150; i++) {
     try {
       const tabs = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
       const page = tabs.find((t) => t.type === "page");
