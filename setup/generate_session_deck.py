@@ -1,8 +1,9 @@
-"""Three slides for the WIMSE session, then the summary slides as backup.
+"""Three slides for a 3-4 minute WIMSE slot, then the detailed slides as backup.
 
 1. What we tested, against which drafts (picture with the drafts at each place; use-case types)
-2. Results by use-case type and evidence class
-3. What it means for the drafts, and next steps
+2. Results at a glance, and what they mean for the drafts
+3. Next steps: towards a reusable repository
+Backup: results by evidence class, findings per draft, then the summary slides.
 
 Counts come from CASES in setup/generate_test_catalog.py, as in the other two decks.
 
@@ -22,6 +23,7 @@ from generate_test_catalog import (
     CLASSES,
     GROUPS,
     ROOT,
+    TERRACOTTA,
     arrow,
     box,
     check_coverage,
@@ -58,7 +60,7 @@ FINDINGS = [
     ("Kill-switch route: accepted 5.8 s after self-revocation on a held witness, refused at 47.6 s (issuer route: refused at the first attempt)", "Partner report", "revocation bounds"),
     ("Latency depends on where t = 0 is: request vs trigger root, 13.9 s apart", "Partner record", "scenario schema, any bound"),
     ("An unreachable status list fails closed, also when one link of a chain is unknown", "Partner record", "le-agent-passport (-01)"),
-    ("%7E equals ~ and the host is case-insensitive, but %2F is not /", "Wire", "wimse-identifier-04"),
+    ("Confirmed, not a gap: identifier-04 already says %7E equals ~ and %2F stays encoded; Maurice follows it", "Wire", "wimse-identifier-04 4.1, 4.3, 7.1"),
 ]
 
 
@@ -69,7 +71,7 @@ def slide_tested(s):
     box(s, 0.5, 1.6, 6.9, 1.0, "Domain A: AgentMaurice\nclient workload, Maurice (agent 1), TTS-A / AS-A", size=12, bold=True)
     arrow(s, 3.95, 2.6, 3.95, 3.25)
     text(s, 4.1, 2.68, 3.3, 0.5, "cross-domain grant, draft-ietf-oauth-:\ntransaction-tokens-11, identity-chaining-17; RFC 8693, 7523", size=10)
-    box(s, 0.5, 3.25, 6.9, 1.0, "Domain B: RICH\nAS-B / TTS-B, Coordinator (agent 2), Research (agent 3), File Tool", size=12, bold=True)
+    box(s, 0.5, 3.25, 6.9, 1.0, "Domain B: reference agents (named RICH)\nAS-B / TTS-B, Coordinator (agent 2), Research (agent 3), File Tool", size=12, bold=True)
     arrow(s, 3.95, 4.25, 3.95, 4.75)
     text(s, 4.1, 4.33, 3.3, 0.3, "the last hop before the effect", size=10)
     frame(s, 0.5, 4.75, 6.9, 2.15, "Partners at the last hop (their own code); before-effect design: EMILIA")
@@ -83,6 +85,60 @@ def slide_tested(s):
     # Right: the use-case types.
     rows = [("Use-case type", "For example")] + [(name, ex) for _, name, ex in USE_CASES]
     table(s, 7.7, 1.6, 5.13, [2.6, 2.53], rows, size=11, row_h=0.6)
+    text(s, 7.7, 6.5, 5.13, 0.45, "Explore every scenario step by step: https://apelov.github.io/IETF127-Hackathon-AI2II-WIMSE/", size=10)
+
+
+SHORT = {
+    "normal": "Normal path across two domains",
+    "identity": "Identity: WIT valid and correctly named",
+    "proof": "Proof: signed, right receiver, once",
+    "authz": "Authorization and scope",
+    "xdomain": "Crossing domains",
+    "revocation": "Revocation before the effect",
+    "tricks": "Attacks on agents",
+}
+REPO = "https://github.com/apelov/IETF127-Hackathon-AI2II-WIMSE"
+EXPLORER = "https://apelov.github.io/IETF127-Hackathon-AI2II-WIMSE/"
+
+
+def slide_summary(s):
+    title(s, "Results at a glance", "Every result on the site says how it was obtained: wire capture, partner record or report, simulated or mocked")
+    stats = [("99", "scenarios, each replayable step by step"), ("53", "captured on the wire and checked independently"),
+             ("6", "participants, each credited for their own work"), ("17", "drafts and RFCs exercised")]
+    for i, (big, label) in enumerate(stats):
+        x = 0.5 + i * 3.13
+        box(s, x, 1.5, 2.95, 1.15, "", size=10)
+        text(s, x + 0.1, 1.55, 2.75, 0.55, big, size=30, bold=True, align=PP_ALIGN.CENTER, color=TERRACOTTA)
+        text(s, x + 0.1, 2.12, 2.75, 0.5, label, size=11, align=PP_ALIGN.CENTER)
+    wire = {}
+    for c in CASES:
+        if c["cls"] == "wire":
+            wire[c["group"]] = wire.get(c["group"], 0) + c["n"]
+    rows = [("Use-case type", "On the wire", "Result")] + [(SHORT[g], wire.get(g, "") or "", "as expected") for g, _, _ in USE_CASES]
+    table(s, 0.5, 2.95, 7.4, [4.4, 1.2, 1.8], rows, size=12, row_h=0.46)
+    frame(s, 8.15, 2.95, 4.68, 3.68, "The drafts")
+    text(s, 8.3, 3.45, 4.4, 3.1,
+         "No interoperability blocker found in any draft tested.\n\n"
+         "Confirmed: identifier-04 comparison rules.\n\n"
+         "Two points for the authors:\n"
+         "\u2013 a released bearer token cannot be revoked\n"
+         "\u2013 status checks should tell revoked from stale", size=13)
+
+
+def slide_next(s):
+    title(s, "Next steps: towards a reusable repository", None)
+    frame(s, 0.5, 1.2, 6.05, 3.7, "Join now")
+    text(s, 0.7, 1.7, 5.65, 3.1,
+         "Run P1 to P8 with your implementation and send the results as a pull request (CONTRIBUTING.md)\n\n"
+         "It is listed under your name, in your words, as your own run\n\n"
+         "Have a use case? Add it in the same format", size=15)
+    frame(s, 6.78, 1.2, 6.05, 3.7, "We will")
+    text(s, 6.98, 1.7, 5.65, 3.1,
+         "Make the harness run against any implementation: a configurable target, a wire-only mode and a short \"run yours\" guide\n\n"
+         "Send each finding to the draft authors, once the partners have confirmed their rows", size=15)
+    box(s, 0.5, 5.15, 12.33, 1.1, f"Repository: {REPO}\nExplorer: {EXPLORER}", size=16, bold=True)
+    text(s, 0.5, 6.45, 12.33, 0.4, "Goal: a repository the community reuses to check interoperability, IETF after IETF.",
+         size=14, bold=True, align=PP_ALIGN.CENTER, color=TERRACOTTA)
 
 
 def slide_results(s):
@@ -101,9 +157,9 @@ def slide_results(s):
     probes = sum(c["n"] for c in CASES if c["cls"] == "probe")
     controls = sum(c["n"] for c in CASES if c["cls"] == "control")
     text(s, 0.5, 6.15, 12.3, 0.7,
-         f"Wire: real implementations, recorded and checked by an independent packet checker. "
-         f"Columns are never added together. Also: {controls} bad captures, all rejected by the checkers; "
-         f"{probes} live probes of the MintID testnet. Everything is re-checkable with ./reproduce.sh.", size=13)
+         f"Wire: real implementations, captured and checked by an independent packet checker. Classes are never added together. "
+         f"By result, 14 scenarios are purely positive, 63 are refusals and 22 mix both. Also {controls} bad captures (all rejected) "
+         f"and {probes} live probes. Re-check everything with ./reproduce.sh.", size=13)
 
 
 def slide_findings(s):
@@ -122,12 +178,12 @@ def main():
     groups = {g for g, _, _ in GROUPS}
     assert {g for g, _, _ in USE_CASES} <= groups
     prs, new_slide = new_deck(FOOTER)
-    for build in (slide_tested, slide_results, slide_findings):
+    for build in (slide_tested, slide_summary, slide_next):
         build(new_slide())
     s = new_slide()
     text(s, 0.5, 3.2, 12.3, 0.8, "Backup", size=36, bold=True, align=PP_ALIGN.CENTER)
     text(s, 0.5, 4.0, 12.3, 0.4, "Full list of cases: IETF127_WIMSE_Test_Catalog.pptx", size=14, align=PP_ALIGN.CENTER)
-    for build in BACKUP:
+    for build in (slide_results, slide_findings, *BACKUP):
         build(new_slide())
     prs.save(OUT)
     print(f"saved {OUT.name}: {len(prs.slides)} slides (3 + backup)")

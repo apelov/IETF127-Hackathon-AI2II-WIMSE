@@ -23,6 +23,10 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / "IETF127_WIMSE_Test_Catalog.pptx"
 BLACK = RGBColor(0, 0, 0)
 WHITE = RGBColor(255, 255, 255)
+# Warm accents, used sparingly: titles, table headers and arrows; box fill; container outlines.
+TERRACOTTA = RGBColor(0xB5, 0x53, 0x2B)
+SAND = RGBColor(0xFB, 0xF1, 0xE3)
+AMBER = RGBColor(0xD9, 0x9A, 0x2B)
 FONT = "Arial"
 TABLE_GRID = "{5940675A-B579-460E-94D1-54222C63F5DA}"  # built-in "No Style, Table Grid"
 
@@ -167,7 +171,7 @@ def check_coverage():
 
 
 # ---------------------------------------------------------------- drawing helpers
-def text(slide, x, y, w, h, s, size=14, bold=False, align=PP_ALIGN.LEFT, anchor=MSO_ANCHOR.TOP):
+def text(slide, x, y, w, h, s, size=14, bold=False, align=PP_ALIGN.LEFT, anchor=MSO_ANCHOR.TOP, color=BLACK):
     tb = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
     tf = tb.text_frame
     tf.word_wrap = True
@@ -178,12 +182,12 @@ def text(slide, x, y, w, h, s, size=14, bold=False, align=PP_ALIGN.LEFT, anchor=
         p.alignment = align
         r = p.add_run()
         r.text = line
-        r.font.name, r.font.size, r.font.bold, r.font.color.rgb = FONT, Pt(size), bold, BLACK
+        r.font.name, r.font.size, r.font.bold, r.font.color.rgb = FONT, Pt(size), bold, color
     return tb
 
 
 def title(slide, s, sub=None):
-    text(slide, 0.5, 0.35, 12.3, 0.6, s, size=28, bold=True)
+    text(slide, 0.5, 0.35, 12.3, 0.6, s, size=28, bold=True, color=TERRACOTTA)
     if sub:
         text(slide, 0.5, 0.95, 12.3, 0.35, sub, size=14)
 
@@ -191,7 +195,7 @@ def title(slide, s, sub=None):
 def box(slide, x, y, w, h, label, size=12, bold=False, line=1.0, dash=False):
     shp = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(x), Inches(y), Inches(w), Inches(h))
     shp.fill.solid()
-    shp.fill.fore_color.rgb = WHITE
+    shp.fill.fore_color.rgb = SAND
     shp.line.color.rgb = BLACK
     shp.line.width = Pt(line)
     if dash:
@@ -215,7 +219,7 @@ def frame(slide, x, y, w, h, label):
     """A container rectangle with its label in the top-left corner."""
     shp = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(x), Inches(y), Inches(w), Inches(h))
     shp.fill.background()
-    shp.line.color.rgb = BLACK
+    shp.line.color.rgb = AMBER
     shp.line.width = Pt(1.5)
     shp.shadow.inherit = False
     text(slide, x + 0.12, y + 0.08, w - 0.24, 0.3, label, size=13, bold=True)
@@ -223,7 +227,7 @@ def frame(slide, x, y, w, h, label):
 
 def arrow(slide, x1, y1, x2, y2, dash=False, head=True, width=1.25):
     c = slide.shapes.add_connector(MSO_CONNECTOR.STRAIGHT, Inches(x1), Inches(y1), Inches(x2), Inches(y2))
-    c.line.color.rgb = BLACK
+    c.line.color.rgb = TERRACOTTA
     c.line.width = Pt(width)
     if dash:
         c.line.dash_style = MSO_LINE.DASH
@@ -257,7 +261,7 @@ def table(slide, x, y, w, col_w, rows, size=11, header=True, row_h=0.3):
             cell.vertical_anchor = MSO_ANCHOR.MIDDLE
             head = header and r == 0
             cell.fill.solid()
-            cell.fill.fore_color.rgb = BLACK if head else WHITE
+            cell.fill.fore_color.rgb = TERRACOTTA if head else WHITE
             tf = cell.text_frame
             tf.word_wrap = True
             p = tf.paragraphs[0]
@@ -275,8 +279,9 @@ def footer(slide, n, label="IETF 127 Hackathon, WIMSE interop: test catalog"):
 
 
 # ---------------------------------------------------------------- sequence diagrams
-def sequence(slide, lifelines, messages, top=1.45, bottom=6.85, box_w=1.55, notes=()):
-    """lifelines: labels. messages: (from, to, label, dashed). from == to draws a self-note."""
+def sequence(slide, lifelines, messages, top=1.45, bottom=6.85, box_w=1.55, notes=(), label_size=10, bars=()):
+    """lifelines: labels. messages: (from, to, label, dashed). from == to draws a self-note.
+    bars: (lifeline, first message, last message): a narrow bar on that lifeline while the entity is busy."""
     n = len(lifelines)
     left, right = 0.5, 12.83
     step = (right - left - box_w) / (n - 1)
@@ -284,19 +289,20 @@ def sequence(slide, lifelines, messages, top=1.45, bottom=6.85, box_w=1.55, note
     for x, lab in zip(xs, lifelines):
         box(slide, x - box_w / 2, top, box_w, 0.6, lab, size=11, bold=True)
         arrow(slide, x, top + 0.6, x, bottom, dash=True, head=False, width=0.75)
-    y = top + 0.95
-    gap = (bottom - y - 0.15) / max(len(messages), 1)
-    gap = min(gap, 0.52)
-    for src, dst, label, dashed in messages:
+    y0 = top + 0.95
+    gap = min((bottom - y0 - 0.15) / max(len(messages), 1), 0.52)
+    ys = [y0 + i * gap for i in range(len(messages))]
+    for li, a, b in bars:
+        box(slide, xs[li] - 0.055, ys[a] - 0.06, 0.11, ys[b] - ys[a] + 0.12, "", size=8, line=1.0)
+    for (src, dst, label, dashed), y in zip(messages, ys):
         if src == dst:
             x = xs[src]
-            box(slide, x - box_w / 2 + 0.05, y - 0.19, box_w - 0.1, 0.38, label, size=10)
+            box(slide, x - box_w / 2 + 0.05, y - 0.19, box_w - 0.1, 0.38, label, size=label_size)
         else:
             x1, x2 = xs[src], xs[dst]
             arrow(slide, x1, y, x2, y, dash=dashed)
             lx, lw = min(x1, x2) + 0.05, abs(x2 - x1) - 0.1
-            text(slide, lx, y - 0.24, lw, 0.22, label, size=10, align=PP_ALIGN.CENTER)
-        y += gap
+            text(slide, lx, y - 0.24, lw, 0.22, label, size=label_size, align=PP_ALIGN.CENTER)
     for nx, ny, nw, ns in notes:
         box(slide, nx, ny, nw, 0.5, ns, size=10, dash=True)
 
@@ -374,21 +380,27 @@ def chain_picture(s, dy=0.0):
 
 
 def bchain_sequence(slide):
+    """B_CHAIN in true capture order: call 5 stays open while calls 6 to 9 happen; its reply is the last message."""
     sequence(slide, ["Client workload", "TTS-A / AS-A :5051", "Maurice :5050", "AS-B / TTS-B :5061", "Coordinator :5060", "Research :5062", "File Tool :5063"], [
         (0, 1, "1 Txn-Token for Alice", False),
-        (1, 0, "T_A (files:read files:list)", True),
+        (1, 0, "T_A (read, list)", True),
         (0, 2, "2 WIT + signature + T_A", False),
+        (2, 0, "workflow completed", True),
         (0, 1, "3 exchange T_A (AS-A)", False),
         (1, 0, "cross-domain grant", True),
         (0, 3, "4 redeem grant (AS-B)", False),
-        (3, 0, "AT_B", True),
+        (3, 0, "AT_B (access token)", True),
         (0, 4, "5 WIT + Bearer AT_B + signature", False),
         (4, 3, "6 Txn-Token (TTS-B)", False),
+        (3, 4, "T_B1", True),
         (4, 5, "7 WIT + signature + T_B1", False),
-        (5, 3, "8 narrowed: files:read", False),
+        (5, 3, "8 narrow to files:read", False),
+        (3, 5, "T_B2", True),
         (5, 6, "9 WIT + WPT + T_B2", False),
-        (6, 5, "200: one read", True),
-    ], box_w=1.6)
+        (6, 5, "file Q3.pdf", True),
+        (5, 4, "reply 7: result $4.2M", True),
+        (4, 0, "reply 5: result $4.2M (last)", True),
+    ], box_w=1.6, label_size=9, bars=[(1, 0, 1), (2, 2, 3), (1, 4, 5), (3, 6, 7), (4, 8, 17), (3, 9, 10), (5, 11, 16), (3, 12, 13), (6, 14, 15)])
 
 
 def main():
@@ -400,7 +412,7 @@ def main():
     text(s, 0.8, 2.3, 11.7, 0.9, "WIMSE interop at the IETF 127 Hackathon", size=36, bold=True)
     text(s, 0.8, 3.3, 11.7, 0.5, "What was tested, how it was tested, and how far each result can be trusted", size=20)
     text(s, 0.8, 4.4, 11.7, 1.2,
-         "Implementations: AgentMaurice, RICH (Domain B agents), Redthread Security, MintID, OmniArx, Cred\n"
+         "Implementations: AgentMaurice and the Domain B reference agents (named RICH); partners Redthread Security, MintID, OmniArx, Cred\n"
          "Evidence: github.com/apelov/IETF127-Hackathon-AI2II-WIMSE (TEST_RESULTS_SUMMARY.md, EVIDENCE.md)\n"
          "Every count in this deck is generated from the case files in the repository", size=14)
 

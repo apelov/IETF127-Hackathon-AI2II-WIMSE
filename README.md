@@ -5,7 +5,7 @@ This repository contains the complete implementation, loopback packet captures (
 ## Key Documentation Index
 
 - **[`TEST_RESULTS_SUMMARY.md`](TEST_RESULTS_SUMMARY.md)** — Executive summary table of all tested suites, implementations, scenarios, and results (results grouped by evidence class, never added across classes; 11 negative PCAP mutants, all rejected).
-- **[`SCENARIOS_AND_AUTHORS.md`](SCENARIOS_AND_AUTHORS.md)** — Complete contributor & implementation table (**AgentMaurice**, **RICH**, **Redthread Security**, **MintID**, **OmniArx**, **Cred**), normative Internet-Drafts & RFCs, AI model provenance table (AI2II Rule L4), and full catalog of all 3 test suites:
+- **[`SCENARIOS_AND_AUTHORS.md`](SCENARIOS_AND_AUTHORS.md)** — Complete contributor & implementation table (**AgentMaurice**, the Domain B reference agents named **RICH** (written for this test; `draft-pelov-rich-architecture` is not implemented or tested), **Redthread Security**, **MintID**, **OmniArx**, **Cred**), normative Internet-Drafts & RFCs, AI model provenance table (AI2II Rule L4), and full catalog of all 3 test suites:
   - **Suite 1 (`inbound` cell):** 34 WIMSE inbound cases (`A2–A13j`, `C2–C12b`, `IN4–IN15`) against local **AgentMaurice** (`:5050`).
   - **Suite 2 (`chain` cell):** 19 3-Agent, 2-Domain call-chain (`Agent 1: Maurice -> Agent 2: RICH Coordinator -> Agent 3: RICH Research Sub-Agent -> File Tool`) and mid-transaction revocation / attack cases (`B_CHAIN`, `C5–C10`, `D1–D7`) across `:5050–5063`.
   - **Suite 3 (`chain` cell + partner traces):** Extended partner scenarios `P1–P8` (`ietf127-wimse-scenario/1`) — loopback HTTP cases on `:5064` (`P2` simulated with Redthread's code; `P7` and `P8` mocked with fixed answers) plus trace verification of Redthread `P1–P6`, MintID live `mintid-testnet-3` non-revocation proofs, OmniArx `P7` approval display vectors, and Cred `P8` pre-release vs post-release bearer revocation boundaries.
@@ -101,7 +101,7 @@ PASS	WIMSE	inbound	bf10aed475bb	maurice@bf10aed475bb, wimse-client@bf10aed475bb	
 
 ## Slides (IETF 127 WIMSE session, 18 Nov 2026)
 
-- [`IETF127_WIMSE_Session.pptx`](IETF127_WIMSE_Session.pptx): the session deck. Three main slides (what was tested and against which drafts, results by evidence class, what it means for the drafts), then backup.
+- [`IETF127_WIMSE_Session.pptx`](IETF127_WIMSE_Session.pptx): the session deck. Three main slides for a 3-4 minute slot (what was tested and against which drafts, results at a glance, next steps towards a reusable repository), then backup (results by evidence class, findings per draft, participants, the chain).
 - [`IETF127_WIMSE_Test_Catalog.pptx`](IETF127_WIMSE_Test_Catalog.pptx): every tested case, with a plain-language explanation, expected result and evidence class.
 - [`IETF127_WIMSE_WG_Summary.pptx`](IETF127_WIMSE_WG_Summary.pptx): the eight-slide summary used as the session deck's backup.
 

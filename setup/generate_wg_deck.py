@@ -36,7 +36,7 @@ FOOTER = "IETF 127 Hackathon, WIMSE interop: summary for the working group"
 
 PARTICIPANTS = [
     ("Participant", "Provided", "Where it acts", "Evidence"),
-    ("Alexander Pelov\nIMT Atlantique / AgentMaurice and RICH",
+    ("Alexander Pelov\nIMT Atlantique / AgentMaurice; the Domain B reference agents are named RICH",
      "Harness and checkers; Maurice (inbound verifier); Domain A and B services; the two-domain chain (B_CHAIN); Suites 1 and 2",
      "Every hop of the chain, ports :5050-5064", "Wire"),
     ("Ben Le\nRedthread Security",
@@ -84,7 +84,7 @@ FINDINGS = [
      "MintID trace, 14 Nov", "Scenario schema; any latency bound"),
     ("An unreachable status list must fail closed, including when one link of a chain is unknown",
      "P1, Redthread (partner record)", "draft-le-agent-passport (-01 adopts fail-closed)"),
-    ("Identifier matching: %7E equals ~ and the host is case-insensitive, but %2F is not /",
+    ("Identifier matching: confirmed, not a gap. identifier-04 sections 4.1, 4.3 and 7.1 already say %7E equals ~, %2F stays encoded and dot segments are refused; Maurice follows them",
      "A13i, A13j (wire)", "draft-ietf-wimse-identifier-04"),
 ]
 
@@ -105,7 +105,7 @@ def slide_participants(s):
 
 
 def slide_picture(s):
-    title(s, "Where each participant sits", "The chain (Alexander Pelov: AgentMaurice and RICH) and, under the File Tool, the partners' code at the last hop")
+    title(s, "Where each participant sits", "The chain (AgentMaurice plus our reference services; Domain B is named RICH) and, under the File Tool, the partners' code at the last hop")
     chain_picture(s, dy=-0.15)
     arrow(s, 11.72, 5.0, 11.72, 5.55)
     text(s, 8.0, 5.37, 3.6, 0.17, "same position: the last hop before the effect", size=10, align=PP_ALIGN.RIGHT)
@@ -160,7 +160,7 @@ def slide_method(s):
 
 
 def slide_example(s):
-    title(s, "Example: the two-domain chain, B_CHAIN", "Domain A's Txn-Token never enters Domain B; B issues its own, narrower one; the File Tool checks the WPT binds WIT and token")
+    title(s, "Example: the two-domain chain, B_CHAIN", "Domain A's token never enters Domain B. Call 5 stays open while calls 6 to 9 happen; its reply is the last message.")
     bchain_sequence(s)
 
 
