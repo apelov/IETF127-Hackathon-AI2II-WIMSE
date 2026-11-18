@@ -101,6 +101,23 @@ Generated from `cases.json` (34 cases, 35 steps):
 
 ### Suite 2 — Phase B & C 3-Agent Cross-Domain Call Chain & Attack Matrix (`chain_cases.json`, 19 Cases across `:5050–5063`)
 
+> **Draft-conformance update (branch `fix/draft-conformance`).** The peers changed after this capture was recorded, so the
+> table below still describes the committed capture (`validation/bundle-chain/chain/capture.pcap`), not the current peers.
+> What changed: every Txn-Token request (hops 1, 6, 8) is authenticated with the caller's WIT and an HTTP signature, and
+> the requester (`req_wl`) is the verified WIT subject; Txn-Token, token-exchange and JWT-bearer requests are
+> `application/x-www-form-urlencoded` with the responses of txn-tokens-11 s11.4, identity-chaining-17 s2.3/2.4 and RFC 6749 s5.1
+> (`access_token`, `issued_token_type`, `token_type`); token-endpoint errors are 400 with an RFC 6749 s5.2 code; a refused
+> authentication answers `400 wimse-signature-invalid` (or a bare 401) with the same body whatever check failed, the cause being
+> in the peers' decision journal (`runs/peer-decisions.jsonl`); `test_mode` is gone; `/admin/revoke` needs an operator WIT; the
+> Coordinator, Research and the operator have one key each (`keys/coordinator.pem`, `research.pem`, `operator.pem`); the access
+> token carries `client_id` (RFC 9068). New cases: `T1` (TTS-A without WIT), `T2` (TTS-B with a Txn-Token but no WIT proof), `T3`
+> (Research's WIT with the Coordinator's key), `T4` (`/admin/revoke` without operator), `T5` (requester in the body is ignored).
+> Changed: `C5`, `D1` (`400 wimse-signature-invalid`), `D2` (`401`, no reason in the body), `D5` (`400 invalid_grant`), `D6` (adds a
+> refused widening, `400 invalid_scope`, and a refused replacement from an expired token, `400 invalid_grant`), `D7` (AS-A refuses the
+> unknown target, `400 invalid_target`; AS-B `400 invalid_grant`). `C10`, `B_CHAIN`, `C7`, `C8` keep their hops but change on the wire.
+> These cases are listed in `PENDING_RERECORD` (`checkers/pending_rerecord.py`) until the live stack is re-run. Not implemented: the
+> Call Chain of txn-tokens-11 s13.15 (the draft leaves the mechanism out of scope).
+
 Tested in cell `chain` (`validation/bundle-chain/chain/capture.pcap`) and audited frame-by-frame in [`validation/opus-chain-review.md`](validation/opus-chain-review.md):
 
 ```text

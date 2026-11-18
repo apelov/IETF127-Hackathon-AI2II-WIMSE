@@ -18,6 +18,7 @@ import pathlib
 import re
 import subprocess
 import sys
+import urllib.parse
 from collections import defaultdict
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -26,6 +27,7 @@ sys.path.insert(0, str(ROOT / "checkers"))
 sys.path.insert(0, str(HERE))
 import observes_chain as oc
 from generate_test_catalog import CASES, CLASSES, GROUPS
+from pending_rerecord import PENDING_RERECORD, classify
 
 SITE = ROOT / "site"
 DATA = SITE / "data"
@@ -161,11 +163,18 @@ def tshark(capture, ports):
     return json.loads(out, object_pairs_hook=oc._collect_duplicates)
 
 
+FORM_BODY_RE = re.compile(r"^[\w.-]+=[^\s]*(&[\w.-]+=[^\s]*)*$")
+
+
 def pretty(body):
+    """JSON indented; an application/x-www-form-urlencoded body as one decoded `name = value` line per parameter."""
     try:
         return json.dumps(json.loads(body), indent=2, ensure_ascii=False)
     except (ValueError, TypeError):
-        return body
+        pass
+    if body and FORM_BODY_RE.match(body.strip()):
+        return "\n".join(f"{k} = {v}" for k, v in urllib.parse.parse_qsl(body.strip(), keep_blank_values=True))
+    return body
 
 
 def exchanges(capture, ports):
@@ -208,7 +217,7 @@ def exchanges(capture, ports):
                 parsed = {}
             reason = None
             if isinstance(parsed, dict):
-                reason = parsed.get("reason") or parsed.get("error")
+                reason = oc.reason_of(parsed)
             method = oc._first_str(deep(rq["http"], "http.request.method"))
             uri = oc._first_str(deep(rq["http"], "http.request.uri"))
             by_case[case].append({
@@ -225,6 +234,15 @@ def exchanges(capture, ports):
 
 
 # ------------------------------------------------------------------ narration
+# Each hop: (from, to, text, drafts). BCHAIN_NEW[i] replaces BCHAIN[i] when the captured request carries a WIT, that is,
+# for captures recorded after the peers were brought in line with the drafts (the committed capture predates that).
+BCHAIN_NEW = {
+    0: ("client", "ttsa", "Alice's request starts. The client asks Domain A's token service for a Transaction Token with an RFC 8693 token exchange form: audience (the trust domain), scope files:read files:list, requested_token_type txn_token, and Alice as an unsigned_json subject_token; request_details carries the file for tctx. The request is signed with the client's WIT and an HTTP signature, because the token service must authenticate who is asking, and it takes the requester (req_wl) from that WIT, not from the body. The reply is an access_token member holding the Transaction Token, with issued_token_type txn_token and token_type N_A.", ["wit", "sig", "txn"]),
+    2: ("client", "ttsa", "To cross to Domain B, the client exchanges the Domain A token at AS-A (RFC 8693 form: subject_token with subject_token_type txn_token, resource naming AS-B), signed with its WIT. AS-A answers with a JWT authorization grant in access_token (issued_token_type jwt, token_type N_A, expires_in) for AS-B. The Domain A token stays in Domain A.", ["wit", "sig", "chain"]),
+    3: ("client", "asb", "The client redeems the grant at AS-B with an RFC 7523 request (grant_type jwt-bearer, assertion) and receives a Bearer access token for Domain B; its client_id claim names the client workload.", ["chain"]),
+    5: ("coord", "asb", "The Coordinator asks TTS-B for a Domain B Transaction Token. It authenticates with its own WIT and an HTTP signature (its own key) and sends the access token as subject_token (subject_token_type access_token).", ["wit", "sig", "txn"]),
+    7: ("research", "asb", "The Research agent asks TTS-B to narrow the token to files:read: scope can only get smaller. It authenticates with its own WIT and signature; the Transaction Token it received is only the subject_token, never the credential of the request.", ["wit", "sig", "txn"]),
+}
 BCHAIN = [
     ("client", "ttsa", "Alice's request starts. The client asks Domain A's token service for a Transaction Token with scope files:read files:list. This first call carries no WIT and no signature; the reply is a Transaction Token, not a WIT.", ["txn"]),
     ("client", "maurice", "The client calls Maurice (agent 1) with its WIT, an HTTP signature and the Domain A token. The WIT is a badge the test harness mints locally; no message on the wire fetches it, so this is where it first appears. Maurice runs a side workflow; it does not forward the call.", ["wit", "sig", "txn"]),
@@ -278,6 +296,8 @@ def claim_line(kind, pl):
         bits.append(f"audience {aud}")
     if pl.get("req_wl"):
         bits.append(f"requester {pl['req_wl']}")
+    if pl.get("client_id"):
+        bits.append(f"client {pl['client_id']}")
     if pl.get("exp") and pl.get("iat"):
         bits.append(f"valid {pl['exp'] - pl['iat']} s")
     return ", ".join(bits)
@@ -302,8 +322,12 @@ def tokens_in(headers, body):
             t = token_info(m.group(), f"header {name}" + (f" ({scheme})" if scheme and not scheme.startswith("eyJ") else ""))
             if t:
                 out.append(t)
-    for m in re.finditer(r'"([\w-]+)":\s*"(eyJ[\w.-]+)"', body or ""):
+    for m in re.finditer(r'"([\w-]+)":\s*"(eyJ[\w.-]+)"', body or ""):  # JSON member, old and new captures
         t = token_info(m.group(2), f'body field "{m.group(1)}"')
+        if t:
+            out.append(t)
+    for m in re.finditer(r"^([\w.-]+) = (eyJ[\w.-]+)$", body or "", re.M):  # form parameter, as shown by pretty()
+        t = token_info(m.group(2), f'form parameter "{m.group(1)}"')
         if t:
             out.append(t)
     return out
@@ -321,11 +345,16 @@ def reply_of(h, returned):
     head = f"{status} {phrase}".strip()
     if returned:
         kinds = " + ".join(dict.fromkeys(t["kind"] for t in returned))
+        oauth = ""
+        if b.get("issued_token_type") or b.get("token_type"):  # RFC 8693 / RFC 6749 s5.1 response members
+            oauth = " The OAuth response says" + "".join(
+                f" {k} {str(b[k]).rsplit(':', 1)[-1]}," for k in ("issued_token_type", "token_type") if b.get(k)).rstrip(",") + (
+                f", expires_in {b['expires_in']} s" if b.get("expires_in") else "") + "."
         return {"status": status, "short": f"{status}: returns {kinds}",
-                "long": f"{head}. Returns " + "; ".join(f"a {t['kind']} ({t['line']})" for t in returned) + "."}
+                "long": f"{head}. Returns " + "; ".join(f"a {t['kind']} ({t['line']})" for t in returned) + "." + oauth}
     if status >= 400:
         ptype = str(b.get("type", ""))
-        ptype = "" if ptype == "about:blank" else ptype.rsplit("/", 1)[-1]
+        ptype = "" if ptype == "about:blank" else ptype.rsplit("#", 1)[-1].rsplit("/", 1)[-1]
         why = b.get("reason") or b.get("error") or ptype or b.get("title")
         return {"status": status, "short": f"{status}: refused" + (f" ({why})" if why else ""),
                 "long": f"{head}. The request is refused" + (f": {why}." if why else ".")}
@@ -356,9 +385,15 @@ def eli5_for(cid):
     return None
 
 
+def bchain_hop(i, ex):
+    """The B_CHAIN narration of hop i: the draft-conformant wording when the captured request carries a WIT or is a form."""
+    new_format = any(h.lower().startswith("workload-identity-token:") for h in ex["req"]["headers"]) or ex["req"]["body"].startswith("grant_type = ")
+    return BCHAIN_NEW[i] if new_format and i in BCHAIN_NEW else BCHAIN[i]
+
+
 def step_comment(cid, i, st, cases):
     if cid == "B_CHAIN":
-        return BCHAIN[i][2]
+        return bchain_hop(i, st)[2]
     verb = f"{st['method']} {st['uri'].split('?')[0]}"
     res = f"{st['status']}" + (f" {st['reason']}" if st["reason"] else "")
     if st["status"] < 300:
@@ -373,6 +408,9 @@ def build_wire(by_case, cases_meta, group_of, kind):
     out = []
     for cid, meta in cases_meta.items():
         exs = by_case.get(cid)
+        if not exs and kind == "chain" and cid in PENDING_RERECORD:
+            print(f"pending re-record, no scenario built: {cid}")
+            continue
         if not exs:
             raise SystemExit(f"{cid}: not in the capture")
         row = eli5_for(cid)
@@ -390,7 +428,7 @@ def build_wire(by_case, cases_meta, group_of, kind):
                 "label": f"{ex['method']} {re.sub(r'/agents/[^/]+', '/agents/...', ex['uri'].split('?')[0])}  ->  {ex['status']}" + (f" {ex['reason']}" if ex["reason"] else ""),
                 "result": ex["status"] < 400,
                 "comment": step_comment(cid, i, ex, meta),
-                "drafts": [D[k][0] for k in BCHAIN[i][3]] if cid == "B_CHAIN" else None,
+                "drafts": [D[k][0] for k in bchain_hop(i, ex)[3]] if cid == "B_CHAIN" else None,
                 "http": {"frame": ex["frame"], "resp_frame": ex["resp_frame"], "stream": ex["stream"],
                          "req": ex["req"], "resp": ex["resp"]},
                 "time": {"rel": round(ex["t"] - t0, 3), "dt": round(ex["t"] - exs[i - 1]["t"], 3) if i else 0.0, "resp_rel": round(ex["t_resp"] - t0, 3)},
@@ -428,11 +466,18 @@ def verdict_inbound(scen, meta):
 
 def verdict_chain(scen, meta):
     obs = [f"{s['_ex']['dstport']} {s['_ex']['status']} {s['_ex']['reason'] or '-'}" for s in scen["steps"]]
-    if obs != meta["expected_hops"]:
+    verdict = classify(scen["id"], obs, meta)
+    pending = verdict == "pending"
+    if verdict not in ("ok", "pending"):
+        raise SystemExit(verdict)
+    if not pending and obs != meta["expected_hops"]:
         raise SystemExit(f"{scen['id']}: hops {obs} differ from expected_hops {meta['expected_hops']}")
     for st, o in zip(scen["steps"], obs):
         st["verdict"] = {"expected": o, "observed": o, "ok": True, "note": ""}
     scen["result"] = {"verdict": "PASS", "text": "every hop equals expected_hops in chain_cases.json; checked by observes_chain.py"}
+    if pending:
+        scen["result"]["text"] = ("every hop equals the legacy_expected_hops in chain_cases.json: this case was recorded before the peers were "
+                                  "brought in line with the drafts, and the new expected_hops are not yet recorded (PENDING_RERECORD); checked by observes_chain.py")
     if meta.get("wire_note"):
         scen["result"]["text"] += ". " + meta["wire_note"]
 
@@ -933,7 +978,7 @@ def main():
                 h["resp_first"] = min((p["n"] for p in pkts if p["kind"] == "content" and p["dir"] == "s2c"), default=h["resp_frame"])
     for s in scens:
         s["tags"] = tags_for(s)
-    unknown = set(CURATED) - {s["id"] for s in scens}
+    unknown = set(CURATED) - {s["id"] for s in scens} - set(PENDING_RERECORD)  # pending cases have no scenario yet
     if unknown:
         raise SystemExit(f"CURATED has ids that are not scenarios: {sorted(unknown)}")
     for s in scens:

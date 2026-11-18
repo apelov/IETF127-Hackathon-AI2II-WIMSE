@@ -21,6 +21,8 @@ from collections import defaultdict
 from typing import Any
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from pending_rerecord import PENDING_RERECORD, check_list, classify
 CHAIN_CASES_PATH = ROOT / "chain_cases.json"
 CHAIN_PORTS = (5050, 5051, 5060, 5061, 5062, 5063)
 DOMAIN_B_PORTS = {5060, 5061, 5062, 5063}
@@ -106,6 +108,21 @@ def _body_text(http_layer: dict) -> str:
     return raw
 
 
+def reason_of(body: Any) -> str | None:
+    """The reason a response body states: `reason`, an OAuth `error`, or the problem type fragment (after '#').
+
+    A refused authentication states none of the specific checks (http-signature-08 s3.6): it is the problem type
+    wimse-signature-invalid, or a bare 401 problem (type about:blank), which states nothing.
+    """
+    if not isinstance(body, dict):
+        return None
+    r = body.get("reason") or body.get("error")
+    if r:
+        return str(r)
+    t = str(body.get("type") or "")
+    return t.rsplit("#", 1)[-1] if t and t != "about:blank" else None
+
+
 def _jwt_header(token: str) -> dict:
     parts = token.strip().split(".")
     if len(parts) < 2:
@@ -134,6 +151,7 @@ def _b64url_sha256(token: str) -> str:
 
 def verify_capture(capture_path: pathlib.Path) -> None:
     cases = {c["id"]: c for c in json.loads(CHAIN_CASES_PATH.read_text())}
+    check_list(cases)
     cmd = ["tshark", "-r", str(capture_path)]
     for p in CHAIN_PORTS:
         cmd.extend(["-d", f"tcp.port=={p},http"])
@@ -251,10 +269,10 @@ def verify_capture(capture_path: pathlib.Path) -> None:
             resp_body = _decode_body(resp)
             hop_reason = "-"
             if isinstance(resp_body, dict):
-                hop_reason = str(resp_body.get("reason") or resp_body.get("error") or "-")
+                hop_reason = reason_of(resp_body) or "-"
             case_hops[case_id].append((frame_no, f"{dstport} {status} {hop_reason}"))
             if isinstance(resp_body, dict):
-                body_reason = resp_body.get("reason") or resp_body.get("error")
+                body_reason = reason_of(resp_body)
                 if body_reason:
                     case_reasons[case_id].add(str(body_reason))
                 elif status == 200:
@@ -309,6 +327,15 @@ def verify_capture(capture_path: pathlib.Path) -> None:
 
     for cid, spec in cases.items():
         observed = case_statuses.get(cid, [])
+        if cid in PENDING_RERECORD:
+            verdict = classify(cid, [h for _, h in sorted(case_hops.get(cid, []))], spec)
+            if verdict == "pending":
+                print(f"PENDING {cid} ref={spec['ref']}: not yet re-recorded (PENDING_RERECORD in checkers/pending_rerecord.py)")
+                continue
+            if verdict != "ok":
+                print(f"FAIL {verdict}", file=sys.stderr)
+                errors += 1
+                continue
         if not observed:
             print(f"FAIL {cid}: missing from capture", file=sys.stderr)
             errors += 1

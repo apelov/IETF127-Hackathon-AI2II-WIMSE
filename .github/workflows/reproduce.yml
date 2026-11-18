@@ -29,3 +29,5 @@ jobs:
           tshark --version | head -1
       - name: Reproduce
         run: ./reproduce.sh
+      - name: Peer regression tests (no Maurice)
+        run: .venv/bin/python -m unittest discover -s tests -v

@@ -1,3 +1,5 @@
+> **Superseded in part.** These work packages are the original specifications. The peers have since been changed to follow the drafts (authenticated, form-encoded Txn-Token requests, RFC 6749 s5.2 errors, no `test_mode`, authenticated `/admin/revoke`, one key per workload); see the note in `SCENARIOS_AND_AUTHORS.md`. Where a package says otherwise, the code and `chain_cases.json` are current.
+
 # Multi-Agent WIMSE Interop — Work Package Plan (for Rung 0 / Mini-Code Models)
 
 This directory contains self-contained Work Packages (`WP01`–`WP09`) to implement the full two-domain WIMSE + Txn-Token + Identity-Chaining interop scenario and attack suite from `hackathon-test-scenario.md` and `maurice-demo-scenario-spec.md` (AgentMaurice `wimse-interop` documents, not in this repository).
