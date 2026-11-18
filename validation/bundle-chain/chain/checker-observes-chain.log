@@ -1,23 +1,29 @@
 CHECK B_CHAIN ref=Phase-B statuses=[200, 200, 200, 200, 200, 200, 200, 200, 200] reason=accept
-CHECK C5 ref=ATK-5 statuses=[400] reason=proof-invalid
+CHECK C5 ref=ATK-5 statuses=[400] reason=wimse-signature-invalid
 CHECK C6 ref=ATK-6 statuses=[403] reason=txn-token-invalid
 CHECK C7 ref=ATK-7 statuses=[200, 200, 200, 403] reason=not-authorized
 CHECK C8 ref=ATK-8 statuses=[200, 200, 200, 403] reason=accept
 CHECK C9 ref=ATK-9a statuses=[403] reason=not-authorized
 CHECK C9b ref=ATK-9b statuses=[403] reason=not-authorized
 CHECK C10 ref=ATK-10 statuses=[200, 200, 403, 200] reason=revoked
-CHECK D1 ref=TXN-1 statuses=[400] reason=proof-invalid
-CHECK D2 ref=TXN-2 statuses=[401, 401] reason=proof-invalid
+CHECK D1 ref=TXN-1 statuses=[400] reason=wimse-signature-invalid
+CHECK D2 ref=TXN-2 statuses=[401, 401] reason=None
 CHECK D3_exp ref=TXN-3a statuses=[403] reason=txn-token-invalid
 CHECK D3_sig ref=TXN-3b statuses=[403] reason=txn-token-invalid
 CHECK D3_typ ref=TXN-3c statuses=[403] reason=txn-token-invalid
 CHECK D3_reqwl ref=TXN-3d statuses=[403] reason=txn-token-invalid
 CHECK D3_dup ref=TXN-3e statuses=[403] reason=txn-token-invalid
 CHECK D4 ref=TXN-4 statuses=[403] reason=not-authorized
-CHECK D5 ref=CHAIN-1 statuses=[403] reason=grant-invalid
-CHECK D6 ref=TXO-4/5 statuses=[200, 200, 200, 200] reason=accept
-CHECK D7 ref=CHAIN-2 statuses=[200, 200, 403] reason=grant-invalid
-SUMMARY cases=19 errors=0
+CHECK D5 ref=CHAIN-1 statuses=[400] reason=invalid_grant
+CHECK D6 ref=TXO-4/5 statuses=[200, 200, 400, 400] reason=invalid_scope
+CHECK D7 ref=CHAIN-2 statuses=[200, 400, 400] reason=invalid_grant
+CHECK T1 ref=TTS-1 statuses=[401] reason=invalid_client
+CHECK T2 ref=TTS-2 statuses=[401] reason=invalid_client
+CHECK T3 ref=KEY-1 statuses=[400] reason=wimse-signature-invalid
+CHECK T4 ref=ADM-1 statuses=[401, 403, 200] reason=not-authorized
+CHECK T5 ref=TTS-3 statuses=[200] reason=accept
+CHECK T6 ref=TTS-4 statuses=[200, 400] reason=invalid_client
+SUMMARY cases=25 errors=0 pending_not_validated=0
 --- negative: checkers/negatives/chain_unrelated.pcap replaces {capture}
 FAIL B_CHAIN: missing from capture
 FAIL C5: missing from capture
@@ -38,11 +44,17 @@ FAIL D4: missing from capture
 FAIL D5: missing from capture
 FAIL D6: missing from capture
 FAIL D7: missing from capture
+FAIL T1: missing from capture
+FAIL T2: missing from capture
+FAIL T3: missing from capture
+FAIL T4: missing from capture
+FAIL T5: missing from capture
+FAIL T6: missing from capture
 FAIL B_CHAIN: missing expected multi-agent hop ports {5060, 5061, 5062, 5063, 5050, 5051}
 FAIL B_CHAIN: missing verified WPT wth/tth SHA-256 binding on :5063
 FAIL D2: missing WWW-Authenticate: WPT challenge on 401 response
 FAIL B_CHAIN: expected exactly 1 unified txn UUID across hops, got set()
-SUMMARY cases=19 errors=23
+SUMMARY cases=25 errors=29 pending_not_validated=0
 --- negative: checkers/negatives/chain_request_only.pcap replaces {capture}
 FAIL B_CHAIN: request on stream 34 (dstport 5051) has no response
 FAIL B_CHAIN: request on stream 35 (dstport 5050) has no response
@@ -105,31 +117,45 @@ FAIL D4: missing from capture
 FAIL D5: missing from capture
 FAIL D6: missing from capture
 FAIL D7: missing from capture
+FAIL T1: missing from capture
+FAIL T2: missing from capture
+FAIL T3: missing from capture
+FAIL T4: missing from capture
+FAIL T5: missing from capture
+FAIL T6: missing from capture
 FAIL B_CHAIN: missing expected multi-agent hop ports {5060, 5061, 5062, 5063, 5050, 5051}
 FAIL B_CHAIN: missing verified WPT wth/tth SHA-256 binding on :5063
 FAIL D2: missing WWW-Authenticate: WPT challenge on 401 response
 FAIL B_CHAIN: expected exactly 1 unified txn UUID across hops, got set()
-SUMMARY cases=19 errors=65
+SUMMARY cases=25 errors=71 pending_not_validated=0
 --- negative: checkers/negatives/chain_leaked_txn.pcap replaces {capture}
 FAIL: Domain A Txn-Token leaked to Domain B port 5062 on stream 76
 --- negative: checkers/negatives/chain_hop_flipped.pcap replaces {capture}
+FAIL C5: hops ['5063 400 proof-invalid'] differ from expected_hops ['5063 400 wimse-signature-invalid']
 FAIL C7: hops ['5062 200 -', '5061 403 -', '5063 200 -', '5063 403 not-authorized'] differ from expected_hops ['5062 200 -', '5061 200 -', '5063 200 -', '5063 403 not-authorized']
+FAIL D1: hops ['5063 400 proof-invalid'] differ from expected_hops ['5063 400 wimse-signature-invalid']
+FAIL D2: hops ['5063 401 proof-invalid', '5050 401 -'] differ from expected_hops ['5063 401 -', '5050 401 -']
+FAIL D5: hops ['5061 403 grant-invalid'] differ from expected_hops ['5061 400 invalid_grant']
+FAIL D6: hops ['5051 200 -', '5051 200 -', '5051 200 -', '5051 200 -'] differ from expected_hops ['5051 200 -', '5051 200 -', '5051 400 invalid_scope', '5051 400 invalid_grant']
+FAIL D7: hops ['5051 200 -', '5051 200 -', '5061 403 grant-invalid'] differ from expected_hops ['5051 200 -', '5051 400 invalid_target', '5061 400 invalid_grant']
+FAIL T1: missing from capture
+FAIL T2: missing from capture
+FAIL T3: missing from capture
+FAIL T4: missing from capture
+FAIL T5: missing from capture
+FAIL T6: missing from capture
 CHECK B_CHAIN ref=Phase-B statuses=[200, 200, 200, 200, 200, 200, 200, 200, 200] reason=accept
-CHECK C5 ref=ATK-5 statuses=[400] reason=proof-invalid
 CHECK C6 ref=ATK-6 statuses=[403] reason=txn-token-invalid
 CHECK C8 ref=ATK-8 statuses=[200, 200, 200, 403] reason=accept
 CHECK C9 ref=ATK-9a statuses=[403] reason=not-authorized
 CHECK C9b ref=ATK-9b statuses=[403] reason=not-authorized
 CHECK C10 ref=ATK-10 statuses=[200, 200, 403, 200] reason=revoked
-CHECK D1 ref=TXN-1 statuses=[400] reason=proof-invalid
-CHECK D2 ref=TXN-2 statuses=[401, 401] reason=proof-invalid
 CHECK D3_exp ref=TXN-3a statuses=[403] reason=txn-token-invalid
 CHECK D3_sig ref=TXN-3b statuses=[403] reason=txn-token-invalid
 CHECK D3_typ ref=TXN-3c statuses=[403] reason=txn-token-invalid
 CHECK D3_reqwl ref=TXN-3d statuses=[403] reason=txn-token-invalid
 CHECK D3_dup ref=TXN-3e statuses=[403] reason=txn-token-invalid
 CHECK D4 ref=TXN-4 statuses=[403] reason=not-authorized
-CHECK D5 ref=CHAIN-1 statuses=[403] reason=grant-invalid
-CHECK D6 ref=TXO-4/5 statuses=[200, 200, 200, 200] reason=accept
-CHECK D7 ref=CHAIN-2 statuses=[200, 200, 403] reason=grant-invalid
-SUMMARY cases=19 errors=1
+SUMMARY cases=25 errors=13 pending_not_validated=0
+--- negative: checkers/negatives/chain_leaked_txn_body.pcap replaces {capture}
+FAIL: Domain A Txn-Token leaked to Domain B port 5062 on stream 76

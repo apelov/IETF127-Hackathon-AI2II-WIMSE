@@ -55,9 +55,9 @@ FINDINGS = [
     ("Finding", "Evidence", "Draft"),
     ("A changed approval screen (R2) is caught only by a verifier that holds the action", "Partner report", "oasnt-02; oasnt-enforce-01 5.1"),
     ("Action binding alone accepts R2; a root receipt from the person's authenticator is still open", "Partner report", "le-agent-passport-00, Open Issues"),
-    ("Once a bearer token is released, revocation cannot stop the provider call", "Partner record", "sweeney-wimse-credential-delegation"),
+    ("Once a bearer token is released, revocation cannot stop the provider call", "Partner record", "sweeney-wimse-credential-delegation-02"),
     ("A ZK status check refuses revoked and stale alike; only a refused witness refresh shows revocation", "Partner record", "P2 status reasons"),
-    ("Kill-switch route: accepted 5.8 s after self-revocation on a held witness, refused at 47.6 s (issuer route: refused at the first attempt)", "Partner report", "revocation bounds"),
+    ("Kill switch: accepted 5.8 s after self-revocation (confirmed in MintID's log), refused at 47.6 s at the witness refresh; issuer route: refused at the first refresh", "Partner report", "revocation bounds"),
     ("Latency depends on where t = 0 is: request vs trigger root, 13.9 s apart", "Partner record", "scenario schema, any bound"),
     ("An unreachable status list fails closed, also when one link of a chain is unknown", "Partner record", "le-agent-passport (-01)"),
     ("Confirmed, not a gap: identifier-04 already says %7E equals ~ and %2F stays encoded; Maurice follows it", "Wire", "wimse-identifier-04 4.1, 4.3, 7.1"),
@@ -78,7 +78,7 @@ def slide_tested(s):
     for i, lab in enumerate([
         "Redthread Security\ndraft-le-agent-passport",
         "OmniArx\ndraft-thallapelly-oasnt-02, -enforce-01",
-        "Cred\ndraft-sweeney-wimse-credential-delegation",
+        "Cred\ndraft-sweeney-wimse-credential-delegation-02",
         "MintID\nZK non-revocation (own protocol)",
     ]):
         box(s, 0.7 + (i % 2) * 3.35, 5.18 + (i // 2) * 0.82, 3.15, 0.7, lab, size=10, bold=True)
@@ -103,7 +103,7 @@ EXPLORER = "https://apelov.github.io/IETF127-Hackathon-AI2II-WIMSE/"
 
 def slide_summary(s):
     title(s, "Results at a glance", "Every result on the site says how it was obtained: wire capture, partner record or report, simulated or mocked")
-    stats = [("99", "scenarios, each replayable step by step"), ("53", "captured on the wire, checked by a separate packet checker"),
+    stats = [("105", "scenarios, each replayable step by step"), (str(sum(c["n"] for c in CASES if c["cls"] == "wire")), "captured on the wire, checked by a separate packet checker"),
              ("6", "participants, each credited for their own work"), ("17", "drafts and RFCs exercised")]
     for i, (big, label) in enumerate(stats):
         x = 0.5 + i * 3.13

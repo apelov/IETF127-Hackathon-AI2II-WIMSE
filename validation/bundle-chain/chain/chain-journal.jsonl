@@ -8,12 +8,12 @@
 {"case": "P8_write-under-read", "status": 403, "decision": "deny", "reason": "scope-exceeded", "service": "p2_p7_p8_executor"}
 {"case": "P8_revoked-between-authz-and-use", "status": 403, "decision": "deny", "reason": "status-revoked", "service": "p2_p7_p8_executor"}
 {"case": "P8_revoked-after-token-released", "status": 200, "decision": "revocation recorded, token already released", "reason": "token-released", "service": "p2_p7_p8_executor"}
-{"case": "B_CHAIN", "step": 1, "service": "tts-a", "status": 200, "txn": "9b3e20e9-c0fb-416c-94a8-04da2760f8f0", "decision": "accept"}
-{"case": "B_CHAIN", "step": 2, "service": "maurice", "status": 200, "txn": "9b3e20e9-c0fb-416c-94a8-04da2760f8f0", "decision": "accept"}
-{"case": "B_CHAIN", "step": 3, "service": "as-a", "status": 200, "txn": "9b3e20e9-c0fb-416c-94a8-04da2760f8f0", "decision": "accept"}
-{"case": "B_CHAIN", "step": 4, "service": "as-b", "status": 200, "txn": "9b3e20e9-c0fb-416c-94a8-04da2760f8f0", "decision": "accept"}
-{"case": "B_CHAIN", "step": 5, "service": "agent2-coordinator", "status": 200, "txn": "9b3e20e9-c0fb-416c-94a8-04da2760f8f0", "decision": "accept"}
-{"case": "C5", "service": "file-tool", "status": 400, "decision": "reject", "reason": "proof-invalid"}
+{"case": "B_CHAIN", "step": 1, "service": "tts-a", "status": 200, "txn": "41dcd8b1-5090-4ef8-b105-1e73cb049311", "decision": "accept"}
+{"case": "B_CHAIN", "step": 2, "service": "maurice", "status": 200, "txn": "41dcd8b1-5090-4ef8-b105-1e73cb049311", "decision": "accept"}
+{"case": "B_CHAIN", "step": 3, "service": "as-a", "status": 200, "txn": "41dcd8b1-5090-4ef8-b105-1e73cb049311", "decision": "accept"}
+{"case": "B_CHAIN", "step": 4, "service": "as-b", "status": 200, "txn": "41dcd8b1-5090-4ef8-b105-1e73cb049311", "decision": "accept"}
+{"case": "B_CHAIN", "step": 5, "service": "agent2-coordinator", "status": 200, "txn": "41dcd8b1-5090-4ef8-b105-1e73cb049311", "decision": "accept"}
+{"case": "C5", "service": "file-tool", "status": 400, "decision": "reject", "reason": "wimse-signature-invalid"}
 {"case": "C6", "service": "file-tool", "status": 403, "decision": "reject", "reason": "txn-token-invalid"}
 {"case": "C7", "service": "agent3-research", "status": 200, "decision": "accept"}
 {"case": "C7", "service": "file-tool", "status": 403, "decision": "reject", "reason": "not-authorized"}
@@ -22,8 +22,8 @@
 {"case": "C9b", "service": "file-tool", "status": 403, "decision": "reject", "reason": "not-authorized"}
 {"case": "C10", "step": 1, "service": "file-tool", "status": 200, "decision": "accept"}
 {"case": "C10", "step": 3, "service": "file-tool", "status": 403, "decision": "reject", "reason": "revoked"}
-{"case": "D1", "service": "file-tool", "status": 400, "decision": "reject", "reason": "proof-invalid"}
-{"case": "D2", "service": "file-tool", "status": 401, "decision": "reject", "reason": "proof-invalid"}
+{"case": "D1", "service": "file-tool", "status": 400, "decision": "reject", "reason": "wimse-signature-invalid"}
+{"case": "D2", "service": "file-tool", "status": 401, "decision": "reject", "reason": null}
 {"case": "D2", "service": "maurice", "status": 401, "decision": "reject", "reason": null}
 {"case": "D3_exp", "service": "file-tool", "status": 403, "decision": "reject", "reason": "txn-token-invalid"}
 {"case": "D3_sig", "service": "file-tool", "status": 403, "decision": "reject", "reason": "txn-token-invalid"}
@@ -32,7 +32,16 @@
 {"case": "D3_dup", "service": "file-tool", "status": 403, "decision": "reject", "reason": "txn-token-invalid"}
 {"case": "D4", "service": "file-tool", "status": 403, "decision": "reject", "reason": "not-authorized"}
 {"case": "D5", "service": "driver-guard", "decision": "reject", "reason": "txn-cross-domain"}
-{"case": "D5", "service": "as-b", "status": 403, "decision": "reject", "reason": "grant-invalid"}
+{"case": "D5", "service": "as-b", "status": 400, "decision": "reject", "reason": "invalid_grant"}
 {"case": "D6", "service": "tts-a", "status": 200, "decision": "accept", "reason": "accept"}
-{"case": "D7", "service": "as-a", "status": 200, "decision": "accept"}
-{"case": "D7", "service": "as-b", "status": 403, "decision": "reject", "reason": "grant-invalid"}
+{"case": "D7", "service": "as-a", "status": 400, "decision": "reject", "reason": "invalid_target"}
+{"case": "D7", "service": "as-b", "status": 400, "decision": "reject", "reason": "invalid_grant"}
+{"case": "T1", "service": "tts-a", "status": 401, "decision": "reject", "reason": "invalid_client"}
+{"case": "T2", "service": "tts-b", "status": 401, "decision": "reject", "reason": "invalid_client"}
+{"case": "T3", "service": "file-tool", "status": 400, "decision": "reject", "reason": "wimse-signature-invalid"}
+{"case": "T4", "step": 1, "service": "file-tool", "status": 401, "decision": "reject", "reason": null}
+{"case": "T4", "step": 2, "service": "file-tool", "status": 403, "decision": "reject", "reason": "not-authorized"}
+{"case": "T4", "step": 3, "service": "file-tool", "status": 200, "decision": "accept"}
+{"case": "T5", "service": "tts-a", "status": 200, "decision": "accept"}
+{"case": "T6", "step": 1, "service": "tts-a", "status": 200, "decision": "accept"}
+{"case": "T6", "step": 2, "service": "tts-a", "status": 400, "decision": "reject", "reason": "invalid_client"}

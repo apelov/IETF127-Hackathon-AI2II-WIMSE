@@ -185,8 +185,8 @@ check("limits section is closed by default", (await ev(`document.getElementById(
 await ev(`document.getElementById('limits').open = true`);
 const limText = await ev(`document.getElementById('limits').textContent`);
 check("limits come from the catalog's LIMITS list", limText.includes("Suite 1 reasons") && limText.includes("Checker independence") && limText.includes("Revocation"));
-check("pending cases are listed as not yet recorded", limText.includes("Coded, not yet recorded: re-recording pending") && (await ev(`document.getElementById('pending-list').textContent`)).includes("T1, T2, T3, T4, T5, T6"));
-check("pending cases have no scenario page link", (await ev(`!!document.querySelector('#limits a[href="scenario.html#T1"]')`)) === false);
+check("nothing is pending after the re-recording", !limText.includes("Coded, not yet recorded") && (await ev(`!document.getElementById('pending-list')`)) === true);
+check("T1-T6 have scenario pages", (await ev(`fetch('data/T1.json').then(r => r.ok)`)) === true);
 await ev(`document.getElementById('limits').open = false`);
 
 await go(`${BASE}/scenario.html#A2/1`);
@@ -195,15 +195,15 @@ check("A2: What this tests box", (await box()).includes("What this tests") && (a
 check("A2: no pre-fix notice", (await ev(`document.getElementById('prefix').hidden`)) === true && !(await ev(`document.body.textContent`)).includes("Recorded before our token services"));
 await go(`${BASE}/scenario.html#B_CHAIN/1`);
 check("B_CHAIN: box says independent yes and names hop 2", (await box()).includes("Independent implementation: yes") && (await box()).includes("only hop 2"));
-check("B_CHAIN: pre-fix notice visible", (await ev(`document.getElementById('prefix').hidden`)) === false && (await ev(`document.getElementById('prefix').textContent`)).includes("did not authenticate callers (txn-tokens-11 s11.3, s11.5) and used custom JSON instead of RFC 8693 forms. Fixed in code; re-recording pending."));
+check("B_CHAIN: no pre-fix notice (re-recorded)", (await ev(`document.getElementById('prefix').hidden`)) === true);
 check("B_CHAIN: corrected description", (await ev(`document.getElementById('desc').textContent`)) === "Nine-hop chain run by our peers; hop 2 is an independent Maurice");
-check("B_CHAIN hop 1 says TTS-A did not authenticate", (await text('#p-comment .body')).includes("TTS-A issued this without authenticating the caller; the draft requires it."));
+check("B_CHAIN hop 1 says the requester is authenticated by its WIT", (await text('#p-comment .body')).includes("signed with the client's WIT and an HTTP signature") && !(await text('#p-comment .body')).includes("without authenticating"));
 await go(`${BASE}/scenario.html#B_CHAIN/5`);
-check("B_CHAIN hop 3 says custom JSON instead of the OAuth form", (await text('#p-comment .body')).includes("Custom JSON body instead of the OAuth form (RFC 8693 / 7523)."));
+check("B_CHAIN hop 3 has no custom-JSON sentence", !(await text('#p-comment .body')).includes("Custom JSON"));
 await go(`${BASE}/scenario.html#B_CHAIN/3`);
 check("B_CHAIN hop 2 has no such sentence", !(await text('#p-comment .body')).includes("Custom JSON"));
 await go(`${BASE}/scenario.html#C5/1`);
-check("C5: pre-fix notice visible", (await ev(`document.getElementById('prefix').hidden`)) === false);
+check("C5: no pre-fix notice (re-recorded)", (await ev(`document.getElementById('prefix').hidden`)) === true);
 await go(`${BASE}/scenario.html#redthread-p3-wider-host/1`);
 check("partner scenario: box says partner design, independent yes", (await box()).includes("Tests a partner's design, not an IETF draft") && (await box()).includes("Independent implementation: yes"));
 check("partner scenario: Redthread prefix and no IETF draft cited", (await ev(`document.getElementById('desc').textContent`)).startsWith("Redthread design (draft-le-agent-passport): ") && !(await ev(`document.getElementById('p-drafts').textContent`)).includes("draft-ietf"));

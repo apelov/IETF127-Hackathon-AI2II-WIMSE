@@ -196,7 +196,7 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
         ("AI2II Rule L4 (Zero Log Trust)", "Packet checkers inspect ONLY raw .pcap bytes via tshark. Zero reliance on application logs."),
         ("Wireshark Dissector (dissectors/wimse.lua)", "Custom Lua dissector visually decodes WIT, WPT, Txn-Tokens, and RFC 9421 signatures in Wireshark GUI."),
         ("Live Testnet Probes (WP09)", "3 live endpoint probes (MintID RPC, verifier status/build-info). Live P2 hook cases here: mocked."),
-        ("P2 Live Sandbox (Redthread, partner-reported)", "Issuer route: refused at the first attempt. Kill switch: accepted 5.8 s after self-revocation on a held witness, refused at 47.6 s."),
+        ("P2 Live Sandbox (Redthread, partner-reported)", "Issuer route: refused at the first witness refresh. Kill switch: accepted 5.8 s after self-revocation on a held witness (confirmed in MintID's log), refused at 47.6 s at the witness refresh."),
         ("Reviews by 4 AI Families", "Claude Opus, Gemini, NVIDIA Nemotron and Mistral Vibe reviewed code and captures; findings and fixes are in validation/."),
     ]
     for b_title, b_desc in bullets2:
@@ -436,7 +436,7 @@ def create_deck(filename="IETF127_WIMSE_Hackathon_Results.pptx"):
             "Cred Delegation",
             "Boundary check",
             "External Spec / :5064",
-            "draft-sweeney-wimse-credential-delegation",
+            "draft-sweeney-wimse-credential-delegation-02",
             "Scenario P8, Cred's own run: denials 401/403; bearer token not released by default. The :5064 cases are mocked (fixed answers).",
         ),
         (

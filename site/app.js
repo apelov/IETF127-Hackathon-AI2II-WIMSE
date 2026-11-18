@@ -159,9 +159,9 @@ function limitsBox() {
   const pr = IDX.pending_rerecord || { no_page: [], with_page: [] };
   return el("details", { class: "limits", id: "limits" }, el("summary", {}, "Limits of this test"),
     el("dl", {}, IDX.limits.flatMap((l) => [el("dt", {}, l.name), el("dd", {}, l.text)])),
-    el("h4", {}, "Coded, not yet recorded: re-recording pending"),
-    el("p", { class: "muted" }, "These cases are coded in chain_cases.json, but the committed chain capture predates our token-service corrections, so they are not validated against the new behaviour and have no scenario page: ",
-      el("span", { id: "pending-list" }, pr.no_page.join(", ") || "none"), "."),
+    ...(pr.no_page.length || pr.with_page.length ? [el("h4", {}, "Coded, not yet recorded: re-recording pending"),
+      el("p", { class: "muted" }, "These cases are coded in chain_cases.json but are not in the committed chain capture, so they are not validated against the new behaviour: ",
+        el("span", { id: "pending-list" }, pr.no_page.join(", ") || "none"), ".")] : []),
     pr.with_page.length ? el("p", { class: "muted" }, "Cases whose pages show the older recording, also pending: ",
       pr.with_page.flatMap((c, k) => [k ? ", " : "", el("a", { href: "scenario.html#" + c }, c)]), ".") : "");
 }

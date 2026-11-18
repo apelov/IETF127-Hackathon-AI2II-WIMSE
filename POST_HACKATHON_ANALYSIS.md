@@ -60,7 +60,7 @@ No reverts and no deletions. Docs and reports account for most of the line growt
 5. **Hand-maintained numbers drift.** 85 vs 92 vs "32/32" cases, 104 vs 106 messages, and a stale README status section across five documents.
 6. **No tests and no CI.** The only gate is a manually run script. P7 digests are placeholders, P2 "outside" cases are replayed recordings, and P1/P3-P6 are partner traces that this repo only hashes.
 7. **The work-package discipline slipped.** Packages say "commit when Verify passes", but WP01-WP07 went in one commit with no per-package record. `WP-template.md` is cited but missing. A 1,491-line generated WP09 spec was committed unedited, and links are absolute `file://` paths.
-8. **Findings were not tracked to closure.** Still open: Mistral F1 (`observes_chain.py:300`, `issubset`), Opus A9, B7, C1-C7 (token services that mint without authenticating the caller, `test_mode` accepted from request bodies, shared agent keys; fixed in the peers on `fix/draft-conformance`, awaiting a re-recorded capture), Nemotron CHK-2 to CHK-6.
+8. **Findings were not tracked to closure.** Still open: Mistral F1 (`observes_chain.py:300`, `issubset`), Opus A9, B7, C1-C7 (token services that mint without authenticating the caller, `test_mode` accepted from request bodies, shared agent keys; fixed in the peers and re-recorded with the real Maurice on 18 Nov 2026; the chain bundle was replaced and `PENDING_RERECORD` is empty), Nemotron CHK-2 to CHK-6.
 9. **Branch hygiene.** The Mistral review on `main` describes `bundle-payment` and `observes_payment.py`, which exist only on `feature/opena2a-wimse-aep`.
 10. **No threat model, decision log, traceability matrix or retrospective.** P1-P8 traceability exists only as prose tables.
 

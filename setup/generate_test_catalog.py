@@ -33,7 +33,6 @@ TABLE_GRID = "{5940675A-B579-460E-94D1-54222C63F5DA}"  # built-in "No Style, Tab
 # Evidence classes, strongest first.
 CLASSES = {
     "wire": ("Wire", "Ran here and recorded in a capture, checked by an independent packet checker. Only Maurice is a third-party implementation"),
-    "pending": ("Coded, not recorded", "A test written and passing against our own peers, but not yet in a capture checked by the packet checker; re-recording with Maurice is pending"),
     "record": ("Partner record", "The partner ran its own code; the record is committed and hashed here, not re-run"),
     "report": ("Partner report", "Reported by the partner by email; no record in the repository yet"),
     "sim": ("Simulated / replayed", "Our code with a fake clock, or a recorded outcome played back"),
@@ -94,18 +93,18 @@ CASES = [
     C("proof", "C5", "Txn-Token swapped after signing", "Permission slip swapped after the envelope was sealed", "5063 400 wimse-signature-invalid (cause in the journal)", "wire", ["C5"]),
     C("proof", "D1", "Txn-Token not covered by the signature", "Slip clipped outside the seal", "5063 400 wimse-signature-invalid (cause in the journal)", "wire", ["D1"]),
     C("proof", "D2", "WPT names the wrong Txn-Token (tth)", "Proof says 'I come with slip X', slip Y attached", "5063 401 (no reason in the body), then Maurice 401", "wire", ["D2"]),
-    C("proof", "T1", "Txn-Token request without WIT and signature (TTS-A)", "The token office asks who you are before it prints a slip", "5051 401 invalid_client", "pending", ["T1"]),
-    C("proof", "T2", "Txn-Token request with a Txn-Token but no WIT proof (TTS-B)", "A slip is not an ID card: it cannot identify who asks for the next slip", "5061 401 invalid_client", "pending", ["T2"]),
-    C("proof", "T6", "A signed Txn-Token request sent twice", "A photocopy of a signed form is not accepted by the token office", "5051 200, then 400 invalid_client (replay, in the journal)", "pending", ["T6"]),
-    C("proof", "T3", "Research's WIT with the Coordinator's key", "Someone else's ID card with your own signature", "5063 400 wimse-signature-invalid", "pending", ["T3"]),
+    C("proof", "T1", "Txn-Token request without WIT and signature (TTS-A)", "The token office asks who you are before it prints a slip", "5051 401 invalid_client", "wire", ["T1"]),
+    C("proof", "T2", "Txn-Token request with a Txn-Token but no WIT proof (TTS-B)", "A slip is not an ID card: it cannot identify who asks for the next slip", "5061 401 invalid_client", "wire", ["T2"]),
+    C("proof", "T6", "A signed Txn-Token request sent twice", "A photocopy of a signed form is not accepted by the token office", "5051 200, then 400 invalid_client (replay, in the journal)", "wire", ["T6"]),
+    C("proof", "T3", "Research's WIT with the Coordinator's key", "Someone else's ID card with your own signature", "5063 400 wimse-signature-invalid", "wire", ["T3"]),
     C("proof", "P5 rewrite-authority, rewrite-path", "Redthread: a proxy changes host or path", "The signature no longer matches the request", "signature-invalid (2 cases)", "record", n=2),
     C("proof", "P5 forwarded-headers", "Redthread: 'the real target was X', unauthenticated", "A claim nobody signed is not believed", "forwarded-target-uri-unauthenticated", "record"),
     # 4. Authorization
     C("authz", "IN15", "Valid identity, no grant", "You are who you say, but not on the list", "403 not-authorized", "wire", ["IN15"]),
     C("authz", "C9", "No Txn-Token on a delegated-only route", "A robot acting alone at a door that needs a person's slip", "5063 403 not-authorized", "wire", ["C9"]),
     C("authz", "C9b", "Txn-Token on an autonomous-only route", "A slip used where only robots acting alone may go", "5063 403 not-authorized", "wire", ["C9b"]),
-    C("authz", "T4", "/admin/revoke without proof, then as a workload that is not an operator", "Only the operator may cancel badges; the attempt changes nothing", "5063 401, 403 not-authorized, then Research can still read (200)", "pending", ["T4"]),
-    C("authz", "T5", "Requester named in the request body", "The token office believes the ID card, not the form", "5051 200, req_wl is the WIT subject", "pending", ["T5"]),
+    C("authz", "T4", "/admin/revoke without proof, then as a workload that is not an operator", "Only the operator may cancel badges; the attempt changes nothing", "5063 401, 403 not-authorized, then Research can still read (200)", "wire", ["T4"]),
+    C("authz", "T5", "Requester named in the request body", "The token office believes the ID card, not the form", "5051 200, req_wl is the WIT subject", "wire", ["T5"]),
     C("authz", "D4", "Scope profile:view on a files:read route", "A canteen slip used at the archive", "5063 403 not-authorized", "wire", ["D4"]),
     C("authz", "D3_exp", "Expired Txn-Token", "Yesterday's permission slip", "5063 403 txn-token-invalid", "wire", ["D3_exp"]),
     C("authz", "D3_sig", "Txn-Token signed by a rogue key", "A forged stamp", "5063 403 txn-token-invalid", "wire", ["D3_sig"]),
@@ -131,7 +130,7 @@ CASES = [
     C("revocation", "P2 sandbox, 15 Nov", "Redthread vs the live MintID verifier", "A made-up proof and an agent that never answers", "both denied, no effect", "record", n=2),
     C("revocation", "MintID trace, 14 Nov", "Issuer, kill switch, two cascade agents", "How long after cancelling until refusal", "23.1 s (185), 17.1 s (245), 189.1 and 40.8 s (395)", "record", n=4),
     C("revocation", "P8 revoked (Cred)", "Revoked before and after the token is released", "Before release: refused. After: Cred will not release a raw token by default", "401 delegation_revoked; 403 raw_token_disabled", "record", n=2),
-    C("revocation", "P2 sandbox, 17 Nov", "Redthread: issuer route and kill switch, 6 attempts", "Issuer route: refused at the first attempt. Kill switch: accepted on a held witness, then refused", "issuer: refused at first attempt; kill switch: accepted at 5.8 s, refused at 47.6 s", "report", n=6),
+    C("revocation", "P2 sandbox, 17 Nov", "Redthread: issuer route and kill switch, 6 attempts", "Issuer route: refused at the first witness refresh. Kill switch: accepted on a held witness (confirmed in MintID's log), then refused at the refresh", "issuer: refused at first refresh; kill switch: accepted at 5.8 s, refused at 47.6 s", "report", n=6),
     C("revocation", "P2 on :5064", "Redthread's code (simulated) and 2 replayed sandbox outcomes", "The same P2 decisions, over loopback HTTP", "403, no effect (4 cases)", "sim", n=4),
     C("revocation", "P8 revoked (:5064)", "Fixed answers on loopback", "Fixed answers, no Cred code runs", "403; 200 token-released", "mock", n=2),
     C("revocation", "WP09 hook cases", "Outside-verifier hook in-process", "Fixed responses", "deny / allow", "mock", n=4),
@@ -160,10 +159,9 @@ LIMITS = [
     ("Suite 1 reasons", "Maurice's error bodies carry no reason member; the driver checks reasons in Maurice's own log"),
     ("Case labels", "Cases are named by an unsigned header; C9, C9b and D4 have the same hop and could be swapped in a forged capture"),
     ("D5 and D6", "The driver's outbound guard (D5) and its rejection of forged widened or altered replacement tokens (D6) are not on the wire"),
-    ("Token services", "In the committed capture TTS-A and TTS-B did not authenticate callers (txn-tokens-11 s11.3, s11.5) and used custom JSON, not RFC 8693 forms (s11.1; identity-chaining-17 s2.3-2.4). The peers now do; the chain must be re-recorded with Maurice (PENDING_RERECORD in checkers/pending_rerecord.py)"),
     ("Reasons in the journal", "Refused authentications carry no reason in the body (http-signature-08 s3.6); the driver compares the cause with the peers' own decision journal, which the checkers cannot see"),
     ("Call Chain", "txn-tokens-11 s13.15 requires a replacement to keep the Call Chain but leaves the mechanism out of scope; the peers implement none"),
-    ("Test peers", "In the committed capture test_mode was read from request bodies, /admin/revoke had no authentication and Coordinator and Research shared one key. The peers no longer do; the capture predates these changes"),
+    ("Recording", "The chain was recorded on 18 Nov 2026 with the corrected peers and the real Maurice. Caller authentication at the token services, replay protection and the signature window are checked between our own peers, not against another vendor's token service"),
     ("Chain independence", "In B_CHAIN only Maurice (hop 2) is independent; all other signers and verifiers, including the WPT at hop 9, are our own code. Interop evidence: the 34 Suite 1 cases"),
     ("Checker independence", "Nemotron wrote the checkers; Claude and Gemini, which wrote the peers, edited them later: separation is partial"),
     ("Maurice policy", "IN6, C12, C12b (issuer allowlist) and IN15, A13j (grants) are Maurice configuration, not draft conformance. A5, IN13 expect 401 (wpt-02 s2.1); http-signature-08 s3.6 says 400, not 401: the drafts disagree"),
@@ -362,7 +360,7 @@ def matrix_rows():
     return rows
 
 
-MATRIX_COLS = [3.0, 1.0, 1.4, 1.3, 1.2, 1.3, 1.1, 1.0, 1.03]
+MATRIX_COLS = [3.33, 1.25, 1.35, 1.35, 1.45, 1.2, 1.2, 1.2]
 
 
 def chain_picture(s, dy=0.0):

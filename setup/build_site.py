@@ -60,7 +60,7 @@ DESCRIPTION_OVERRIDES = {
     "C8": "Scripted agent does not echo a token and its extra read is refused (our peers)",
     "C10": "Our test endpoint /admin/revoke blocks a workload; not a WIMSE-defined mechanism",
     "B_CHAIN": "Nine-hop chain run by our peers; hop 2 is an independent Maurice",
-    "D6": "A narrowed replacement token is issued (on the wire); widened or altered tokens are rejected by our driver, not by a verifier (recorded before the peers were corrected)",
+    "D6": "A narrowed replacement token is issued; widening it, or replacing an expired one, is refused with 400 on the wire; forged widened or altered tokens are rejected by our driver, not by a verifier",
     "D5": "AS-B (our peer) refuses a token with our own required typ",
     "IN6": "Maurice's own issuer allowlist refuses this issuer (policy, not a draft requirement)",
     "C12": "No fetch of an attacker's iss URL (supported by workload-creds-03 s9.1); the refusal reason is Maurice's configuration",
@@ -135,7 +135,7 @@ D = {
     "chain": ("draft-ietf-oauth-identity-chaining-17", "Identity chaining (RFC 8693, RFC 7523)"),
     "passport": ("draft-le-agent-passport-00", "Agent passport: status, revocation, exposure"),
     "oasnt": ("draft-thallapelly-oasnt-02", "OASNT approval tokens (and -enforce-01 section 5.1)"),
-    "cred": ("draft-sweeney-wimse-credential-delegation", "Credential delegation to bearer-only APIs"),
+    "cred": ("draft-sweeney-wimse-credential-delegation-02", "Credential Delegation Protocol for AI Agents in Multi-System Environments"),
     "mintid": ("MintID protocol (own, open source)", "Zero-knowledge non-revocation proof"),
 }
 GROUP_DRAFTS = {
@@ -288,7 +288,7 @@ def exchanges(capture, ports):
 # Each hop: (from, to, text, drafts). BCHAIN_NEW[i] replaces BCHAIN[i] when the captured request carries a WIT, that is,
 # for captures recorded after the peers were brought in line with the drafts (the committed capture predates that).
 BCHAIN_NEW = {
-    0: ("client", "ttsa", "Alice's request starts. The client asks Domain A's token service for a Transaction Token with an RFC 8693 token exchange form: audience (the trust domain), scope files:read files:list, requested_token_type txn_token, and Alice as an unsigned_json subject_token; request_details carries the file for tctx. The request is signed with the client's WIT and an HTTP signature, because the token service must authenticate who is asking, and it takes the requester (req_wl) from that WIT, not from the body. The reply is an access_token member holding the Transaction Token, with issued_token_type txn_token and token_type N_A.", ["wit", "sig", "txn"]),
+    0: ("client", "ttsa", "Alice's request starts. The client asks Domain A's token service for a Transaction Token with an RFC 8693 token exchange form: audience (the trust domain), scope files:read files:list, requested_token_type txn_token, and Alice as an unsigned_json subject_token; request_details carries the file for tctx. The request is signed with the client's WIT and an HTTP signature, because the token service must authenticate who is asking, and it takes the requester (req_wl) from that WIT, not from the body. The reply is an access_token member holding the Transaction Token, with issued_token_type txn_token and token_type N_A. That token is a Transaction Token, not a WIT.", ["wit", "sig", "txn"]),
     2: ("client", "ttsa", "To cross to Domain B, the client exchanges the Domain A token at AS-A (RFC 8693 form: subject_token with subject_token_type txn_token, resource naming AS-B), signed with its WIT. AS-A answers with a JWT authorization grant in access_token (issued_token_type jwt, token_type N_A, expires_in) for AS-B. The Domain A token stays in Domain A.", ["wit", "sig", "chain"]),
     3: ("client", "asb", "The client redeems the grant at AS-B with an RFC 7523 request (grant_type jwt-bearer, assertion) and receives a Bearer access token for Domain B; its client_id claim names the client workload.", ["chain"]),
     5: ("coord", "asb", "The Coordinator asks TTS-B for a Domain B Transaction Token. It authenticates with its own WIT and an HTTP signature (its own key) and sends the access token as subject_token (subject_token_type access_token).", ["wit", "sig", "txn"]),
@@ -512,7 +512,7 @@ def build_wire(by_case, cases_meta, group_of, kind):
             "frames": FRAMES if kind == "chain" else [],
             "steps": steps,
         }
-        if kind == "chain":
+        if kind == "chain" and cid in PENDING_RERECORD:  # empty since the chain was re-recorded on 18 Nov 2026
             scen["prefix_notice"] = PREFIX_NOTICE
         out.append(scen)
     return out
@@ -781,11 +781,11 @@ def build_reports():
     ent17 = row_layout([("agent", "Agent", ""), ("enforcer", "Enforcing hop", "Redthread (simulated clock)"), ("verifier", "MintID sandbox", "real calls")])
     runs = {
         "issuer": ("Issuer route", "The issuer revokes the agent: the revoked agent's witness refresh is refused, so the first attempt after the revocation is refused.",
-                   [("00:28:56.607", "valid agent: allowed, operation ran", True, 0), ("00:28:57.403", "issuer revocation response", True, 0.8),
-                    ("00:28:59.000", "revoked agent: denied before the effect (credential_revoked)", False, 2.4), ("00:29:40.804", "revoked agent again: denied", False, 44.2)]),
+                   [("00:28:56.607", "valid agent: allowed, operation ran (confirmed in MintID's decision log)", True, 0), ("00:28:57.403", "issuer revocation response", True, 0.8),
+                    ("00:28:59.000", "revoked agent: refused at the witness refresh (credential_revoked); the holder stopped before presenting, so the verifier made no decision", False, 2.4), ("00:29:40.804", "revoked agent again: refused at the witness refresh", False, 44.2)]),
         "killswitch": ("Kill-switch route", "The agent revokes itself: it can still answer from a witness it already held, valid until the next status commitment.",
-                       [("00:30:03.416", "valid agent: allowed", True, 0), ("00:30:13.410", "self-revocation recorded", True, 10.0),
-                        ("00:30:19.226", "attempt 5.8 s after self-revocation: accepted on a witness held from custody", True, 15.8), ("00:31:00.996", "attempt at 47.6 s: denied before the effect (credential_revoked)", False, 57.6)]),
+                       [("00:30:03.416", "valid agent: allowed (confirmed in MintID's decision log)", True, 0), ("00:30:13.410", "self-revocation recorded", True, 10.0),
+                        ("00:30:19.226", "attempt 5.8 s after self-revocation: accepted on a witness held from custody (confirmed in MintID's decision log)", True, 15.8), ("00:31:00.996", "attempt at 47.6 s: refused at the witness refresh (credential_revoked); the holder stopped before presenting", False, 57.6)]),
     }
     for key, (name, desc, evs) in runs.items():
         steps = [{"from": "agent", "to": "enforcer", "dashed": not ok and False, "label": f"{utc}  {lab}", "result": ok, "comment": lab + ". Time from Redthread's 17 Nov 2026 message, as reported.",
@@ -886,6 +886,9 @@ CURATED = {
     "D1": ([V], ["tampering", "signature"]), "D2": ([V], ["signature", "tampering"]),
     **{k: ([V], ["tokenvalidity"]) for k in ("D3_exp", "D3_sig", "D3_typ", "D3_reqwl", "D3_dup")},
     "D4": ([E], ["scope"]), "D5": ([V], ["crossdomain", "tokenvalidity"]), "D6": ([F], ["delegation", "crossdomain"]), "D7": ([V], ["crossdomain", "audience"]),
+    # Authenticated token services and the operator endpoint (recorded 18 Nov with the corrected peers)
+    "T1": ([V], ["identity", "signature"]), "T2": ([V], ["identity", "signature"]), "T3": ([V], ["identity", "signature"]),
+    "T4": ([E], ["scope"]), "T5": ([V], ["identity"]), "T6": ([V], ["replay"]),
     # :5064 loopback cases
     "p2-revoke-upstream": ([E, T], ["revocation"]), "p2-before-effect": ([E], ["revocation"]),
     "p2-outside-made-up-proof": ([E], ["revocation"]), "p2-outside-no-agent-answer": ([E], ["revocation", "failclosed"]),

@@ -10,14 +10,14 @@
       "binaries": {
         "bin/maurice": "36f92fe85b5b8ad3675cdf84800dcb0ae22507523ee6e9e9f679b69e1603c695"
       },
-      "commit": "bf10aed475bb833da7c73f6077bb1822fed9fb0a",
+      "commit": "de6fc271ad1bb87441962febc17d1ae1d81bdd28",
       "dirty": false
     },
     "wimse-chain-client": {
       "exit": 0,
       "timed_out": false,
       "binaries": {},
-      "commit": "bf10aed475bb833da7c73f6077bb1822fed9fb0a",
+      "commit": "de6fc271ad1bb87441962febc17d1ae1d81bdd28",
       "dirty": false
     }
   },
@@ -26,6 +26,6 @@
     "observes-p1-p8": 0
   },
   "contains_secrets": false,
-  "started_at": "2026-11-17T22:31:56Z",
-  "ended_at": "2026-11-17T22:32:06Z"
+  "started_at": "2026-11-18T21:30:19Z",
+  "ended_at": "2026-11-18T21:30:30Z"
 }
