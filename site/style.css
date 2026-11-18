@@ -174,3 +174,14 @@ details.other { margin: 6px 0; } details.other summary { cursor: pointer; color:
 details.tagdefs { margin: 8px 0 4px; } details.tagdefs summary { cursor: pointer; color: var(--accent); font-size: 14px; }
 details.tagdefs h4 { margin: 10px 0 2px; font-size: 13px; }
 ul.list li .s { min-width: 0; }
+/* what a scenario rests on, and its limits */
+.tag.basis { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+.basis { margin: 8px 0; padding: 8px 14px; border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 8px; background: var(--panel); }
+.basis h3 { margin: 0 0 4px; font-size: 14px; }
+.basis p { margin: 3px 0; }
+.basis .b-draft span { font-family: "Courier New", Courier, monospace; font-size: 12.5px; overflow-wrap: anywhere; }
+.prefix { margin: 8px 0; padding: 8px 14px; border: 1px solid var(--warn); border-radius: 8px; background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.prefix[hidden] { display: none; }
+details.limits { margin: 8px 0 4px; } details.limits summary { cursor: pointer; color: var(--accent); font-size: 14px; }
+details.limits dl { margin: 8px 0; } details.limits dt { font-weight: bold; margin-top: 6px; } details.limits dd { margin: 0 0 0 14px; }
+details.limits h4 { margin: 12px 0 2px; font-size: 13px; }

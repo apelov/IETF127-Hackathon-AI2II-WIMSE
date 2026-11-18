@@ -158,6 +158,63 @@ check("report scenario shows 5.8 s", (await ev(`document.body.textContent`)).inc
 await go(`${BASE}/scenario.html#mintid-issuer/2`);
 check("MintID scenario draws the bound bar", (await ev(`!!document.querySelector('#p-timeline .bar')`)) === true);
 
+// what each scenario rests on: filters, the "What this tests" box, the pre-fix notice, limits
+await go(`${BASE}/index.html`);
+check("a basis row and an independence row exist", (await ev(`[...document.querySelectorAll('.filters .fname')].map((x) => x.textContent)`)).join("|").includes("What it rests on:|Independent implementation:"));
+await ev(`${chip("The draft requires this outcome")}.click()`);
+check("basis facet filters the list", (await lis()) === (await expected(`(s) => s.basis === 'draft-required'`)) && (await lis()) > 0);
+check("basis chip count equals the number shown", (await ev(`${chip("The draft requires this outcome")}.textContent`)) === `The draft requires this outcome (${await lis()})`);
+check("basis is in the address bar", (await ev(`location.search`)).includes("basis=draft-required"));
+await ev(`${chip("Tests our own test mechanism")}.click()`);
+check("two basis values mean OR", (await lis()) === (await expected(`(s) => s.basis === 'draft-required' || s.basis === 'harness-only'`)));
+await ev(`${chip("Yes")}.click()`);
+check("Independent = yes AND basis (rows combine)", (await lis()) === (await expected(`(s) => s.independent && (s.basis === 'draft-required' || s.basis === 'harness-only')`)));
+check("indep is in the address bar", (await ev(`location.search`)).includes("indep=yes"));
+await ev(`document.getElementById('clear').click()`);
+await go(`${BASE}/index.html?indep=no&basis=draft-required`);
+check("a shared link restores basis and indep", (await lis()) === (await expected(`(s) => !s.independent && s.basis === 'draft-required'`)) && (await lis()) > 0);
+check("the restored chips are pressed", (await ev(`${chip("No")}.getAttribute('aria-pressed')`)) === "true");
+await go(`${BASE}/index.html?indep=yes`);
+check("indep=yes alone", (await lis()) === (await expected(`(s) => s.independent`)));
+await go(`${BASE}/index.html?indep=no`);
+check("indep=no alone", (await lis()) === (await expected(`(s) => !s.independent`)));
+await go(`${BASE}/index.html`);
+check("the tag definitions explain both new rows", await ev(`(()=>{const t=document.querySelector('details.tagdefs').textContent;return ["What it rests on","Independent implementation","The draft says nothing; this is an implementation's behaviour","Tests our own test mechanism","Our own peers are on both ends"].every((x)=>t.includes(x))})()`));
+check("list entries carry one basis chip", (await ev(`[...document.querySelectorAll('ul.list li')].every((li) => li.querySelectorAll('.tag.basis').length === 1)`)) === true);
+check("limits section is closed by default", (await ev(`document.getElementById('limits').open`)) === false);
+await ev(`document.getElementById('limits').open = true`);
+const limText = await ev(`document.getElementById('limits').textContent`);
+check("limits come from the catalog's LIMITS list", limText.includes("Suite 1 reasons") && limText.includes("Checker independence") && limText.includes("Revocation"));
+check("pending cases are listed as not yet recorded", limText.includes("Coded, not yet recorded: re-recording pending") && (await ev(`document.getElementById('pending-list').textContent`)).includes("T1, T2, T3, T4, T5, T6"));
+check("pending cases have no scenario page link", (await ev(`!!document.querySelector('#limits a[href="scenario.html#T1"]')`)) === false);
+await ev(`document.getElementById('limits').open = false`);
+
+await go(`${BASE}/scenario.html#A2/1`);
+const box = () => ev(`document.getElementById('basis').textContent`);
+check("A2: What this tests box", (await box()).includes("What this tests") && (await box()).includes("The draft requires this outcome") && (await box()).includes("draft-ietf-wimse-http-signature-08 s3") && (await box()).includes("Independent implementation: yes"));
+check("A2: no pre-fix notice", (await ev(`document.getElementById('prefix').hidden`)) === true && !(await ev(`document.body.textContent`)).includes("Recorded before our token services"));
+await go(`${BASE}/scenario.html#B_CHAIN/1`);
+check("B_CHAIN: box says independent yes and names hop 2", (await box()).includes("Independent implementation: yes") && (await box()).includes("only hop 2"));
+check("B_CHAIN: pre-fix notice visible", (await ev(`document.getElementById('prefix').hidden`)) === false && (await ev(`document.getElementById('prefix').textContent`)).includes("did not authenticate callers (txn-tokens-11 s11.3, s11.5) and used custom JSON instead of RFC 8693 forms. Fixed in code; re-recording pending."));
+check("B_CHAIN: corrected description", (await ev(`document.getElementById('desc').textContent`)) === "Nine-hop chain run by our peers; hop 2 is an independent Maurice");
+check("B_CHAIN hop 1 says TTS-A did not authenticate", (await text('#p-comment .body')).includes("TTS-A issued this without authenticating the caller; the draft requires it."));
+await go(`${BASE}/scenario.html#B_CHAIN/5`);
+check("B_CHAIN hop 3 says custom JSON instead of the OAuth form", (await text('#p-comment .body')).includes("Custom JSON body instead of the OAuth form (RFC 8693 / 7523)."));
+await go(`${BASE}/scenario.html#B_CHAIN/3`);
+check("B_CHAIN hop 2 has no such sentence", !(await text('#p-comment .body')).includes("Custom JSON"));
+await go(`${BASE}/scenario.html#C5/1`);
+check("C5: pre-fix notice visible", (await ev(`document.getElementById('prefix').hidden`)) === false);
+await go(`${BASE}/scenario.html#redthread-p3-wider-host/1`);
+check("partner scenario: box says partner design, independent yes", (await box()).includes("Tests a partner's design, not an IETF draft") && (await box()).includes("Independent implementation: yes"));
+check("partner scenario: Redthread prefix and no IETF draft cited", (await ev(`document.getElementById('desc').textContent`)).startsWith("Redthread design (draft-le-agent-passport): ") && !(await ev(`document.getElementById('p-drafts').textContent`)).includes("draft-ietf"));
+await go(`${BASE}/scenario.html#C7/1`);
+check("C7: corrected description", (await ev(`document.getElementById('desc').textContent`)) === "Scripted extra read outside the token's tctx.file is refused (file-tool policy; our peers on both ends)");
+check("C7: box says independent no", (await box()).includes("Independent implementation: no"));
+if (process.env.SHOT_BASIS) {
+  const shot = await send("Page.captureScreenshot", { format: "png" });
+  (await import("node:fs")).writeFileSync(process.env.SHOT_BASIS, Buffer.from(shot.result.data, "base64"));
+}
+
 if (process.env.SHOT_WS) {  // optional: screenshot of the open Wireshark pop-over
   await go(`${BASE}/scenario.html#A12a/1`);
   await ev(`document.querySelector('details.gh').open = true`);
@@ -166,7 +223,7 @@ if (process.env.SHOT_WS) {  // optional: screenshot of the open Wireshark pop-ov
 }
 // phone width (device emulation): the page must not scroll sideways
 await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 800, deviceScaleFactor: 1, mobile: true });
-for (const url of ["index.html", "scenario.html#B_CHAIN/5", "scenario.html#C7/2/b2", "scenario.html#mintid-kill_switch/4"]) {
+for (const url of ["index.html", "index.html?indep=no", "scenario.html#B_CHAIN/5", "scenario.html#C7/2/b2", "scenario.html#mintid-kill_switch/4"]) {
   await go(`${BASE}/${url}`);
   const w = await ev(`document.documentElement.scrollWidth`);
   check(`phone width: no sideways scroll on ${url} (width ${w})`, w <= 391);

@@ -79,10 +79,18 @@ function tagChip(facet, id, onclick) {
   return b;
 }
 
+const INDEP_ITEMS = [
+  { id: "yes", label: "Yes", meaning: "An implementation we did not write decides: Maurice, or a partner's own software." },
+  { id: "no", label: "No", meaning: "Our own peers are on both ends." },
+];
+function basisInfo(id) { return IDX.basis_facets.find((b) => b.id === id) || { label: id, short: id, meaning: "" }; }
+
 function renderIndex() {
   const FACETS = [
     { id: "cls", name: "Evidence", get: (s) => [s.cls], items: Object.entries(IDX.classes).filter(([k]) => IDX.scenarios.some((s) => s.cls === k)).map(([k, v]) => ({ id: k, label: v.label, meaning: v.meaning })) },
     ...IDX.tag_facets.map((f) => ({ id: f.id, name: f.name, get: (s) => s.tags[f.id], items: f.items })),
+    { id: "basis", name: "What it rests on", get: (s) => [s.basis], items: IDX.basis_facets.map((b) => ({ id: b.id, label: b.label, meaning: b.meaning })) },
+    { id: "indep", name: "Independent implementation", get: (s) => [s.independent ? "yes" : "no"], items: INDEP_ITEMS },
   ];
   const params = new URLSearchParams(location.search);
   const sel = Object.fromEntries(FACETS.map((f) => [f.id, new Set((params.get(f.id) || "").split(",").filter((v) => f.items.some((i) => i.id === v)))]));
@@ -111,7 +119,8 @@ function renderIndex() {
       if (!items.length) continue;
       list.append(el("h2", { class: "grp g-" + g.id }, g.name), el("div", { class: "muted" }, g.question),
         el("ul", { class: "list" }, items.map((s) => {
-          const t = s.tags, chipsRow = el("div", { class: "tags" },
+          const t = s.tags, bi = basisInfo(s.basis), chipsRow = el("div", { class: "tags" },
+            el("button", { type: "button", class: "tag basis basis-" + s.basis, title: bi.label + " (click to filter)", onclick: () => toggle("basis", s.basis) }, bi.short),
             tagChip("result", t.result[0], () => toggle("result", t.result[0])),
             ...t.checks.slice(0, 2).map((c) => tagChip("checks", c, () => toggle("checks", c))),
             ...t.topic.slice(0, 2).map((c) => tagChip("topic", c, () => toggle("topic", c))));
@@ -137,13 +146,24 @@ function renderIndex() {
   clear.addEventListener("click", () => { for (const f of FACETS) sel[f.id].clear(); state.q = ""; search.value = ""; draw(); });
   filters.append(el("div", { class: "frow" }, search, clear, status));
   const meaning = el("details", { class: "tagdefs" }, el("summary", {}, "What do the tags mean?"),
-    ...IDX.tag_facets.map((f) => el("div", {}, el("h4", {}, f.name), el("ul", { class: "plain" }, f.items.map((i) => el("li", {}, el("b", {}, i.label), " — ", i.meaning))))),
+    ...[...IDX.tag_facets, ...FACETS.filter((f) => f.id === "basis" || f.id === "indep")].map((f) => el("div", {}, el("h4", {}, f.name), el("ul", { class: "plain" }, f.items.map((i) => el("li", {}, el("b", {}, i.label), " \u2014 ", i.meaning))))),
     el("p", { class: "muted" }, "Result is computed from the replies or recorded decisions; checks and topic are assigned in the build script. Within a row, several choices mean \"any of\"; across rows they all have to match."));
   main.append(
     el("h2", { style: "margin:4px 0" }, `${IDX.scenarios.length} scenarios, replayed step by step`),
     el("p", {}, "Every scenario that was tested at the IETF 127 hackathon, grouped by the question it answers. Open one to watch its messages appear one at a time, with the captured packet contents, the drafts concerned and the checker's verdict. Filter by what a scenario shows: the evidence class, whether it is accepted or refused, the kind of check, and the topic."),
-    filters, meaning, list);
+    filters, meaning, limitsBox(), list);
   draw();
+}
+
+function limitsBox() {
+  const pr = IDX.pending_rerecord || { no_page: [], with_page: [] };
+  return el("details", { class: "limits", id: "limits" }, el("summary", {}, "Limits of this test"),
+    el("dl", {}, IDX.limits.flatMap((l) => [el("dt", {}, l.name), el("dd", {}, l.text)])),
+    el("h4", {}, "Coded, not yet recorded: re-recording pending"),
+    el("p", { class: "muted" }, "These cases are coded in chain_cases.json, but the committed chain capture predates our token-service corrections, so they are not validated against the new behaviour and have no scenario page: ",
+      el("span", { id: "pending-list" }, pr.no_page.join(", ") || "none"), "."),
+    pr.with_page.length ? el("p", { class: "muted" }, "Cases whose pages show the older recording, also pending: ",
+      pr.with_page.flatMap((c, k) => [k ? ", " : "", el("a", { href: "scenario.html#" + c }, c)]), ".") : "");
 }
 
 /* ------------------------------------------------------------------ scenario page */
@@ -472,6 +492,15 @@ async function loadScenario(id, step, brk) {
   $("#tags").replaceChildren(link("result", tg.result[0]), ...tg.checks.map((c) => link("checks", c)), ...tg.topic.map((c) => link("topic", c)));
   $("#desc").textContent = S.sc.description;
   $("#exp").textContent = S.sc.expected ? "Expected: " + S.sc.expected : "";
+  const bi = basisInfo(S.sc.basis);
+  $("#basis").replaceChildren(el("h3", {}, "What this tests"),
+    el("p", { class: "b-basis" }, el("b", {}, bi.label)),
+    S.sc.basis_draft ? el("p", { class: "b-draft" }, "Draft and section: ", el("span", {}, S.sc.basis_draft)) : "",
+    el("p", { class: "b-note" }, S.sc.basis_note),
+    el("p", { class: "b-indep" }, "Independent implementation: ", el("b", {}, S.sc.independent ? "yes" : "no"),
+      el("span", { class: "muted" }, S.sc.independent ? " (an implementation we did not write decides)" : " (our own peers on both ends)")));
+  $("#prefix").replaceChildren(...(S.sc.prefix_notice ? [el("b", {}, "Recording note: "), S.sc.prefix_notice] : []));
+  $("#prefix").hidden = !S.sc.prefix_notice;
   render();
 }
 
@@ -497,6 +526,7 @@ function renderScenario() {
     el("div", { class: "scen-head", id: "head", style: "margin-top:8px" }),
     el("div", { class: "tags", id: "tags", style: "margin:6px 0 2px" }),
     el("p", { class: "desc", id: "desc" }), el("p", { class: "exp muted", id: "exp" }),
+    el("div", { class: "basis", id: "basis" }), el("p", { class: "prefix", id: "prefix", role: "note", hidden: true }),
     el("div", { class: "controls" },
       el("button", { id: "prev", type: "button", onclick: () => go(-1) }, "← Previous"), el("button", { id: "next", type: "button", class: "primary", onclick: () => go(1) }, "Next step →"),
       el("button", { id: "play", type: "button", onclick: () => { if (S.timer) { stop(); render(); } else { if (S.step >= nEvents() - 1) S.step = 0; S.timer = setInterval(() => { if (S.step >= nEvents() - 1) { stop(); render(); } else go(1); }, 1600); render(); } } }, "Play"),
