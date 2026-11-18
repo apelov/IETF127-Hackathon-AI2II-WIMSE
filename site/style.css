@@ -151,3 +151,8 @@ details.tokitem summary { cursor: pointer; }
 .tdir { display: inline-block; font-size: 11px; font-weight: bold; padding: 0 7px; border-radius: 999px; border: 1px solid currentColor; text-transform: uppercase; }
 .tdir.returned { color: var(--ok); } .tdir.sent { color: var(--accent); }
 svg .lbl { paint-order: stroke; stroke: var(--panel); stroke-width: 4px; stroke-linejoin: round; }
+/* messages in true order: the busy bar and notes */
+svg .act { fill: color-mix(in srgb, var(--accent) 20%, transparent); stroke: var(--accent); stroke-width: 1; }
+svg .act.open { stroke-dasharray: 3 3; }
+p.note { margin: 8px 0; padding: 6px 8px; border-radius: 6px; background: color-mix(in srgb, var(--warn) 10%, transparent); font-size: 13px; }
+details.other { margin: 6px 0; } details.other summary { cursor: pointer; color: var(--accent); font-size: 13px; }

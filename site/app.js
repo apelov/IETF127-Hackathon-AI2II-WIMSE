@@ -78,7 +78,7 @@ function renderIndex() {
       if (!items.length) continue;
       list.append(el("h2", { class: "grp g-" + g.id }, g.name), el("div", { class: "muted" }, g.question),
         el("ul", { class: "list" }, items.map((s) => el("li", {},
-          el("a", { class: "t", href: "scenario.html#" + s.id }, s.title), el("span", { class: "s muted" }, s.short), badge(s.cls), el("span", { class: "muted" }, s.steps + (s.steps === 1 ? " step" : " steps"))))));
+          el("a", { class: "t", href: "scenario.html#" + s.id }, s.title), el("span", { class: "s muted" }, s.short), badge(s.cls), el("span", { class: "muted" }, s.messages + (s.messages === 1 ? " message" : " messages"))))));
     }
     if (!list.children.length) list.append(el("p", {}, "No scenario matches."));
   };
@@ -123,6 +123,39 @@ function viewSteps() {
   return steps;
 }
 
+// A message is a request, a reply, or a single step (partner records, mutant additions). Messages are in true
+// capture order: a reply comes after the calls its receiver made in the meantime, not right after its request.
+function viewEvents(steps) {
+  const evs = [];
+  steps.forEach((st, i) => {
+    if (st.http) {
+      evs.push({ kind: "req", st, n: i + 1, frame: st.http.frame, ord: 0, seq: i });
+      if (st.reply && !st.stripped) evs.push({ kind: "reply", st, n: i + 1, frame: st.http.resp_frame, ord: 1, seq: i });
+    } else evs.push({ kind: "single", st, n: i + 1, frame: Infinity, ord: 0, seq: i });
+  });
+  const cmp = (a, b) => (a.frame === b.frame ? 0 : a.frame < b.frame ? -1 : 1);
+  return evs.sort((a, b) => cmp(a, b) || a.ord - b.ord || a.seq - b.seq);
+}
+const evFrom = (e) => (e.kind === "reply" ? e.st.to : e.st.from);
+const evTo = (e) => (e.kind === "reply" ? e.st.from : e.st.to);
+const nEvents = () => viewEvents(viewSteps()).length;
+function labelOf(id) { const all = [...(S.sc.entities || []), ...(S.sc.context || [])]; const e = all.find((x) => x.id === id); return e ? e.label : id; }
+// the calls that other entities made while this call was open (between its request and its reply)
+function nestedCalls(ev) {
+  const evs = S.evs, i = evs.findIndex((e) => e.n === ev.n && e.kind === "req"), j = evs.findIndex((e) => e.n === ev.n && e.kind === "reply");
+  if (i < 0 || j < 0) return { replyAt: j, calls: [] };
+  return { replyAt: j, calls: evs.slice(i + 1, j).filter((e) => e.kind === "req") };
+}
+function waitText(ev) {
+  const { replyAt, calls } = nestedCalls(ev);
+  if (replyAt < 0) return "";
+  const list = calls.map((e) => `${e.n} (${labelOf(e.st.to)})`).join(", ");
+  if (ev.kind === "req") {
+    return calls.length ? `This call stays open while ${labelOf(ev.st.to)} does its work: it makes call${calls.length > 1 ? "s" : ""} ${list} before it can answer. The reply comes at message ${replyAt + 1}, after those.` : `The reply follows at message ${replyAt + 1}.`;
+  }
+  return calls.length ? `It could only answer after the call${calls.length > 1 ? "s" : ""} made in the meantime had returned: ${list}.` : "";
+}
+
 function clip(box, tx, ty) { // point on the box edge towards (tx, ty)
   const cx = box.x + box.w / 2, cy = box.y + box.h / 2, dx = tx - cx, dy = ty - cy;
   if (!dx && !dy) return [cx, cy];
@@ -135,7 +168,7 @@ function heads(p) {
   return sv("defs", {}, mk("ok", "mh-ok"), mk("bad", "mh-bad"));
 }
 
-function drawEntities(steps) {
+function drawEntities(evs) {
   const sc = S.sc, all = [...(sc.context || []).map((e) => ({ ...e, off: true })), ...sc.entities];
   const byId = Object.fromEntries(all.map((e) => [e.id, e]));
   const xs = all.flatMap((e) => [e.x, e.x + e.w]).concat((sc.frames || []).flatMap((f) => [f.x, f.x + f.w]));
@@ -144,42 +177,35 @@ function drawEntities(steps) {
   const svg = sv("svg", { viewBox: `${x0} ${y0} ${w} ${h}`, width: "100%", role: "img", "aria-label": "Entities and the messages between them", style: "max-height:460px;display:block;margin:0 auto" });
   svg.append(heads("e"));
   for (const f of sc.frames || []) svg.append(sv("rect", { class: "frame fz-" + f.zone, x: f.x, y: f.y, width: f.w, height: f.h }), sv("text", { class: "framelabel fz-" + f.zone, x: f.x + 10, y: f.y + 20, "font-size": 15, "font-weight": "bold" }, f.label));
-  const cur = steps[S.step], used = new Set(steps.slice(0, S.step + 1).flatMap((x) => [x.from, x.to]));
+  const shown = evs.slice(0, S.step + 1), cur = evs[S.step], used = new Set(shown.flatMap((e) => [evFrom(e), evTo(e)]));
   for (const e of all) {
-    const on = !e.off && used.has(e.id), isCur = cur && (cur.from === e.id || cur.to === e.id);
+    const on = !e.off && used.has(e.id), isCur = cur && (evFrom(cur) === e.id || evTo(cur) === e.id);
     svg.append(sv("rect", { class: "box z-" + (e.zone || "p") + (e.off || !on ? " off" : "") + (isCur ? " cur" : ""), x: e.x, y: e.y, width: e.w, height: e.h }),
       sv("text", { x: e.x + e.w / 2, y: e.y + e.h / 2 - 3, "text-anchor": "middle", "font-size": 14, "font-weight": "bold", class: e.off || !on ? "off" : "" }, e.label),
       sv("text", { x: e.x + e.w / 2, y: e.y + e.h / 2 + 15, "text-anchor": "middle", "font-size": 12, class: e.off || !on ? "off" : "" }, e.sub || ""));
   }
   const pair = {};
-  steps.slice(0, S.step + 1).forEach((st, i) => {
-    const a = byId[st.from], b = byId[st.to];
+  shown.forEach((e, k) => {
+    if (e.kind === "reply" && k !== S.step) return;  // older replies are in the sequence; here only requests and the current reply
+    const f = evFrom(e), t = evTo(e), a = byId[f], b = byId[t];
     if (!a || !b) return;
-    const key = [st.from, st.to].sort().join("|");
+    const key = [f, t].sort().join("|");
     const off = (pair[key] = (pair[key] || 0) + 1) - 1;
     const [ax, ay] = clip(a, b.x + b.w / 2, b.y + b.h / 2), [bx, by] = clip(b, a.x + a.w / 2, a.y + a.h / 2);
-    const nx = -(by - ay), ny = bx - ax, len = Math.hypot(nx, ny) || 1, sh = (off % 2 ? -1 : 1) * Math.ceil(off / 2) * 9 + (st.from > st.to ? 5 : -5);
+    const nx = -(by - ay), ny = bx - ax, len = Math.hypot(nx, ny) || 1, sh = (off % 2 ? -1 : 1) * Math.ceil(off / 2) * 9 + (f > t ? 7 : -7);
     const p = (x, y) => [x + (nx / len) * sh, y + (ny / len) * sh];
     const [sx, sy] = p(ax, ay), [ex, ey] = p(bx, by);
-    const good = st.result !== false && !st.injected;
-    svg.append(sv("line", { class: "arr " + (good ? "good" : "bad") + (i === S.step ? " cur" : " old") + (st.dashed ? " dash" : ""), x1: sx, y1: sy, x2: ex, y2: ey, "marker-end": `url(#e-${good ? "ok" : "bad"})` }),
-      sv("text", { x: (sx + ex) / 2, y: (sy + ey) / 2 - 4, "text-anchor": "middle", "font-size": 13, "font-weight": i === S.step ? "bold" : "normal" }, String(i + 1)));
-    if (i === S.step && st.reply && st.http && !st.stripped) {  // the reply, drawn beside the request
-      const rbad = st.reply.status >= 400, ox = (nx / len) * 13, oy = (ny / len) * 13;
-      svg.append(sv("line", { class: "arr cur dash " + (rbad ? "bad" : "good"), x1: ex + ox, y1: ey + oy, x2: sx + ox, y2: sy + oy, "marker-end": `url(#e-${rbad ? "bad" : "ok"})` }));
-    }
+    const bad = e.kind === "reply" ? e.st.reply.status >= 400 : e.kind === "single" ? e.st.result === false || e.st.injected : false;
+    svg.append(sv("line", { class: "arr " + (bad ? "bad" : "good") + (k === S.step ? " cur" : " old") + (e.kind === "reply" || e.st.dashed ? " dash" : ""), x1: sx, y1: sy, x2: ex, y2: ey, "marker-end": `url(#e-${bad ? "bad" : "ok"})` }),
+      sv("text", { x: (sx + ex) / 2, y: (sy + ey) / 2 - 4, "text-anchor": "middle", "font-size": 13, "font-weight": k === S.step ? "bold" : "normal" }, e.kind === "reply" ? `${e.n}↩` : String(e.n)));
   });
   return svg;
 }
 
-function drawSequence(steps) {
+function drawSequence(evs) {
   const sc = S.sc, ents = sc.entities, n = ents.length, W = 1100, left = 20, bw = Math.min(190, (W - 40) / n - 8);
   const step = (W - 40 - bw) / Math.max(n - 1, 1), xs = ents.map((_, i) => (n === 1 ? W / 2 : left + bw / 2 + i * step));
-  const top = 92, rowReq = 44, rowRep = 38;
-  const hasReply = (st) => !!(st.reply && st.http && !st.stripped);
-  const ys = []; let yy = top;
-  steps.forEach((st) => { ys.push(yy); yy += rowReq + (hasReply(st) ? rowRep : 0); });
-  const H = yy + 12;
+  const top = 92, row = 46, H = top + evs.length * row + 14;
   const svg = sv("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", role: "img", "aria-label": "Sequence of messages" });
   svg.append(heads("s"));
   ents.forEach((e, i) => {
@@ -187,25 +213,29 @@ function drawSequence(steps) {
       sv("line", { class: "life", x1: xs[i], y1: 56, x2: xs[i], y2: H - 6 }));
   });
   const idx = Object.fromEntries(ents.map((e, i) => [e.id, i]));
+  const shown = evs.slice(0, S.step + 1);
+  // a bar on the receiver's lifeline from a request to its reply: the entity is busy, waiting for what it needs
+  shown.forEach((e, k) => {
+    if (e.kind !== "req" || !e.st.http) return;
+    const b = idx[e.st.to];
+    if (b == null) return;
+    const j = shown.findIndex((x) => x.kind === "reply" && x.n === e.n), y1 = top + k * row - 6, y2 = top + (j >= 0 ? j : S.step) * row + 6;
+    svg.append(sv("rect", { class: "act" + (j >= 0 ? "" : " open"), x: xs[b] - 6, y: y1, width: 12, height: Math.max(y2 - y1, 12) }));
+  });
   const arrow = (a, b, y, bad, cur, dashed) => sv("line", { class: "arr " + (bad ? "bad" : "good") + (cur ? " cur" : " old") + (dashed ? " dash" : ""), x1: xs[a], y1: y, x2: xs[b] + (xs[b] > xs[a] ? -2 : 2), y2: y, "marker-end": `url(#s-${bad ? "bad" : "ok"})` });
   const label = (text, a, b, y, cur, bad, full, mark = true) => {
     const x = Math.min(xs[a], xs[b]) + 10, max = Math.floor((W - 14 - x) / 6.3);
-    const t = sv("text", { class: "lbl", x, y: y - 7, "text-anchor": "start", "font-size": 12.5, "font-weight": cur ? "bold" : "normal" }, text.length > max ? text.slice(0, max - 1) + "\u2026" : text);
-    if (mark) t.append(sv("tspan", { class: "mk " + (bad ? "bad" : "ok") }, bad ? " \u2717" : " \u2713"));
+    const t = sv("text", { class: "lbl", x, y: y - 7, "text-anchor": "start", "font-size": 12.5, "font-weight": cur ? "bold" : "normal" }, text.length > max ? text.slice(0, max - 1) + "…" : text);
+    if (mark) t.append(sv("tspan", { class: "mk " + (bad ? "bad" : "ok") }, bad ? " ✗" : " ✓"));
     t.append(sv("title", {}, full || text));
     return t;
   };
-  steps.slice(0, S.step + 1).forEach((st, i) => {
-    const a = idx[st.from], b = idx[st.to], y = ys[i], cur = i === S.step;
+  shown.forEach((e, k) => {
+    const st = e.st, y = top + k * row, cur = k === S.step, a = idx[evFrom(e)], b = idx[evTo(e)];
     if (a == null || b == null) return;
-    const bad = st.injected || st.result === false;
-    if (hasReply(st)) {  // request, then the reply coming back
-      const rbad = st.reply.status >= 400, y2 = y + rowReq - 4;
-      svg.append(arrow(a, b, y, false, cur, false), label(`${i + 1}. ${st.label.replace(/\s+->\s+.*$/, "")}`, a, b, y, cur, false, "", false));
-      svg.append(arrow(b, a, y2, rbad, cur, true), label(st.reply.short, b, a, y2, cur, rbad, st.reply.long));
-    } else {
-      svg.append(arrow(a, b, y, bad, cur, st.dashed), label(`${i + 1}. ${st.label}`, a, b, y, cur, bad));
-    }
+    if (e.kind === "req") svg.append(arrow(a, b, y, false, cur, false), label(`${e.n}. ${st.label.replace(/\s+->\s+.*$/, "")}`, a, b, y, cur, false, "", false));
+    else if (e.kind === "reply") { const rbad = st.reply.status >= 400; svg.append(arrow(a, b, y, rbad, cur, true), label(`${e.n} reply: ${st.reply.short}`, a, b, y, cur, rbad, st.reply.long)); }
+    else { const bad = st.injected || st.result === false; svg.append(arrow(a, b, y, bad, cur, st.dashed), label(`${e.n}. ${st.label}`, a, b, y, cur, bad)); }
   });
   return svg;
 }
@@ -236,29 +266,35 @@ function fmtHttp(line, headers, body, resp) {
   return frag;
 }
 
-function tokensBox(st) {
+function tokensBox(st, which) {
   const tk = st.tokens, box = el("div", { class: "toks" });
-  if (!tk || (!tk.sent.length && !tk.returned.length)) return box;
-  box.append(el("h4", {}, "Tokens in this exchange (decoded)"));
-  const item = (t, dir) => el("details", { class: "tokitem" },
-    el("summary", {}, el("span", { class: "tdir " + dir }, dir), " ", el("b", {}, t.kind), t.what ? ` (${t.what})` : "", t.line ? ": " + t.line : ""),
+  const list = tk ? tk[which] || [] : [];
+  if (!list.length) return box;
+  box.append(el("h4", {}, which === "sent" ? "Tokens sent in this request (decoded)" : "Tokens returned in this reply (decoded)"));
+  box.append(...list.map((t) => el("details", { class: "tokitem" },
+    el("summary", {}, el("span", { class: "tdir " + which }, which), " ", el("b", {}, t.kind), t.what ? ` (${t.what})` : "", t.line ? ": " + t.line : ""),
     el("p", { class: "muted", style: "margin:4px 0" }, t.where + (t.note ? ". " + t.note : "")),
-    el("pre", {}, JSON.stringify({ header: t.header, claims: t.claims }, null, 2)));
-  box.append(...tk.returned.map((t) => item(t, "returned")), ...tk.sent.map((t) => item(t, "sent")));
+    el("pre", {}, JSON.stringify({ header: t.header, claims: t.claims }, null, 2)))));
   return box;
 }
 
-function panelMessage(st) {
-  const sc = S.sc, box = el("div", { class: "msg" });
+function panelMessage(ev) {
+  const st = ev.st, sc = S.sc, box = el("div", { class: "msg" });
   if (st.http) {
-    const h = st.http, cap = sc.capture, stripped = st.stripped;
-    box.append(el("div", { class: "meta" }, (h.req_first && h.req_first !== h.frame ? `Request: frames ${h.req_first}\u2013${h.frame}` : `Request: frame ${h.frame}`) + (stripped ? "" : `; response: frame ${h.resp_frame}`) + `; TCP stream ${h.stream}`),
-      el("h4", {}, "Request"), el("pre", {}, fmtHttp(h.req.line, h.req.headers, h.req.body, false)),
-      el("h4", {}, "Response"), el("pre", {}, stripped ? "(removed in this mutant capture)" : fmtHttp(h.resp.line, h.resp.headers, h.resp.body, true)));
-    box.append(tokensBox(st));
-    const cmd = `tshark -r ${cap.file.split("/").pop()} ${sc.capture.file.includes("chain") ? "-d tcp.port==5051,http -d tcp.port==5060,http -d tcp.port==5061,http -d tcp.port==5062,http -d tcp.port==5063,http -d tcp.port==5064,http " : "-d tcp.port==5050,http "}-Y "frame.number==${h.frame}" -V`;
+    const h = st.http, cap = sc.capture, stripped = st.stripped, isReply = ev.kind === "reply";
+    const reqBlock = () => [el("h4", {}, "Request"), el("pre", {}, fmtHttp(h.req.line, h.req.headers, h.req.body, false))];
+    const repBlock = () => [el("h4", {}, "Reply"), el("pre", {}, stripped ? "(removed in this mutant capture)" : fmtHttp(h.resp.line, h.resp.headers, h.resp.body, true))];
+    const reqFrames = h.req_first && h.req_first !== h.frame ? `frames ${h.req_first}–${h.frame}` : `frame ${h.frame}`;
+    box.append(el("div", { class: "meta" }, isReply ? `Reply: frame ${h.resp_frame}, answering the request in ${reqFrames}; TCP stream ${h.stream}` : `Request: ${reqFrames}` + (stripped ? "" : `; its reply is in frame ${h.resp_frame}`) + `; TCP stream ${h.stream}`));
+    box.append(...(isReply ? repBlock() : reqBlock()));
+    const wt = waitText(ev);
+    if (wt) box.append(el("p", { class: "note" }, wt));
+    box.append(tokensBox(st, isReply ? "returned" : "sent"));
+    if (!stripped) box.append(el("details", { class: "other" }, el("summary", {}, isReply ? "Show the request this reply answers" : "Show the reply (it arrives later)"), ...(isReply ? reqBlock() : repBlock())));
+    const fn = isReply ? h.resp_frame : h.frame;
+    const cmd = `tshark -r ${cap.file.split("/").pop()} ${sc.capture.file.includes("chain") ? "-d tcp.port==5051,http -d tcp.port==5060,http -d tcp.port==5061,http -d tcp.port==5062,http -d tcp.port==5063,http -d tcp.port==5064,http " : "-d tcp.port==5050,http "}-Y "frame.number==${fn}" -V`;
     box.append(el("div", { class: "row" }, el("pre", {}, cmd), copyButton(() => cmd)),
-      el("div", { class: "row" }, el("span", {}, "Wireshark filter: "), el("code", {}, `frame.number == ${h.frame}`), copyButton(() => `frame.number == ${h.frame}`), el("a", { href: cap.url }, "Download the capture (.pcap)")));
+      el("div", { class: "row" }, el("span", {}, "Wireshark filter: "), el("code", {}, `frame.number == ${fn}`), copyButton(() => `frame.number == ${fn}`), el("a", { href: cap.url }, "Download the capture (.pcap)")));
     const tc = ((h.req.headers.find((x) => /^x-test-case:/i.test(x)) || "").split(":")[1] || "").trim();
     if (tc) {
       const f2 = `wimse.test_case == "${tc}"`, c2 = `tshark -r ${cap.file.split("/").pop()} -Y '${f2}' -O wimse`;
@@ -275,6 +311,16 @@ function panelMessage(st) {
     box.append(el("p", { class: "muted" }, "No packet or record for this step: it is described by the partner's report (see the checker panel for the evidence class)."));
   }
   return box;
+}
+
+function panelComment(ev) {
+  const st = ev.st, big = "margin:0;font-size:16px", small = "margin:8px 0 0;font-size:15px";
+  if (ev.kind === "reply") {
+    const wt = waitText(ev);
+    return el("div", {}, el("p", { style: big }, `${labelOf(st.to)} replies to ${labelOf(st.from)}.`), el("p", { style: small }, el("b", {}, "Reply: "), st.reply.long), wt ? el("p", { style: small }, wt) : "");
+  }
+  const wt = ev.kind === "req" ? waitText(ev) : "";
+  return el("div", {}, el("p", { style: big }, st.comment || ""), wt ? el("p", { style: small }, wt) : "");
 }
 
 function panelPackets(st) {
@@ -306,13 +352,17 @@ function panelDrafts(st) {
   return box;
 }
 
-function panelVerdict(st, last) {
-  const sc = S.sc, b = S.brk >= 0 ? sc.breaks[S.brk] : null, box = el("div");
-  const kv = el("div", { class: "kv" });
-  if (st.verdict) kv.append(el("b", {}, "Expected"), el("span", {}, st.verdict.expected || "—"), el("b", {}, "Observed"), el("span", {}, st.verdict.observed), el("b", {}, "This step"), el("span", { class: st.verdict.ok ? "ok" : "fail" }, st.verdict.ok ? "✓ matches" : "✗ does NOT match"));
+function panelVerdict(ev, last) {
+  const st = ev.st, sc = S.sc, b = S.brk >= 0 ? sc.breaks[S.brk] : null, box = el("div");
+  const kv = el("div", { class: "kv" }), pending = ev.kind === "req" && st.http && st.reply;
+  if (st.verdict) {
+    kv.append(el("b", {}, "Expected"), el("span", {}, st.verdict.expected || "—"));
+    if (pending) kv.append(el("b", {}, "Observed"), el("span", { class: "muted" }, "known when the reply arrives"));
+    else kv.append(el("b", {}, "Observed"), el("span", {}, st.verdict.observed), el("b", {}, "This call"), el("span", { class: st.verdict.ok ? "ok" : "fail" }, st.verdict.ok ? "✓ matches" : "✗ does NOT match"));
+  }
   kv.append(el("b", {}, "Checker"), el("span", {}, sc.checker), el("b", {}, "Evidence"), el("span", {}, badge(sc.cls), " ", IDX.classes[sc.cls].meaning));
   box.append(kv);
-  if (st.verdict && st.verdict.note) box.append(el("p", { class: "muted" }, st.verdict.note));
+  if (st.verdict && st.verdict.note && !pending) box.append(el("p", { class: "muted" }, st.verdict.note));
   if (b) {
     box.append(el("h4", {}, "Mutant capture: " + b.name), el("p", {}, b.description), el("pre", { class: "fail" }, b.checker_output), el("p", { class: "muted" }, "Checker output recorded at build time on ", el("a", { href: IDX.repo + "/blob/main/checkers/negatives/" + b.mutant }, "checkers/negatives/" + b.mutant)));
   } else if (last) {
@@ -321,36 +371,39 @@ function panelVerdict(st, last) {
   return box;
 }
 
-function panelTimeline(steps) {
+function panelTimeline(evs) {
   const sc = S.sc, box = el("div");
-  const rel = steps.map((s) => (s.time ? s.time.rel : 0)), note = steps[S.step].time && steps[S.step].time.note;
+  const rel = evs.map((e) => (e.st.time ? (e.kind === "reply" ? e.st.time.resp_rel ?? e.st.time.rel : e.st.time.rel) : 0));
+  const note = evs[S.step].st.time && evs[S.step].st.time.note;
   if (sc.bound) {
     const max = Math.max(sc.bound, ...rel), bar = el("div", { class: "bar", title: "0 to the promised bound" });
-    steps.slice(0, S.step + 1).forEach((s, i) => { if (i) bar.append(el("i", { style: `left:${(rel[i] / max) * 100}%` })); });
+    evs.slice(0, S.step + 1).forEach((e, i) => { if (i) bar.append(el("i", { style: `left:${(rel[i] / max) * 100}%` })); });
     bar.append(el("b", { style: sc.bound >= max ? "right:4px" : `left:${(sc.bound / max) * 100}%` }, `bound ${sc.bound} s`));
     box.append(el("p", {}, `Time since t0 against the promised bound of ${sc.bound} s:`), bar);
   }
-  box.append(el("table", { class: "tl" }, steps.map((s, i) => el("tr", { class: i === S.step ? "cur" : "", style: i > S.step ? "opacity:.35" : "" },
-    el("td", {}, String(i + 1)), el("td", {}, s.time ? `+${s.time.rel} s` : ""), el("td", {}, s.time && i ? `(+${s.time.dt} s)` : ""), el("td", {}, s.label.length > 46 ? s.label.slice(0, 45) + "…" : s.label)))));
+  const text = (e) => (e.kind === "reply" ? `${e.n} reply: ${e.st.reply.short}` : e.kind === "req" ? `${e.n}. ${e.st.label.replace(/\s+->\s+.*$/, "")}` : e.st.label);
+  box.append(el("table", { class: "tl" }, evs.map((e, i) => el("tr", { class: i === S.step ? "cur" : "", style: i > S.step ? "opacity:.35" : "" },
+    el("td", {}, String(i + 1)), el("td", {}, e.st.time ? `+${rel[i].toFixed(rel[i] < 100 && !Number.isInteger(rel[i]) ? 3 : 1).replace(/\.?0+$/, "") || 0} s` : ""), el("td", {}, e.st.time && i ? `(+${Math.round((rel[i] - rel[i - 1]) * 1000) / 1000} s)` : ""), el("td", {}, text(e).length > 46 ? text(e).slice(0, 45) + "…" : text(e))))));
   if (note) box.append(el("p", { class: "muted" }, "Clock: " + note + "."));
   return box;
 }
 
 function render() {
-  const sc = S.sc, steps = viewSteps(), n = steps.length;
+  const sc = S.sc, steps = viewSteps(), evs = viewEvents(steps), n = evs.length;
+  S.evs = evs;
   S.step = Math.max(0, Math.min(S.step, n - 1));
-  const st = steps[S.step], last = S.step === n - 1;
+  const ev = evs[S.step], last = S.step === n - 1;
   $("#count").textContent = `Step ${S.step + 1} of ${n}`;
   $("#prev").disabled = S.step === 0; $("#next").disabled = last; $("#play").textContent = S.timer ? "Pause" : "Play";
   history.replaceState(null, "", `#${sc.id}/${S.step + 1}` + (S.brk >= 0 ? `/b${S.brk + 1}` : ""));
   const put = (id, node) => { const p = $("#p-" + id + " .body"); p.replaceChildren(node); };
-  put("entities", drawEntities(steps)); put("sequence", drawSequence(steps)); put("message", panelMessage(st)); put("packets", panelPackets(st));
-  put("comment", el("div", {}, el("p", { style: "margin:0;font-size:16px" }, st.comment || ""), st.reply ? el("p", { style: "margin:8px 0 0;font-size:15px" }, el("b", {}, "Reply: "), st.reply.long) : ""));
-  put("drafts", panelDrafts(st)); put("verdict", panelVerdict(st, last)); put("timeline", panelTimeline(steps));
+  put("entities", drawEntities(evs)); put("sequence", drawSequence(evs)); put("message", panelMessage(ev)); put("packets", panelPackets(ev.st));
+  put("comment", panelComment(ev));
+  put("drafts", panelDrafts(ev.st)); put("verdict", panelVerdict(ev, last)); put("timeline", panelTimeline(evs));
   const bk = $("#brk"); bk.replaceChildren();
   if (sc.breaks.length) {
     bk.append(el("b", {}, "Break it: "));
-    const mk = (i, label) => { const b = el("button", { type: "button", "aria-pressed": String(S.brk === i) }, label); b.addEventListener("click", () => { S.brk = i; S.step = Math.min(S.step, viewSteps().length - 1); render(); }); return b; };
+    const mk = (i, label) => { const b = el("button", { type: "button", "aria-pressed": String(S.brk === i) }, label); b.addEventListener("click", () => { S.brk = i; S.step = Math.min(S.step, nEvents() - 1); render(); }); return b; };
     bk.append(mk(-1, "Real capture"), ...sc.breaks.map((b, i) => mk(i, b.name)));
   }
 }
@@ -396,7 +449,7 @@ function renderScenario() {
     el("p", { class: "desc", id: "desc" }), el("p", { class: "exp muted", id: "exp" }),
     el("div", { class: "controls" },
       el("button", { id: "prev", type: "button", onclick: () => go(-1) }, "← Previous"), el("button", { id: "next", type: "button", class: "primary", onclick: () => go(1) }, "Next step →"),
-      el("button", { id: "play", type: "button", onclick: () => { if (S.timer) { stop(); render(); } else { if (S.step >= viewSteps().length - 1) S.step = 0; S.timer = setInterval(() => { if (S.step >= viewSteps().length - 1) { stop(); render(); } else go(1); }, 1600); render(); } } }, "Play"),
+      el("button", { id: "play", type: "button", onclick: () => { if (S.timer) { stop(); render(); } else { if (S.step >= nEvents() - 1) S.step = 0; S.timer = setInterval(() => { if (S.step >= nEvents() - 1) { stop(); render(); } else go(1); }, 1600); render(); } } }, "Play"),
       el("button", { type: "button", onclick: () => { stop(); S.step = 0; render(); } }, "Reset"), el("span", { class: "count", id: "count" }), toggles),
     el("div", { class: "brk", id: "brk" }),
     el("div", { class: "grid" }, left, right));
@@ -406,9 +459,16 @@ function renderScenario() {
     if (e.key === "ArrowRight") { go(1); e.preventDefault(); } else if (e.key === "ArrowLeft") { go(-1); e.preventDefault(); } else if (e.key === " ") { $("#play").click(); e.preventDefault(); }
   });
   const fromHash = () => { const [id, st, b] = location.hash.slice(1).split("/"); const known = IDX.scenarios.some((s) => s.id === id); return known ? loadScenario(id, parseInt(st, 10), b && b[0] === "b" ? parseInt(b.slice(1), 10) : 0) : loadScenario(IDX.scenarios.find((s) => s.id === "B_CHAIN") ? "B_CHAIN" : IDX.scenarios[0].id, 1); };
-  let cur = null;
-  window.addEventListener("hashchange", () => { const id = location.hash.slice(1).split("/")[0]; if (id !== cur) { cur = id; fromHash(); } });
-  cur = location.hash.slice(1).split("/")[0]; fromHash();
+  window.addEventListener("hashchange", () => {  // a pasted link or a hand-edited address bar: new scenario, or just a new step
+    const [id, st, b] = location.hash.slice(1).split("/");
+    if (!S.sc || id !== S.sc.id) { fromHash(); return; }
+    stop();
+    S.step = Math.max(0, (parseInt(st, 10) || 1) - 1);
+    const k = b && b[0] === "b" ? parseInt(b.slice(1), 10) : 0;
+    S.brk = k > 0 && k <= S.sc.breaks.length ? k - 1 : -1;
+    render();
+  });
+  fromHash();
 }
 
 (async function main() {

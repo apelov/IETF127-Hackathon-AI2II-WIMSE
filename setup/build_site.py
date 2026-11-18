@@ -212,7 +212,7 @@ def exchanges(capture, ports):
             method = oc._first_str(deep(rq["http"], "http.request.method"))
             uri = oc._first_str(deep(rq["http"], "http.request.uri"))
             by_case[case].append({
-                "dstport": rq["dstport"], "frame": rq["frame"], "stream": rq["stream"], "t": rq["t"],
+                "dstport": rq["dstport"], "frame": rq["frame"], "stream": rq["stream"], "t": rq["t"], "t_resp": rs["t"],
                 "resp_frame": rs["frame"], "status": status, "reason": reason, "method": method, "uri": uri,
                 "req": {"line": f"{method} {uri} HTTP/1.1", "headers": hdrs,
                         "body": pretty(oc._body_text(rq["http"]))},
@@ -230,9 +230,9 @@ BCHAIN = [
     ("client", "maurice", "The client calls Maurice (agent 1) with its WIT, an HTTP signature and the Domain A token. The WIT is a badge the test harness mints locally; no message on the wire fetches it, so this is where it first appears. Maurice runs a side workflow; it does not forward the call.", ["wit", "sig", "txn"]),
     ("client", "ttsa", "To cross to Domain B, the client exchanges the Domain A token at AS-A for a cross-domain grant. The Domain A token stays in Domain A.", ["chain"]),
     ("client", "asb", "The client redeems the grant at AS-B and receives a Domain B access token.", ["chain"]),
-    ("client", "coord", "The client calls Domain B's Coordinator (agent 2) with its WIT, the access token and a signature.", ["wit", "sig"]),
+    ("client", "coord", "The client calls Domain B's Coordinator (agent 2) with its WIT, the access token and a signature. The Coordinator cannot answer yet: it first has to get a token (call 6) and have the Research agent do the work (call 7). This reply is the last message of the whole chain.", ["wit", "sig"]),
     ("coord", "asb", "The Coordinator gets a Domain B Transaction Token from TTS-B.", ["txn"]),
-    ("coord", "research", "The Coordinator delegates to the Research agent (agent 3), signing the call and carrying the Domain B token.", ["wit", "sig", "txn"]),
+    ("coord", "research", "The Coordinator delegates to the Research agent (agent 3), signing the call and carrying the Domain B token. Research in turn needs a narrowed token (call 8) and the file (call 9) before it can reply.", ["wit", "sig", "txn"]),
     ("research", "asb", "The Research agent asks TTS-B to narrow the token to files:read: scope can only get smaller.", ["txn"]),
     ("research", "filetool", "The File Tool checks the WIT, that the WPT binds both the WIT (wth) and the narrowed token (tth), and the scope, then permits exactly one read.", ["wit", "wpt", "txn"]),
 ]
@@ -393,7 +393,7 @@ def build_wire(by_case, cases_meta, group_of, kind):
                 "drafts": [D[k][0] for k in BCHAIN[i][3]] if cid == "B_CHAIN" else None,
                 "http": {"frame": ex["frame"], "resp_frame": ex["resp_frame"], "stream": ex["stream"],
                          "req": ex["req"], "resp": ex["resp"]},
-                "time": {"rel": round(ex["t"] - t0, 3), "dt": round(ex["t"] - exs[i - 1]["t"], 3) if i else 0.0},
+                "time": {"rel": round(ex["t"] - t0, 3), "dt": round(ex["t"] - exs[i - 1]["t"], 3) if i else 0.0, "resp_rel": round(ex["t_resp"] - t0, 3)},
                 "_ex": ex,
             })
         scen = {
@@ -468,7 +468,7 @@ def build_5064(by_case):
             "steps": [{"from": "client", "to": "executor", "label": label, "result": ex["status"] < 400,
                        "comment": desc, "drafts": None,
                        "http": {"frame": ex["frame"], "resp_frame": ex["resp_frame"], "stream": ex["stream"], "req": ex["req"], "resp": ex["resp"]},
-                       "time": {"rel": 0.0, "dt": 0.0},
+                       "time": {"rel": 0.0, "dt": 0.0, "resp_rel": round(ex["t_resp"] - ex["t"], 3)},
                        "verdict": {"expected": f"{ex['status']} {ex['reason'] or ''}".strip(), "observed": f"{ex['status']} {ex['reason'] or ''}".strip(), "ok": True,
                                    "note": "decision and reason are checked in the response body by observes_p1_p8.py"}}],
             "result": {"verdict": "PASS", "text": "matches EXPECTED_LIVE_CASES in observes_p1_p8.py. Evidence class: " + CLASSES[cls][0]},
@@ -811,6 +811,7 @@ def main():
         "classes": {k: {"label": v[0], "meaning": v[1]} for k, v in CLASSES.items()},
         "groups": [{"id": g, "name": n, "question": q} for g, n, q in GROUPS],
         "scenarios": [{"id": s["id"], "title": s["title"], "group": s["group"], "cls": s["cls"], "steps": len(s["steps"]),
+                       "messages": sum(2 if st.get("http") else 1 for st in s["steps"]),
                        "short": (s["description"] if len(s["description"]) <= 150 else s["description"][:150].rsplit(" ", 1)[0] + "\u2026")} for s in scens],
     }
     (DATA / "index.json").write_text(json.dumps(index, ensure_ascii=False, indent=1))

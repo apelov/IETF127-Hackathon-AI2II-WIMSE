@@ -59,30 +59,44 @@ check("A12a: Wireshark filter for the stream", (await ev(`document.querySelector
 await go(`${BASE}/scenario.html#redthread-p1-confirmed-revocation/2`);
 check("partner steps explain there are no packets", (await ev(`document.querySelector('#p-packets .body').textContent`)).includes("Not a packet capture"));
 
-// scenario: stepping
+// scenario: stepping through messages in true capture order
 await go(`${BASE}/scenario.html#B_CHAIN/1`);
-check("B_CHAIN has 9 steps", (await ev(`document.getElementById('count').textContent`)) === "Step 1 of 9");
+const text = (sel) => ev(`document.querySelector('${sel}').textContent`);
+check("B_CHAIN has 18 messages (9 requests, 9 replies)", (await ev(`document.getElementById('count').textContent`)) === "Step 1 of 18");
 check("previous is disabled on step 1", (await ev(`document.getElementById('prev').disabled`)) === true);
-check("step 1 draws the request and its reply", (await ev(`document.querySelectorAll('#p-sequence svg line.arr').length`)) === 2);
-check("the reply is named in the sequence", (await ev(`document.querySelector('#p-sequence svg').textContent`)).includes("200: returns Transaction Token"));
-check("the comment panel says what came back", (await ev(`document.querySelector('#p-comment .body').textContent`)).includes("Reply: 200 OK. Returns a Transaction Token"));
-check("hop 1 says no WIT yet", (await ev(`document.querySelector('#p-comment .body').textContent`)).includes("not a WIT"));
-check("the returned token is decoded", (await ev(`document.querySelector('#p-message .toks').textContent`)).includes("returned") && (await ev(`document.querySelector('#p-message .toks').textContent`)).includes("scope files:read files:list"));
-await ev(`document.getElementById('next').click()`); await ev(`document.getElementById('next').click()`);
-check("Next adds exchanges (3 requests and 3 replies at step 3)", (await ev(`document.querySelectorAll('#p-sequence svg line.arr').length`)) === 6);
+check("step 1 draws the request only", (await ev(`document.querySelectorAll('#p-sequence svg line.arr').length`)) === 1);
+check("hop 1 says no WIT yet", (await text('#p-comment .body')).includes("not a WIT"));
+await ev(`document.getElementById('next').click()`);
+check("step 2 adds the reply", (await ev(`document.querySelectorAll('#p-sequence svg line.arr').length`)) === 2);
+check("the reply is named in the sequence", (await text('#p-sequence svg')).includes("1 reply: 200: returns Transaction Token"));
+check("the comment panel says who replies and what came back", (await text('#p-comment .body')).includes("TTS-A / AS-A replies to Client workload") && (await text('#p-comment .body')).includes("Reply: 200 OK. Returns a Transaction Token"));
+check("the returned token is decoded", (await text('#p-message .toks')).includes("returned") && (await text('#p-message .toks')).includes("scope files:read files:list"));
+await ev(`document.getElementById('next').click()`);
+check("Next adds messages (3 arrows at step 3)", (await ev(`document.querySelectorAll('#p-sequence svg line.arr').length`)) === 3);
 check("hash follows the step", (await ev(`location.hash`)) === "#B_CHAIN/3");
-check("message panel shows a real frame", /^Request: (frames \d+\u2013268|frame 268); response: frame 272/.test(await ev(`document.querySelector('#p-message .meta').textContent`)));
-check("comment panel has text", (await ev(`document.querySelector('#p-comment .body').textContent`)).length > 40);
-check("drafts panel names a draft", (await ev(`document.querySelector('#p-drafts .body').textContent`)).includes("identity-chaining-17"));
-check("verdict panel: step matches", (await ev(`document.querySelector('#p-verdict .body').textContent`)).includes("matches"));
+check("message panel shows a real frame", /^Request: (frames \d+–254|frame 254); its reply is in frame 257/.test(await text('#p-message .meta')));
+check("comment panel has text", (await text('#p-comment .body')).length > 40);
+check("drafts panel names a draft", (await text('#p-drafts .body')).includes("identity-chaining-17"));
+check("verdict panel: expected shown, observed pending", (await text('#p-verdict .body')).includes("known when the reply arrives"));
+
+// the Coordinator's call stays open while it makes calls 6 to 9
+await go(`${BASE}/scenario.html#B_CHAIN/9`);
+check("call 5 is open: it says the Coordinator makes calls first", (await text('#p-comment .body')).includes("stays open") && (await text('#p-comment .body')).includes("before it can answer"));
+await go(`${BASE}/scenario.html#B_CHAIN/18`);
+check("the last message is the Coordinator's reply to call 5", (await text('#p-comment .body')).includes("Coordinator (agent 2) replies to Client workload"));
+const seq = await text('#p-sequence svg');
+check("replies come back in nesting order (9, 7, then 5)", seq.indexOf("9 reply") < seq.indexOf("7 reply") && seq.indexOf("7 reply") < seq.indexOf("5 reply"));
+check("each call has a busy bar on its receiver's lifeline (9)", (await ev(`document.querySelectorAll('#p-sequence rect.act').length`)) === 9);
+check("the reply says it came after the calls made meanwhile", (await text('#p-comment .body')).includes("could only answer after"));
+await go(`${BASE}/scenario.html#B_CHAIN/3`);
 
 // keyboard
 await ev(`document.body.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}))`);
-check("right arrow advances", (await ev(`document.getElementById('count').textContent`)) === "Step 4 of 9");
+check("right arrow advances", (await ev(`document.getElementById('count').textContent`)) === "Step 4 of 18");
 await ev(`document.body.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true}))`);
-check("left arrow goes back", (await ev(`document.getElementById('count').textContent`)) === "Step 3 of 9");
+check("left arrow goes back", (await ev(`document.getElementById('count').textContent`)) === "Step 3 of 18");
 await ev(`document.body.dispatchEvent(new KeyboardEvent('keydown',{key:' ',bubbles:true}))`); await sleep(1900);
-check("space starts Play and it advances", (await ev(`document.getElementById('count').textContent`)) !== "Step 3 of 9");
+check("space starts Play and it advances", (await ev(`document.getElementById('count').textContent`)) !== "Step 3 of 18");
 await ev(`document.body.dispatchEvent(new KeyboardEvent('keydown',{key:' ',bubbles:true}))`);
 check("space again pauses", (await ev(`document.getElementById('play').textContent`)) === "Play");
 
@@ -98,17 +112,17 @@ await ev(`(()=>{const c=document.getElementById('t-entities');c.checked=true;c.d
 await ev(`(()=>{const s=document.getElementById('sel');s.value='C3';s.dispatchEvent(new Event('change'))})()`);
 await sleep(700);
 check("dropdown switches scenario", (await ev(`document.getElementById('head').textContent`)).startsWith("C3"));
-check("C3 (replay) has 2 steps", (await ev(`document.getElementById('count').textContent`)) === "Step 1 of 2");
+check("C3 (replay) has 4 messages", (await ev(`document.getElementById('count').textContent`)) === "Step 1 of 4");
 
 // break it
 await go(`${BASE}/scenario.html#C7/1`);
 await ev(`[...document.querySelectorAll('#brk button')].find(b=>b.textContent==='One hop flipped').click()`);
-await ev(`document.getElementById('next').click()`);
-check("mutant: step 2 shows 403", (await ev(`document.querySelector('#p-message .body').textContent`)).includes("HTTP/1.1 403 Forbidden"));
+await ev(`document.getElementById('next').click()`); await ev(`document.getElementById('next').click()`);
+check("mutant: the flipped reply (message 3) shows 403", (await ev(`document.querySelector('#p-message .body').textContent`)).includes("HTTP/1.1 403 Forbidden"));
 check("mutant: checker output is shown", (await ev(`document.querySelector('#p-verdict .body').textContent`)).includes("FAIL C7"));
-check("mutant: hash records it", (await ev(`location.hash`)) === "#C7/2/b2");
-await go(`${BASE}/scenario.html#B_CHAIN/9/b2`);
-check("mutant link reopens the leaked-token view", (await ev(`document.getElementById('count').textContent`)) === "Step 9 of 10");
+check("mutant: hash records it", (await ev(`location.hash`)) === "#C7/3/b2");
+await go(`${BASE}/scenario.html#B_CHAIN/19/b2`);
+check("mutant link reopens the leaked-token view", (await ev(`document.getElementById('count').textContent`)) === "Step 19 of 19");
 
 // partner and report scenarios
 await go(`${BASE}/scenario.html#redthread-p2-17nov-killswitch/3`);
