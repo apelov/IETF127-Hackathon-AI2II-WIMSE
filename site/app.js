@@ -66,37 +66,83 @@ function header() {
 }
 
 /* ------------------------------------------------------------------ index */
+const TAGCLASS = { accepted: "result-accepted", refused: "result-refused", mixed: "result-mixed" };
+function tagInfo(facet, id) {
+  const f = IDX.tag_facets.find((x) => x.id === facet), it = f && f.items.find((x) => x.id === id);
+  return { label: it ? it.label : id, meaning: it ? it.meaning : "" };
+}
+function tagChip(facet, id, onclick) {
+  const t = tagInfo(facet, id);
+  const attrs = { type: "button", class: `tag ${facet} ${facet === "result" ? TAGCLASS[id] : ""}`, title: t.meaning + " (click to filter)" };
+  const b = el("button", attrs, t.label);
+  if (onclick) b.addEventListener("click", onclick);
+  return b;
+}
+
 function renderIndex() {
-  const state = { cls: new Set(), q: "" };
-  const main = $("main");
-  const filters = el("div", { class: "filters" });
-  const list = el("div");
+  const FACETS = [
+    { id: "cls", name: "Evidence", get: (s) => [s.cls], items: Object.entries(IDX.classes).filter(([k]) => IDX.scenarios.some((s) => s.cls === k)).map(([k, v]) => ({ id: k, label: v.label, meaning: v.meaning })) },
+    ...IDX.tag_facets.map((f) => ({ id: f.id, name: f.name, get: (s) => s.tags[f.id], items: f.items })),
+  ];
+  const params = new URLSearchParams(location.search);
+  const sel = Object.fromEntries(FACETS.map((f) => [f.id, new Set((params.get(f.id) || "").split(",").filter((v) => f.items.some((i) => i.id === v)))]));
+  const state = { q: (params.get("q") || "").toLowerCase() };
+  const main = $("main"), chips = {}, status = el("p", { class: "muted", role: "status", "aria-live": "polite" }), list = el("div");
+  const matches = (s, skip) => FACETS.every((f) => f.id === skip || !sel[f.id].size || f.get(s).some((x) => sel[f.id].has(x))) && (!state.q || (s.id + " " + s.title + " " + s.short).toLowerCase().includes(state.q));
+  const sync = () => {
+    const p = new URLSearchParams();
+    for (const f of FACETS) if (sel[f.id].size) p.set(f.id, [...sel[f.id]].join(","));
+    if (state.q) p.set("q", state.q);
+    history.replaceState(null, "", location.pathname + (p.toString() ? "?" + p : ""));
+  };
+  const toggle = (facet, id) => { sel[facet].has(id) ? sel[facet].delete(id) : sel[facet].add(id); draw(); };
   const draw = () => {
+    sync();
+    const shown = IDX.scenarios.filter((s) => matches(s, null));
+    status.textContent = `${shown.length} of ${IDX.scenarios.length} scenarios shown`;
+    for (const f of FACETS) for (const it of f.items) {
+      const b = chips[f.id + ":" + it.id], n = IDX.scenarios.filter((s) => matches(s, f.id) && f.get(s).includes(it.id)).length, on = sel[f.id].has(it.id);
+      b.textContent = `${it.label} (${n})`; b.setAttribute("aria-pressed", String(on)); b.disabled = !n && !on;
+    }
+    $("#clear").hidden = !(FACETS.some((f) => sel[f.id].size) || state.q);
     list.replaceChildren();
     for (const g of IDX.groups) {
-      const items = IDX.scenarios.filter((s) => s.group === g.id && (!state.cls.size || state.cls.has(s.cls)) && (!state.q || (s.id + " " + s.title + " " + s.short).toLowerCase().includes(state.q)));
+      const items = shown.filter((s) => s.group === g.id);
       if (!items.length) continue;
       list.append(el("h2", { class: "grp g-" + g.id }, g.name), el("div", { class: "muted" }, g.question),
-        el("ul", { class: "list" }, items.map((s) => el("li", {},
-          el("a", { class: "t", href: "scenario.html#" + s.id }, s.title), el("span", { class: "s muted" }, s.short), badge(s.cls), el("span", { class: "muted" }, s.messages + (s.messages === 1 ? " message" : " messages"))))));
+        el("ul", { class: "list" }, items.map((s) => {
+          const t = s.tags, chipsRow = el("div", { class: "tags" },
+            tagChip("result", t.result[0], () => toggle("result", t.result[0])),
+            ...t.checks.slice(0, 2).map((c) => tagChip("checks", c, () => toggle("checks", c))),
+            ...t.topic.slice(0, 2).map((c) => tagChip("topic", c, () => toggle("topic", c))));
+          return el("li", {}, el("a", { class: "t", href: "scenario.html#" + s.id }, s.title), el("div", { class: "s" }, el("span", { class: "muted" }, s.short), chipsRow), badge(s.cls), el("span", { class: "muted" }, s.messages + (s.messages === 1 ? " message" : " messages")));
+        })));
     }
-    if (!list.children.length) list.append(el("p", {}, "No scenario matches."));
+    if (!list.children.length) list.append(el("p", {}, "No scenario matches these filters."));
   };
-  for (const [k, v] of Object.entries(IDX.classes)) {
-    const n = IDX.scenarios.filter((s) => s.cls === k).length;
-    if (!n) continue;
-    const b = el("button", { type: "button", "aria-pressed": "false" }, `${v.label} (${n})`);
-    b.addEventListener("click", () => { state.cls.has(k) ? state.cls.delete(k) : state.cls.add(k); b.setAttribute("aria-pressed", state.cls.has(k)); draw(); });
-    filters.append(b);
+  const filters = el("div", { class: "filters" });
+  for (const f of FACETS) {
+    const row = el("div", { class: "frow" }, el("span", { class: "fname" }, f.name + ":"));
+    for (const it of f.items) {
+      const b = el("button", { type: "button", "aria-pressed": "false", title: it.meaning });
+      if (f.id === "result") b.classList.add("rchip", TAGCLASS[it.id]);
+      b.addEventListener("click", () => toggle(f.id, it.id));
+      chips[f.id + ":" + it.id] = b; row.append(b);
+    }
+    filters.append(row);
   }
-  const search = el("input", { type: "search", placeholder: "Search scenarios", "aria-label": "Search scenarios" });
+  const search = el("input", { type: "search", placeholder: "Search scenarios", "aria-label": "Search scenarios", value: state.q });
   search.addEventListener("input", () => { state.q = search.value.toLowerCase(); draw(); });
-  filters.append(search);
+  const clear = el("button", { type: "button", id: "clear", hidden: true }, "Clear filters");
+  clear.addEventListener("click", () => { for (const f of FACETS) sel[f.id].clear(); state.q = ""; search.value = ""; draw(); });
+  filters.append(el("div", { class: "frow" }, search, clear, status));
+  const meaning = el("details", { class: "tagdefs" }, el("summary", {}, "What do the tags mean?"),
+    ...IDX.tag_facets.map((f) => el("div", {}, el("h4", {}, f.name), el("ul", { class: "plain" }, f.items.map((i) => el("li", {}, el("b", {}, i.label), " — ", i.meaning))))),
+    el("p", { class: "muted" }, "Result is computed from the replies or recorded decisions; checks and topic are assigned in the build script. Within a row, several choices mean \"any of\"; across rows they all have to match."));
   main.append(
     el("h2", { style: "margin:4px 0" }, `${IDX.scenarios.length} scenarios, replayed step by step`),
-    el("p", {}, "Every scenario that was tested at the IETF 127 hackathon, grouped by the question it answers. Open one to watch its messages appear one at a time, with the captured packet contents, the drafts concerned and the checker's verdict. Each result carries exactly one evidence class; the classes are never added together."),
-    el("div", { class: "legend" }, Object.entries(IDX.classes).filter(([k]) => IDX.scenarios.some((s) => s.cls === k)).map(([k, v]) => el("div", {}, badge(k), " ", v.meaning))),
-    filters, list);
+    el("p", {}, "Every scenario that was tested at the IETF 127 hackathon, grouped by the question it answers. Open one to watch its messages appear one at a time, with the captured packet contents, the drafts concerned and the checker's verdict. Filter by what a scenario shows: the evidence class, whether it is accepted or refused, the kind of check, and the topic."),
+    filters, meaning, list);
   draw();
 }
 
@@ -371,6 +417,7 @@ function panelVerdict(ev, last) {
   return box;
 }
 
+const sec = (x) => { const v = Math.round(x * 1000) / 1000; return (v < 0 ? "\u2212" : "+") + String(Math.abs(v)); };
 function panelTimeline(evs) {
   const sc = S.sc, box = el("div");
   const rel = evs.map((e) => (e.st.time ? (e.kind === "reply" ? e.st.time.resp_rel ?? e.st.time.rel : e.st.time.rel) : 0));
@@ -383,7 +430,7 @@ function panelTimeline(evs) {
   }
   const text = (e) => (e.kind === "reply" ? `${e.n} reply: ${e.st.reply.short}` : e.kind === "req" ? `${e.n}. ${e.st.label.replace(/\s+->\s+.*$/, "")}` : e.st.label);
   box.append(el("table", { class: "tl" }, evs.map((e, i) => el("tr", { class: i === S.step ? "cur" : "", style: i > S.step ? "opacity:.35" : "" },
-    el("td", {}, String(i + 1)), el("td", {}, e.st.time ? `+${rel[i].toFixed(rel[i] < 100 && !Number.isInteger(rel[i]) ? 3 : 1).replace(/\.?0+$/, "") || 0} s` : ""), el("td", {}, e.st.time && i ? `(+${Math.round((rel[i] - rel[i - 1]) * 1000) / 1000} s)` : ""), el("td", {}, text(e).length > 46 ? text(e).slice(0, 45) + "…" : text(e))))));
+    el("td", {}, String(i + 1)), el("td", {}, e.st.time ? `${sec(rel[i])} s` : ""), el("td", {}, e.st.time && i ? `(${sec(rel[i] - rel[i - 1])} s)` : ""), el("td", {}, text(e).length > 46 ? text(e).slice(0, 45) + "…" : text(e))))));
   if (note) box.append(el("p", { class: "muted" }, "Clock: " + note + "."));
   return box;
 }
@@ -421,6 +468,8 @@ async function loadScenario(id, step, brk) {
   document.title = S.sc.title + " — WIMSE interop explorer";
   $("#sel").value = id;
   const head = $("#head"); head.replaceChildren(el("h2", { style: "margin:0;font-size:20px" }, S.sc.title), badge(S.sc.cls), el("span", { class: "gchip g-" + S.sc.group }, IDX.groups.find((g) => g.id === S.sc.group).name));
+  const tg = S.sc.tags, link = (fac, id) => { const t = tagInfo(fac, id), a = el("a", { class: `tag ${fac} ${fac === "result" ? TAGCLASS[id] : ""}`, href: `index.html?${fac}=${id}`, title: t.meaning + " (list all scenarios with this tag)" }, t.label); return a; };
+  $("#tags").replaceChildren(link("result", tg.result[0]), ...tg.checks.map((c) => link("checks", c)), ...tg.topic.map((c) => link("topic", c)));
   $("#desc").textContent = S.sc.description;
   $("#exp").textContent = S.sc.expected ? "Expected: " + S.sc.expected : "";
   render();
@@ -446,6 +495,7 @@ function renderScenario() {
   main.append(
     el("div", { class: "scen-head" }, sel, el("a", { href: "index.html" }, "All scenarios")),
     el("div", { class: "scen-head", id: "head", style: "margin-top:8px" }),
+    el("div", { class: "tags", id: "tags", style: "margin:6px 0 2px" }),
     el("p", { class: "desc", id: "desc" }), el("p", { class: "exp muted", id: "exp" }),
     el("div", { class: "controls" },
       el("button", { id: "prev", type: "button", onclick: () => go(-1) }, "← Previous"), el("button", { id: "next", type: "button", class: "primary", onclick: () => go(1) }, "Next step →"),

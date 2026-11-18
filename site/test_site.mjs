@@ -59,6 +59,33 @@ check("A12a: Wireshark filter for the stream", (await ev(`document.querySelector
 await go(`${BASE}/scenario.html#redthread-p1-confirmed-revocation/2`);
 check("partner steps explain there are no packets", (await ev(`document.querySelector('#p-packets .body').textContent`)).includes("Not a packet capture"));
 
+// tags and filters on the index
+const expected = (pred) => ev(`(async () => { const d = await (await fetch('data/index.json')).json(); return d.scenarios.filter(${pred}).length; })()`);
+const lis = () => ev(`document.querySelectorAll('ul.list li').length`);
+const chip = (label) => `[...document.querySelectorAll('.filters .frow button')].find((b) => b.textContent.startsWith('${label} ('))`;
+await go(`${BASE}/index.html`);
+check("every listed scenario shows at least a result tag and one more", (await ev(`[...document.querySelectorAll('ul.list li')].every((li) => li.querySelectorAll('.tag').length >= 2)`)) === true);
+await ev(`${chip("Refused")}.click()`);
+check("filter Result = Refused", (await lis()) === (await expected(`(s) => s.tags.result.includes('refused')`)));
+await ev(`${chip("Enforcement")}.click()`);
+check("Refused AND Enforcement (rows combine with AND)", (await lis()) === (await expected(`(s) => s.tags.result.includes('refused') && s.tags.checks.includes('enforcement')`)));
+check("the filter is in the address bar", (await ev(`location.search`)).includes("result=refused") && (await ev(`location.search`)).includes("checks=enforcement"));
+await ev(`${chip("Containment")}.click()`);
+check("two choices in one row mean OR", (await lis()) === (await expected(`(s) => s.tags.result.includes('refused') && (s.tags.checks.includes('enforcement') || s.tags.checks.includes('containment'))`)));
+await ev(`document.getElementById('clear').click()`);
+check("Clear filters shows everything again", (await lis()) >= 99);
+await go(`${BASE}/index.html?result=mixed&topic=revocation`);
+check("a shared link opens with the filter applied", (await lis()) === (await expected(`(s) => s.tags.result.includes('mixed') && s.tags.topic.includes('revocation')`)));
+check("the status line says how many are shown", /\d+ of \d+ scenarios shown/.test(await ev(`document.querySelector('[role=status]').textContent`)));
+await go(`${BASE}/scenario.html#C3/1`);
+check("a scenario page shows its tags", (await ev(`document.getElementById('tags').textContent`)).includes("Accepted and refused") && (await ev(`document.getElementById('tags').textContent`)).includes("Replay"));
+check("a tag on a scenario page links to the filtered list", (await ev(`document.querySelector('#tags a.result-mixed').getAttribute('href')`)) === "index.html?result=mixed");
+
+// P2 revoke-upstream: long runs are collapsed, and time is measured from the revocation
+await go(`${BASE}/scenario.html#redthread-p2-revoke-upstream/7`);
+check("P2 revoke-upstream is 7 messages, not 121", (await ev(`document.getElementById('count').textContent`)) === "Step 7 of 7");
+check("its timeline shows last accepted at +50 s and first refused at +51 s", (await ev(`document.querySelector('#p-timeline').textContent`)).includes("+50 s") && (await ev(`document.querySelector('#p-timeline').textContent`)).includes("+51 s"));
+
 // scenario: stepping through messages in true capture order
 await go(`${BASE}/scenario.html#B_CHAIN/1`);
 const text = (sel) => ev(`document.querySelector('${sel}').textContent`);

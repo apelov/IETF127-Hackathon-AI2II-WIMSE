@@ -156,3 +156,21 @@ svg .act { fill: color-mix(in srgb, var(--accent) 20%, transparent); stroke: var
 svg .act.open { stroke-dasharray: 3 3; }
 p.note { margin: 8px 0; padding: 6px 8px; border-radius: 6px; background: color-mix(in srgb, var(--warn) 10%, transparent); font-size: 13px; }
 details.other { margin: 6px 0; } details.other summary { cursor: pointer; color: var(--accent); font-size: 13px; }
+/* tags and filters */
+.tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+.tag { font: inherit; font-size: 12px; padding: 1px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--mute); cursor: pointer; text-decoration: none; display: inline-block; }
+.tag:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+.tag.result-accepted { color: var(--ok); border-color: currentColor; background: var(--ok-bg); font-weight: bold; }
+.tag.result-refused { color: var(--bad); border-color: currentColor; background: var(--bad-bg); font-weight: bold; }
+.tag.result-mixed { color: var(--warn); border-color: currentColor; background: color-mix(in srgb, var(--warn) 12%, transparent); font-weight: bold; }
+.tag.checks { color: var(--c-sim); border-color: color-mix(in srgb, var(--c-sim) 55%, transparent); }
+.frow { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin: 5px 0; }
+.frow .fname { font-weight: bold; min-width: 82px; font-size: 13px; }
+.frow button { font-size: 13px; padding: 2px 11px; border-radius: 999px; }
+.frow button.rchip.result-accepted { color: var(--ok); } .frow button.rchip.result-refused { color: var(--bad); } .frow button.rchip.result-mixed { color: var(--warn); }
+.frow button[aria-pressed=true], .frow button[aria-pressed=true].rchip { color: #fff; background: var(--accent); border-color: var(--accent); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .frow button[aria-pressed=true], :root:not([data-theme="light"]) .frow button[aria-pressed=true].rchip { color: #06101f; } }
+.frow button:disabled { opacity: .35; }
+details.tagdefs { margin: 8px 0 4px; } details.tagdefs summary { cursor: pointer; color: var(--accent); font-size: 14px; }
+details.tagdefs h4 { margin: 10px 0 2px; font-size: 13px; }
+ul.list li .s { min-width: 0; }

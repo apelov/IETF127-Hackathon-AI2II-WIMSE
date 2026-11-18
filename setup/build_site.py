@@ -492,6 +492,10 @@ def jl(path):
     return [json.loads(x) for x in (P1P8 / path).read_text().splitlines() if x.strip()]
 
 
+def _decision_key(x):
+    return (x["check"], x["decision"], x["reason"], x["effect"])
+
+
 def build_redthread():
     man = json.loads((P1P8 / "redthread-local.manifest.json").read_text())
     out = []
@@ -500,20 +504,44 @@ def build_redthread():
         lines = [x for x in jl(f"redthread-{sc}-local.jsonl") if x["case"] == case]
         if not lines:
             raise SystemExit(f"redthread {sc} {case}: no lines")
-        t0 = lines[0]["ts"]
+        # time zero is the revocation when the record says when it happened, otherwise the first decision
+        anchor = next((x["ts"] for x in lines if x.get("t_since_revocation_ms") == 0), lines[0]["ts"])
+        note = "simulated seconds after the revocation (fake clock)" if anchor != lines[0]["ts"] or lines[0].get("t_since_revocation_ms") == 0 else "simulated seconds (fake clock)"
+        # a run of identical decisions longer than 3 (P2 logs one per simulated second) becomes first, "... N more", last
+        shown, i = [], 0
+        while i < len(lines):
+            j = i
+            while j + 1 < len(lines) and _decision_key(lines[j + 1]) == _decision_key(lines[i]):
+                j += 1
+            run = lines[i:j + 1]
+            if len(run) > 3:
+                shown += [(run[0], None), (None, run), (run[-1], None)]
+            else:
+                shown += [(x, None) for x in run]
+            i = j + 1
         steps = [{"from": "agent", "to": "enforcer", "label": f"request ({sc} {case})", "result": True,
                   "comment": "The agent makes a request through the enforcing service.", "drafts": None,
-                  "record": None, "time": {"rel": 0.0, "dt": 0.0, "note": "simulated clock"},
+                  "record": None, "time": {"rel": lines[0]["ts"] - anchor, "dt": 0.0, "note": note},
                   "verdict": None}]
-        for i, ln in enumerate(lines):
-            ok = ln["decision"] == "allow"
+        prev = lines[0]["ts"]
+        for ln, run in shown:
+            verdict = {"expected": r["expected"], "observed": r["observed"], "ok": r["match"], "note": "Redthread's own comparison; observes_p1_p8.py re-checks decisions and reasons"}
+            if run:  # the collapsed middle of a long run
+                mid = run[1:-1]
+                lab = f"\u2026 {len(mid)} more identical decisions ({run[0]['decision']}: {run[0]['reason']}), one per second"
+                steps.append({"from": "enforcer", "to": "agent", "dashed": True, "label": lab, "result": run[0]["decision"] == "allow",
+                              "comment": f"Between the two decisions shown, the record holds {len(mid)} more identical ones ({run[0]['decision']}, reason {run[0]['reason']}), one per simulated second.",
+                              "drafts": None, "record": {"collapsed_decisions": len(mid), "from_ts": mid[0]["ts"], "to_ts": mid[-1]["ts"], "decision": run[0]["decision"], "reason": run[0]["reason"]},
+                              "time": {"rel": mid[-1]["ts"] - anchor, "dt": mid[-1]["ts"] - prev, "note": note}, "verdict": verdict})
+                prev = mid[-1]["ts"]
+                continue
             steps.append({
                 "from": "enforcer", "to": "agent", "dashed": True,
-                "label": f"{ln['check']}: {ln['decision']} ({ln['reason']})", "result": ok,
+                "label": f"{ln['check']}: {ln['decision']} ({ln['reason']})", "result": ln["decision"] == "allow",
                 "comment": f"{ln['check']}: {ln['decision']}, reason {ln['reason']}, effect {ln['effect']}.",
                 "drafts": None, "record": ln,
-                "time": {"rel": ln["ts"] - t0, "dt": ln["ts"] - (lines[i - 1]["ts"] if i else t0), "note": "simulated seconds (fake clock)"},
-                "verdict": {"expected": r["expected"], "observed": r["observed"], "ok": r["match"], "note": "Redthread's own comparison; observes_p1_p8.py re-checks decisions and reasons"}})
+                "time": {"rel": ln["ts"] - anchor, "dt": ln["ts"] - prev, "note": note}, "verdict": verdict})
+            prev = ln["ts"]
         out.append({
             "id": f"redthread-{sc}-{case}".lower(), "title": f"{sc} {case} (Redthread)", "group": RT_GROUP[sc], "cls": "record",
             "description": RT_TEXT[sc], "expected": r["expected"],
@@ -697,6 +725,112 @@ def add_breaks(scens):
             s["breaks"] = [{"name": "Responses stripped", "mutant": "p1_p8_request_only.pcap", "description": "Every response removed from the capture.", "strip_responses": True, "checker_output": out["p1_p8_request_only.pcap"]}]
 
 
+# ------------------------------------------------------------------ tags (what a scenario shows)
+# Result is derived from the data. Checks and topic are curated here; the build fails if a scenario has none.
+RESULT_ITEMS = [
+    ("accepted", "Accepted", "Every decision in the scenario is an accept."),
+    ("refused", "Refused", "Every decision is a refusal: the scenario passes when the system refuses."),
+    ("mixed", "Accepted and refused", "Some decisions are accepts and some refusals, for example a replay that is accepted once and then refused."),
+]
+CHECK_ITEMS = [
+    ("validation", "Validation", "Is the credential or message genuine, fresh, well-formed and bound to this request and receiver? (signatures, badges, expiry, audience, replay, identifier syntax)"),
+    ("enforcement", "Enforcement", "Is this caller allowed to do this? Policy applied to an authenticated caller: grants, scope, delegation limits, revocation and status, pinning."),
+    ("containment", "Containment", "Hostile content or addresses (prompt injection, attacker URLs, unsigned claims) must not change what happens."),
+    ("flow", "End-to-end flow", "A normal exchange across several entities: token exchange, delegation, narrowing."),
+    ("timing", "Timing", "How quickly a change, such as a revocation, takes effect, against a bound."),
+]
+TOPIC_ITEMS = [
+    ("identity", "Identity", "The WIT (workload badge), issuer trust, workload identifier syntax and comparison."),
+    ("signature", "Signature and proof", "HTTP message signatures, the WPT, key and algorithm checks."),
+    ("replay", "Replay", "A signed request sent again."),
+    ("audience", "Audience", "A token or request meant for a different receiver."),
+    ("tampering", "Tampering", "Content changed after it was signed, or in transit."),
+    ("tokenvalidity", "Token validity", "Expiry, issuer key, token type and required claims."),
+    ("scope", "Scope and grants", "What the caller may do, and which route it may use."),
+    ("delegation", "Delegation", "Narrowing, widening and limits when authority is handed on."),
+    ("crossdomain", "Cross-domain", "Domain A's authority must stay in A; Domain B issues its own, narrower one."),
+    ("revocation", "Revocation and status", "Withdrawn permission, status lists, and what happens after."),
+    ("failclosed", "Fail closed", "When status is unknown, stale or unreachable, refuse."),
+    ("injection", "Injection and hostile addresses", "Prompt injection, attacker URLs."),
+    ("approval", "Approval integrity", "What the person saw must match what is executed."),
+    ("pinning", "Tool and build pinning", "The approved tool or build must be the one that runs."),
+]
+V, E, C_, F, T = "validation", "enforcement", "containment", "flow", "timing"
+CURATED = {
+    # Suite 1 (inbound)
+    "A2": ([V], ["signature"]), "A3": ([V], ["signature"]), "A4": ([V], ["signature"]), "A5": ([V], ["signature"]),
+    "A6a": ([V], ["signature"]), "A6b": ([V], ["signature"]),
+    "A12a": ([V], ["identity", "signature"]), "A12b": ([V], ["identity", "signature"]), "A12c": ([V], ["identity", "signature"]), "A12d": ([V], ["identity", "signature"]),
+    **{f"A13{x}": ([V], ["identity"]) for x in "abcdefghi"}, "A13j": ([E], ["identity", "scope"]),
+    "C2": ([V], ["signature"]), "C3": ([V], ["replay"]), "C4": ([V], ["audience"]), "C4b": ([V], ["audience"]),
+    "C11": ([V], ["identity"]), "C12": ([C_], ["injection", "identity"]), "C12b": ([C_], ["injection", "identity"]),
+    "IN4": ([V], ["identity"]), "IN6": ([V], ["identity"]), "IN10": ([V], ["tampering"]), "IN11": ([V], ["signature"]),
+    "IN12": ([V], ["signature"]), "IN13": ([V], ["signature"]), "IN15": ([E], ["scope"]),
+    # Suite 2 (chain)
+    "B_CHAIN": ([F], ["crossdomain", "delegation"]), "C5": ([V], ["tampering", "signature"]), "C6": ([E], ["crossdomain", "audience"]),
+    "C7": ([C_, E], ["injection", "scope"]), "C8": ([C_], ["injection"]), "C9": ([E], ["scope"]), "C9b": ([E], ["scope"]), "C10": ([E], ["revocation"]),
+    "D1": ([V], ["tampering", "signature"]), "D2": ([V], ["signature", "tampering"]),
+    **{k: ([V], ["tokenvalidity"]) for k in ("D3_exp", "D3_sig", "D3_typ", "D3_reqwl", "D3_dup")},
+    "D4": ([E], ["scope"]), "D5": ([V], ["crossdomain", "tokenvalidity"]), "D6": ([F], ["delegation", "crossdomain"]), "D7": ([V], ["crossdomain", "audience"]),
+    # :5064 loopback cases
+    "p2-revoke-upstream": ([E, T], ["revocation"]), "p2-before-effect": ([E], ["revocation"]),
+    "p2-outside-made-up-proof": ([E], ["revocation"]), "p2-outside-no-agent-answer": ([E], ["revocation", "failclosed"]),
+    "p7-display-match": ([E], ["approval"]), "p7-display-mismatch": ([E], ["approval"]),
+    "p8-no-delegation": ([E], ["scope"]), "p8-write-under-read": ([E], ["scope"]),
+    "p8-revoked-between-authz-and-use": ([E], ["revocation"]), "p8-revoked-after-token-released": ([E], ["revocation"]),
+    # partner records and reports
+    "redthread-p1-confirmed-revocation": ([E], ["revocation"]), "redthread-p1-expired-cache": ([E], ["failclosed"]),
+    "redthread-p1-service-unavailable": ([E], ["failclosed"]), "redthread-p1-low-value-grace": ([E], ["failclosed", "revocation"]),
+    "redthread-p1-one-element-in-chain": ([E], ["failclosed"]),
+    "redthread-p2-revoke-upstream": ([E, T], ["revocation"]), "redthread-p2-before-effect": ([E], ["revocation"]),
+    **{f"redthread-p3-{k}": ([E], ["delegation"]) for k in ("wider-host", "more-methods", "longer-lifetime", "dropped-tools", "absent-means-default")},
+    "redthread-p3-unknown-member": ([E], ["delegation", "failclosed"]),
+    **{f"redthread-p4-{k}": ([E], ["delegation"]) for k in ("per-rp-counting", "single-accounting-rp", "child-limit-wider")},
+    "redthread-p5-rewrite-authority": ([V], ["tampering", "signature"]), "redthread-p5-rewrite-path": ([V], ["tampering", "signature"]),
+    "redthread-p5-authenticated-proxy-verifies": ([V], ["signature"]), "redthread-p5-forwarded-headers-unauthenticated": ([C_], ["tampering"]),
+    "redthread-p6-build-changed": ([E], ["pinning"]), "redthread-p6-tool-swapped": ([E], ["pinning"]),
+    "redthread-p2-sandbox-outside-made-up-proof": ([E], ["revocation"]), "redthread-p2-sandbox-outside-no-agent-answer": ([E], ["revocation", "failclosed"]),
+    "cred-p8-no-delegation": ([E], ["scope"]), "cred-p8-write-under-read": ([E], ["scope"]),
+    "cred-p8-revoked-between-authz-and-use": ([E], ["revocation"]), "cred-p8-revoked-after-token-released": ([E], ["revocation"]),
+    "mintid-issuer": ([T, E], ["revocation"]), "mintid-kill_switch": ([T, E], ["revocation"]),
+    "mintid-cascade-cascade_agent_1": ([T, E], ["revocation"]), "mintid-cascade-cascade_agent_2": ([T, E], ["revocation"]),
+    "p7-v5-omniarx": ([E], ["approval"]), "p7-r2-omniarx": ([E], ["approval"]),
+    "redthread-p2-17nov-issuer": ([T, E], ["revocation"]), "redthread-p2-17nov-killswitch": ([T, E], ["revocation"]),
+}
+
+
+def decision_of(st):
+    """'allow', 'deny' or None for one step: from the reply status, the partner's recorded decision, or its wording."""
+    if st.get("reply"):
+        return "deny" if st["reply"]["status"] >= 400 else "allow"
+    rec = st.get("record") or {}
+    if "accepted" in rec:
+        return "allow" if rec["accepted"] else "deny"
+    d = str(rec.get("decision", ""))
+    if d in ("allow", "effect occurred at provider"):
+        return "allow"
+    if d == "deny":
+        return "deny"
+    if not rec:
+        lab = st.get("label", "").lower()
+        if "refused" in lab or "denied" in lab:
+            return "deny"
+        if "accepted" in lab or "allowed" in lab:
+            return "allow"
+    return None
+
+
+def tags_for(scen):
+    decisions = [d for d in (decision_of(st) for st in scen["steps"]) if d]
+    if not decisions:
+        raise SystemExit(f"{scen['id']}: no decision found, cannot derive a result tag")
+    result = "mixed" if len(set(decisions)) > 1 else ("accepted" if decisions[0] == "allow" else "refused")
+    if scen["id"] not in CURATED:
+        raise SystemExit(f"{scen['id']}: no checks/topic tags in CURATED")
+    checks, topics = CURATED[scen["id"]]
+    return {"result": [result], "checks": list(checks), "topic": list(topics)}
+
+
 # ------------------------------------------------------------------ whole TCP conversations
 def stream_packets(capture):
     """All TCP packets of a capture, grouped by TCP stream."""
@@ -798,6 +932,11 @@ def main():
                 h["req_first"] = min((p["n"] for p in pkts if p["kind"] == "content" and p["dir"] == "c2s"), default=h["frame"])
                 h["resp_first"] = min((p["n"] for p in pkts if p["kind"] == "content" and p["dir"] == "s2c"), default=h["resp_frame"])
     for s in scens:
+        s["tags"] = tags_for(s)
+    unknown = set(CURATED) - {s["id"] for s in scens}
+    if unknown:
+        raise SystemExit(f"CURATED has ids that are not scenarios: {sorted(unknown)}")
+    for s in scens:
         s.setdefault("breaks", [])
         if s["frames"]:
             used = {e["id"] for e in s["entities"]}
@@ -810,7 +949,9 @@ def main():
         "repo": REPO, "built_from": subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, cwd=ROOT, check=False).stdout.strip(),
         "classes": {k: {"label": v[0], "meaning": v[1]} for k, v in CLASSES.items()},
         "groups": [{"id": g, "name": n, "question": q} for g, n, q in GROUPS],
-        "scenarios": [{"id": s["id"], "title": s["title"], "group": s["group"], "cls": s["cls"], "steps": len(s["steps"]),
+        "tag_facets": [{"id": fid, "name": fname, "items": [{"id": i, "label": lab, "meaning": m} for i, lab, m in items]}
+                       for fid, fname, items in (("result", "Result", RESULT_ITEMS), ("checks", "Checks", CHECK_ITEMS), ("topic", "Topic", TOPIC_ITEMS))],
+        "scenarios": [{"id": s["id"], "title": s["title"], "group": s["group"], "cls": s["cls"], "tags": s["tags"], "steps": len(s["steps"]),
                        "messages": sum(2 if st.get("http") else 1 for st in s["steps"]),
                        "short": (s["description"] if len(s["description"]) <= 150 else s["description"][:150].rsplit(" ", 1)[0] + "\u2026")} for s in scens],
     }
