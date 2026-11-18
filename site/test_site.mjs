@@ -63,9 +63,13 @@ check("partner steps explain there are no packets", (await ev(`document.querySel
 await go(`${BASE}/scenario.html#B_CHAIN/1`);
 check("B_CHAIN has 9 steps", (await ev(`document.getElementById('count').textContent`)) === "Step 1 of 9");
 check("previous is disabled on step 1", (await ev(`document.getElementById('prev').disabled`)) === true);
-check("only message 1 is drawn at step 1", (await ev(`document.querySelectorAll('#p-sequence svg line.arr').length`)) === 1);
+check("step 1 draws the request and its reply", (await ev(`document.querySelectorAll('#p-sequence svg line.arr').length`)) === 2);
+check("the reply is named in the sequence", (await ev(`document.querySelector('#p-sequence svg').textContent`)).includes("200: returns Transaction Token"));
+check("the comment panel says what came back", (await ev(`document.querySelector('#p-comment .body').textContent`)).includes("Reply: 200 OK. Returns a Transaction Token"));
+check("hop 1 says no WIT yet", (await ev(`document.querySelector('#p-comment .body').textContent`)).includes("not a WIT"));
+check("the returned token is decoded", (await ev(`document.querySelector('#p-message .toks').textContent`)).includes("returned") && (await ev(`document.querySelector('#p-message .toks').textContent`)).includes("scope files:read files:list"));
 await ev(`document.getElementById('next').click()`); await ev(`document.getElementById('next').click()`);
-check("Next adds messages (3 arrows at step 3)", (await ev(`document.querySelectorAll('#p-sequence svg line.arr').length`)) === 3);
+check("Next adds exchanges (3 requests and 3 replies at step 3)", (await ev(`document.querySelectorAll('#p-sequence svg line.arr').length`)) === 6);
 check("hash follows the step", (await ev(`location.hash`)) === "#B_CHAIN/3");
 check("message panel shows a real frame", /^Request: (frames \d+\u2013268|frame 268); response: frame 272/.test(await ev(`document.querySelector('#p-message .meta').textContent`)));
 check("comment panel has text", (await ev(`document.querySelector('#p-comment .body').textContent`)).length > 40);

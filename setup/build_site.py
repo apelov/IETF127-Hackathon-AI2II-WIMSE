@@ -11,6 +11,7 @@ Only the narration and the draft mapping are written here.
 
 Usage: .venv/bin/python setup/build_site.py        (needs tshark)
 """
+import base64
 import datetime
 import json
 import pathlib
@@ -36,11 +37,11 @@ CHAIN = "validation/bundle-chain/chain/capture.pcap"
 
 # ------------------------------------------------------------------ entities and layout (1100 x 400)
 ENT = {
-    "client": ("Client workload", "wimse://peer.../client", 30, 40, 190, 64),
-    "ttsa": ("TTS-A / AS-A", ":5051", 260, 40, 170, 64),
-    "maurice": ("Maurice (agent 1)", ":5050", 30, 290, 190, 64),
-    "attacker": ("Attacker URL", ":47999", 260, 420, 170, 64),
-    "asb": ("AS-B / TTS-B", ":5061", 500, 40, 190, 64),
+    "client": ("Client workload", "wimse://peer.../client", 20, 40, 170, 64),
+    "ttsa": ("TTS-A / AS-A", ":5051", 290, 40, 150, 64),
+    "maurice": ("Maurice (agent 1)", ":5050", 20, 290, 170, 64),
+    "attacker": ("Attacker URL", ":47999", 290, 420, 150, 64),
+    "asb": ("AS-B / TTS-B", ":5061", 500, 165, 190, 64),
     "coord": ("Coordinator (agent 2)", ":5060", 500, 290, 190, 64),
     "research": ("Research (agent 3)", ":5062", 720, 290, 180, 64),
     "filetool": ("File Tool", ":5063", 920, 290, 150, 64),
@@ -225,8 +226,8 @@ def exchanges(capture, ports):
 
 # ------------------------------------------------------------------ narration
 BCHAIN = [
-    ("client", "ttsa", "Alice's request starts: the client asks Domain A's token service for a Transaction Token with scope files:read files:list. No WIT or signature yet.", ["txn"]),
-    ("client", "maurice", "The client calls Maurice (agent 1) with its WIT, an HTTP signature and the Domain A token. Maurice runs a side workflow; it does not forward the call.", ["wit", "sig", "txn"]),
+    ("client", "ttsa", "Alice's request starts. The client asks Domain A's token service for a Transaction Token with scope files:read files:list. This first call carries no WIT and no signature; the reply is a Transaction Token, not a WIT.", ["txn"]),
+    ("client", "maurice", "The client calls Maurice (agent 1) with its WIT, an HTTP signature and the Domain A token. The WIT is a badge the test harness mints locally; no message on the wire fetches it, so this is where it first appears. Maurice runs a side workflow; it does not forward the call.", ["wit", "sig", "txn"]),
     ("client", "ttsa", "To cross to Domain B, the client exchanges the Domain A token at AS-A for a cross-domain grant. The Domain A token stays in Domain A.", ["chain"]),
     ("client", "asb", "The client redeems the grant at AS-B and receives a Domain B access token.", ["chain"]),
     ("client", "coord", "The client calls Domain B's Coordinator (agent 2) with its WIT, the access token and a signature.", ["wit", "sig"]),
@@ -243,6 +244,109 @@ CALLERS = {  # who calls, when it is not the client (index -> entity), from the 
 ROLE = {"ttsa": "the Domain A token service", "maurice": "Maurice", "asb": "Domain B's token service (AS-B / TTS-B)",
         "coord": "the Coordinator", "research": "the Research agent", "filetool": "the File Tool",
         "executor": "the loopback executor"}
+
+
+JWT_RE = re.compile(r"eyJ[\w-]+\.[\w-]+\.[\w-]*")
+TOKEN_KIND = {"wit+jwt": "WIT", "wpt+jwt": "WPT", "txntoken+jwt": "Transaction Token", "at+jwt": "Access token",
+              "jwt-chg+jwt": "Cross-domain grant"}
+KIND_WORDS = {"WIT": "workload identity token", "WPT": "workload proof token", "Transaction Token": "Txn-Token",
+              "Access token": "OAuth access token", "Cross-domain grant": "RFC 7523 JWT assertion"}
+
+
+def decode_jwt(tok):
+    try:
+        hdr, pl = (json.loads(base64.urlsafe_b64decode(x + "=" * (-len(x) % 4))) for x in tok.split(".")[:2])
+        return hdr, pl
+    except (ValueError, TypeError, IndexError):
+        return None
+
+
+def claim_line(kind, pl):
+    aud = pl.get("aud")
+    aud = ", ".join(aud) if isinstance(aud, list) else aud
+    if kind == "WPT":
+        return f"proof for {aud}; binds the WIT (wth)" + (" and the Transaction Token (tth)" if pl.get("tth") else "")
+    if kind == "WIT":
+        alg = (pl.get("cnf") or {}).get("jwk", {}).get("alg")
+        return f"workload {pl.get('sub')}, issued by {pl.get('iss')}" + (f", key {alg}" if alg else "")
+    bits = []
+    if pl.get("sub"):
+        bits.append(f"for {pl['sub']}")
+    if pl.get("scope"):
+        bits.append(f"scope {pl['scope']}")
+    if aud:
+        bits.append(f"audience {aud}")
+    if pl.get("req_wl"):
+        bits.append(f"requester {pl['req_wl']}")
+    if pl.get("exp") and pl.get("iat"):
+        bits.append(f"valid {pl['exp'] - pl['iat']} s")
+    return ", ".join(bits)
+
+
+def token_info(tok, where):
+    d = decode_jwt(tok)
+    if not d:
+        return None
+    hdr, pl = d
+    kind = TOKEN_KIND.get(hdr.get("typ", ""), f"JWT ({hdr.get('typ', '?')})")
+    note = "Minted locally by the test harness; no message on the wire fetches it." if kind == "WIT" else ""
+    return {"kind": kind, "what": KIND_WORDS.get(kind, ""), "where": where, "line": claim_line(kind, pl), "note": note, "header": hdr, "claims": pl}
+
+
+def tokens_in(headers, body):
+    out = []
+    for hd in headers:
+        name = hd.split(":", 1)[0]
+        for m in JWT_RE.finditer(hd):
+            scheme = hd.split(":", 1)[1].split()[0] if name.lower() == "authorization" and ":" in hd else ""
+            t = token_info(m.group(), f"header {name}" + (f" ({scheme})" if scheme and not scheme.startswith("eyJ") else ""))
+            if t:
+                out.append(t)
+    for m in re.finditer(r'"([\w-]+)":\s*"(eyJ[\w.-]+)"', body or ""):
+        t = token_info(m.group(2), f'body field "{m.group(1)}"')
+        if t:
+            out.append(t)
+    return out
+
+
+def reply_of(h, returned):
+    """Short and long plain-language summary of a response."""
+    m = re.match(r"HTTP/\S+ (\d{3})\s*(.*)", h["resp"]["line"])
+    status, phrase = int(m.group(1)), m.group(2)
+    try:
+        b = json.loads(h["resp"]["body"])
+    except ValueError:
+        b = {}
+    b = b if isinstance(b, dict) else {}
+    head = f"{status} {phrase}".strip()
+    if returned:
+        kinds = " + ".join(dict.fromkeys(t["kind"] for t in returned))
+        return {"status": status, "short": f"{status}: returns {kinds}",
+                "long": f"{head}. Returns " + "; ".join(f"a {t['kind']} ({t['line']})" for t in returned) + "."}
+    if status >= 400:
+        ptype = str(b.get("type", ""))
+        ptype = "" if ptype == "about:blank" else ptype.rsplit("/", 1)[-1]
+        why = b.get("reason") or b.get("error") or ptype or b.get("title")
+        return {"status": status, "short": f"{status}: refused" + (f" ({why})" if why else ""),
+                "long": f"{head}. The request is refused" + (f": {why}." if why else ".")}
+    if "decision" in b:
+        why = f" ({b['reason']})" if b.get("reason") else ""
+        return {"status": status, "short": f"{status}: {b['decision']}{why}", "long": f"{head}. Decision: {b['decision']}{why}; effect: {b.get('effect', 'n/a')}."}
+    if b.get("state"):
+        return {"status": status, "short": f"{status}: workflow {b['state']}", "long": f"{head}. Maurice ran the workflow {b.get('workflow_id', '')}: state {b['state']} ({b.get('duration_ms', '?')} ms)."}
+    if "file" in b and "content" in b:
+        inj = " Its content includes the test's prompt-injection text." if "PROMPT INJECTION" in str(b["content"]) else ""
+        return {"status": status, "short": f"{status}: returns file {b['file']}", "long": f"{head}. Returns the file {b['file']}.{inj}"}
+    if "summary" in b:
+        return {"status": status, "short": f"{status}: result {b['summary']}", "long": f"{head}. The agent's result: {b['summary']} (file status {b.get('file_status')}, credentials leaked: {b.get('leaked_credentials')})."}
+    keys = ", ".join(list(b)[:3])
+    return {"status": status, "short": f"{status}" + (f": JSON ({keys})" if keys else ""), "long": head + (f". JSON with: {keys}." if keys else ".")}
+
+
+def enrich(h):
+    sent = tokens_in(h["req"]["headers"], h["req"]["body"])
+    returned = tokens_in([], h["resp"]["body"])
+    return {"sent": sent, "returned": returned}, reply_of(h, returned)
 
 
 def eli5_for(cid):
@@ -690,6 +794,7 @@ def main():
             if h and s.get("capture"):
                 pkts = label_packets(pk[s["capture"]["file"]][h["stream"]])
                 st["packets"] = pkts
+                st["tokens"], st["reply"] = enrich(h)
                 h["req_first"] = min((p["n"] for p in pkts if p["kind"] == "content" and p["dir"] == "c2s"), default=h["frame"])
                 h["resp_first"] = min((p["n"] for p in pkts if p["kind"] == "content" and p["dir"] == "s2c"), default=h["resp_frame"])
     for s in scens:

@@ -102,7 +102,7 @@ function renderIndex() {
 
 /* ------------------------------------------------------------------ scenario page */
 const PANELS = [["entities", "Entities"], ["sequence", "Sequence"], ["message", "Message"], ["packets", "Packets"], ["comment", "Comment"], ["drafts", "Drafts"], ["verdict", "Checker"], ["timeline", "Timeline"]];
-const S = { sc: null, step: 0, brk: -1, full: false, timer: null, panels: store.get("wimse-panels", {}) };
+const S = { sc: null, step: 0, brk: -1, full: false, timer: null, panels: { packets: false, ...store.get("wimse-panels", {}) } };
 
 function viewSteps() {
   const sc = S.sc;
@@ -113,11 +113,12 @@ function viewSteps() {
       const st = steps[b.set_status.step];
       st.label = st.label.replace(/->\s+\d{3}/, "-> " + b.set_status.status); st.result = false; st.mutated = true;
       st.comment = `The mutant: this hop's 200 was changed to ${b.set_status.status}. The set of statuses in the case is unchanged, so only a hop-by-hop comparison notices. Switch back to "Real capture" to compare.`;
+      st.reply = { status: b.set_status.status, short: `${b.set_status.status}: refused (changed in the mutant)`, long: st.comment };
       st.verdict = { expected: st.verdict ? st.verdict.expected : "", observed: String(b.set_status.status), ok: false, note: "changed in the mutant capture" };
       if (st.http) st.http = { ...st.http, resp: { ...st.http.resp, line: `HTTP/1.1 ${b.set_status.status} Forbidden` } };
     }
     if (b.add_step) steps.push({ ...b.add_step, injected: true });
-    if (b.strip_responses) steps = steps.map((x) => ({ ...x, label: x.label.replace(/\s+->\s+.*$/, "  (no response)"), result: false, stripped: true, verdict: { expected: x.verdict ? x.verdict.expected : "", observed: "no response", ok: false, note: "responses removed from the capture" } }));
+    if (b.strip_responses) steps = steps.map((x) => ({ ...x, label: x.label.replace(/\s+->\s+.*$/, "  (no response)"), result: false, stripped: true, reply: null, tokens: x.tokens ? { sent: x.tokens.sent, returned: [] } : x.tokens, verdict: { expected: x.verdict ? x.verdict.expected : "", observed: "no response", ok: false, note: "responses removed from the capture" } }));
   }
   return steps;
 }
@@ -163,6 +164,10 @@ function drawEntities(steps) {
     const good = st.result !== false && !st.injected;
     svg.append(sv("line", { class: "arr " + (good ? "good" : "bad") + (i === S.step ? " cur" : " old") + (st.dashed ? " dash" : ""), x1: sx, y1: sy, x2: ex, y2: ey, "marker-end": `url(#e-${good ? "ok" : "bad"})` }),
       sv("text", { x: (sx + ex) / 2, y: (sy + ey) / 2 - 4, "text-anchor": "middle", "font-size": 13, "font-weight": i === S.step ? "bold" : "normal" }, String(i + 1)));
+    if (i === S.step && st.reply && st.http && !st.stripped) {  // the reply, drawn beside the request
+      const rbad = st.reply.status >= 400, ox = (nx / len) * 13, oy = (ny / len) * 13;
+      svg.append(sv("line", { class: "arr cur dash " + (rbad ? "bad" : "good"), x1: ex + ox, y1: ey + oy, x2: sx + ox, y2: sy + oy, "marker-end": `url(#e-${rbad ? "bad" : "ok"})` }));
+    }
   });
   return svg;
 }
@@ -170,7 +175,11 @@ function drawEntities(steps) {
 function drawSequence(steps) {
   const sc = S.sc, ents = sc.entities, n = ents.length, W = 1100, left = 20, bw = Math.min(190, (W - 40) / n - 8);
   const step = (W - 40 - bw) / Math.max(n - 1, 1), xs = ents.map((_, i) => (n === 1 ? W / 2 : left + bw / 2 + i * step));
-  const row = 48, top = 92, H = top + steps.length * row + 20;
+  const top = 92, rowReq = 44, rowRep = 38;
+  const hasReply = (st) => !!(st.reply && st.http && !st.stripped);
+  const ys = []; let yy = top;
+  steps.forEach((st) => { ys.push(yy); yy += rowReq + (hasReply(st) ? rowRep : 0); });
+  const H = yy + 12;
   const svg = sv("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", role: "img", "aria-label": "Sequence of messages" });
   svg.append(heads("s"));
   ents.forEach((e, i) => {
@@ -178,16 +187,25 @@ function drawSequence(steps) {
       sv("line", { class: "life", x1: xs[i], y1: 56, x2: xs[i], y2: H - 6 }));
   });
   const idx = Object.fromEntries(ents.map((e, i) => [e.id, i]));
+  const arrow = (a, b, y, bad, cur, dashed) => sv("line", { class: "arr " + (bad ? "bad" : "good") + (cur ? " cur" : " old") + (dashed ? " dash" : ""), x1: xs[a], y1: y, x2: xs[b] + (xs[b] > xs[a] ? -2 : 2), y2: y, "marker-end": `url(#s-${bad ? "bad" : "ok"})` });
+  const label = (text, a, b, y, cur, bad, full, mark = true) => {
+    const x = Math.min(xs[a], xs[b]) + 10, max = Math.floor((W - 14 - x) / 6.3);
+    const t = sv("text", { class: "lbl", x, y: y - 7, "text-anchor": "start", "font-size": 12.5, "font-weight": cur ? "bold" : "normal" }, text.length > max ? text.slice(0, max - 1) + "\u2026" : text);
+    if (mark) t.append(sv("tspan", { class: "mk " + (bad ? "bad" : "ok") }, bad ? " \u2717" : " \u2713"));
+    t.append(sv("title", {}, full || text));
+    return t;
+  };
   steps.slice(0, S.step + 1).forEach((st, i) => {
-    const a = idx[st.from], b = idx[st.to], y = top + i * row, isCur = i === S.step;
+    const a = idx[st.from], b = idx[st.to], y = ys[i], cur = i === S.step;
     if (a == null || b == null) return;
     const bad = st.injected || st.result === false;
-    const label = `${i + 1}. ${st.label}`;
-    svg.append(sv("line", { class: "arr " + (bad ? "bad" : "good") + (isCur ? " cur" : " old") + (st.dashed ? " dash" : ""), x1: xs[a], y1: y, x2: xs[b] + (xs[b] > xs[a] ? -2 : 2), y2: y, "marker-end": `url(#s-${bad ? "bad" : "ok"})` }));
-    const mx = (xs[a] + xs[b]) / 2, lw = Math.abs(xs[a] - xs[b]);
-    const t = sv("text", { x: mx, y: y - 7, "text-anchor": "middle", "font-size": 12.5, "font-weight": isCur ? "bold" : "normal" }, lw < 260 && label.length * 6.2 > lw + 120 ? label.slice(0, Math.floor((lw + 120) / 6.2) - 1) + "…" : label);
-    t.append(sv("tspan", { class: "mk " + (bad ? "bad" : "ok") }, bad ? " ✗" : " ✓"));
-    svg.append(t);
+    if (hasReply(st)) {  // request, then the reply coming back
+      const rbad = st.reply.status >= 400, y2 = y + rowReq - 4;
+      svg.append(arrow(a, b, y, false, cur, false), label(`${i + 1}. ${st.label.replace(/\s+->\s+.*$/, "")}`, a, b, y, cur, false, "", false));
+      svg.append(arrow(b, a, y2, rbad, cur, true), label(st.reply.short, b, a, y2, cur, rbad, st.reply.long));
+    } else {
+      svg.append(arrow(a, b, y, bad, cur, st.dashed), label(`${i + 1}. ${st.label}`, a, b, y, cur, bad));
+    }
   });
   return svg;
 }
@@ -218,6 +236,18 @@ function fmtHttp(line, headers, body, resp) {
   return frag;
 }
 
+function tokensBox(st) {
+  const tk = st.tokens, box = el("div", { class: "toks" });
+  if (!tk || (!tk.sent.length && !tk.returned.length)) return box;
+  box.append(el("h4", {}, "Tokens in this exchange (decoded)"));
+  const item = (t, dir) => el("details", { class: "tokitem" },
+    el("summary", {}, el("span", { class: "tdir " + dir }, dir), " ", el("b", {}, t.kind), t.what ? ` (${t.what})` : "", t.line ? ": " + t.line : ""),
+    el("p", { class: "muted", style: "margin:4px 0" }, t.where + (t.note ? ". " + t.note : "")),
+    el("pre", {}, JSON.stringify({ header: t.header, claims: t.claims }, null, 2)));
+  box.append(...tk.returned.map((t) => item(t, "returned")), ...tk.sent.map((t) => item(t, "sent")));
+  return box;
+}
+
 function panelMessage(st) {
   const sc = S.sc, box = el("div", { class: "msg" });
   if (st.http) {
@@ -225,6 +255,7 @@ function panelMessage(st) {
     box.append(el("div", { class: "meta" }, (h.req_first && h.req_first !== h.frame ? `Request: frames ${h.req_first}\u2013${h.frame}` : `Request: frame ${h.frame}`) + (stripped ? "" : `; response: frame ${h.resp_frame}`) + `; TCP stream ${h.stream}`),
       el("h4", {}, "Request"), el("pre", {}, fmtHttp(h.req.line, h.req.headers, h.req.body, false)),
       el("h4", {}, "Response"), el("pre", {}, stripped ? "(removed in this mutant capture)" : fmtHttp(h.resp.line, h.resp.headers, h.resp.body, true)));
+    box.append(tokensBox(st));
     const cmd = `tshark -r ${cap.file.split("/").pop()} ${sc.capture.file.includes("chain") ? "-d tcp.port==5051,http -d tcp.port==5060,http -d tcp.port==5061,http -d tcp.port==5062,http -d tcp.port==5063,http -d tcp.port==5064,http " : "-d tcp.port==5050,http "}-Y "frame.number==${h.frame}" -V`;
     box.append(el("div", { class: "row" }, el("pre", {}, cmd), copyButton(() => cmd)),
       el("div", { class: "row" }, el("span", {}, "Wireshark filter: "), el("code", {}, `frame.number == ${h.frame}`), copyButton(() => `frame.number == ${h.frame}`), el("a", { href: cap.url }, "Download the capture (.pcap)")));
@@ -314,7 +345,7 @@ function render() {
   history.replaceState(null, "", `#${sc.id}/${S.step + 1}` + (S.brk >= 0 ? `/b${S.brk + 1}` : ""));
   const put = (id, node) => { const p = $("#p-" + id + " .body"); p.replaceChildren(node); };
   put("entities", drawEntities(steps)); put("sequence", drawSequence(steps)); put("message", panelMessage(st)); put("packets", panelPackets(st));
-  put("comment", el("p", { style: "margin:0;font-size:16px" }, st.comment || ""));
+  put("comment", el("div", {}, el("p", { style: "margin:0;font-size:16px" }, st.comment || ""), st.reply ? el("p", { style: "margin:8px 0 0;font-size:15px" }, el("b", {}, "Reply: "), st.reply.long) : ""));
   put("drafts", panelDrafts(st)); put("verdict", panelVerdict(st, last)); put("timeline", panelTimeline(steps));
   const bk = $("#brk"); bk.replaceChildren();
   if (sc.breaks.length) {
