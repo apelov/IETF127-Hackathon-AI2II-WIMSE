@@ -32,7 +32,7 @@ TABLE_GRID = "{5940675A-B579-460E-94D1-54222C63F5DA}"  # built-in "No Style, Tab
 
 # Evidence classes, strongest first.
 CLASSES = {
-    "wire": ("Wire", "Real implementations ran here; recorded in a capture; checked by an independent packet checker"),
+    "wire": ("Wire", "Ran here and recorded in a capture, checked by an independent packet checker. Only Maurice is a third-party implementation"),
     "record": ("Partner record", "The partner ran its own code; the record is committed and hashed here, not re-run"),
     "report": ("Partner report", "Reported by the partner by email; no record in the repository yet"),
     "sim": ("Simulated / replayed", "Our code with a fake clock, or a recorded outcome played back"),
@@ -153,10 +153,19 @@ LIMITS = [
     ("Suite 1 reasons", "Maurice's error bodies carry no reason member; the driver checks reasons in Maurice's own log"),
     ("Case labels", "Cases are named by an unsigned header; C9, C9b and D4 have the same hop and could be swapped in a forged capture"),
     ("D5 and D6", "The driver's outbound guard (D5) and its rejection of widened or altered tokens (D6) are not on the wire"),
-    ("Test peers", "test_mode is read from request bodies; /admin/revoke has no authentication. No published result depends on them"),
+    ("Token services", "TTS-A and TTS-B do not authenticate callers (txn-tokens-11 s11.3, s11.5) and use custom JSON, not RFC 8693 forms (s11.1; identity-chaining-17 s2.3-2.4). Fix in progress; chain to be re-recorded"),
+    ("Test peers", "test_mode is read from request bodies; /admin/revoke has no authentication; Coordinator and Research share one key. Test stand-ins"),
+    ("Chain independence", "In B_CHAIN only Maurice (hop 2) is independent; all other signers and verifiers, including the WPT at hop 9, are our own code. Interop evidence: the 34 Suite 1 cases"),
     ("Checker independence", "Nemotron wrote the checkers; Claude and Gemini, which wrote the peers, edited them later: separation is partial"),
-    ("Revocation", "Our harness's own revocation cases are simulated, replayed or mocked. Partner evidence: Redthread P1-P6 on a simulated clock; Redthread's 17 Nov P2 calls to the MintID sandbox were real"),
+    ("Maurice policy", "IN6, C12, C12b (issuer allowlist) and IN15, A13j (grants) are Maurice configuration, not draft conformance. A5, IN13 expect 401 (wpt-02 s2.1); http-signature-08 s3.6 says 400, not 401: the drafts disagree"),
+    ("Revocation", "C10, P1, P2, P8 and the MintID traces test partner designs and our harness, not an IETF WIMSE draft (workload-creds-03 s9.3.1 defines no WIT revocation). Our own cases are simulated, replayed or mocked"),
 ]
+
+
+# Subtitles that replace the question on a case slide where the question alone would mislead.
+SUBTITLE = {
+    "revocation": "Tests partner designs and our harness, not a WIMSE draft: workload-creds-03 9.3.1 defines no revocation of WITs",
+}
 
 
 def check_coverage():
@@ -412,7 +421,7 @@ def main():
     text(s, 0.8, 2.3, 11.7, 0.9, "WIMSE interop at the IETF 127 Hackathon", size=36, bold=True)
     text(s, 0.8, 3.3, 11.7, 0.5, "What was tested, how it was tested, and how far each result can be trusted", size=20)
     text(s, 0.8, 4.4, 11.7, 1.2,
-         "Implementations: AgentMaurice and the Domain B reference agents (named RICH); partners Redthread Security, MintID, OmniArx, Cred\n"
+         "Implementations: AgentMaurice (the only third-party one) and our Domain B reference agents (named RICH); partners Redthread Security, MintID, OmniArx, Cred\n"
          "Evidence: github.com/apelov/IETF127-Hackathon-AI2II-WIMSE (TEST_RESULTS_SUMMARY.md, EVIDENCE.md)\n"
          "Every count in this deck is generated from the case files in the repository", size=14)
 
@@ -446,7 +455,7 @@ def main():
 
     # 5. B_CHAIN sequence
     s = new_slide()
-    title(s, "Suite 2: the two-domain chain, B_CHAIN (9 hops)", "Every hop is in the capture; the checker compares each hop's port, status and reason, in order")
+    title(s, "Suite 2: the two-domain chain, B_CHAIN (9 hops)", "Every hop is captured and checked in order. Only Maurice (hop 2) is third-party; every other hop is our own code")
     bchain_sequence(s)
 
     # 6. P2 sequence
@@ -504,7 +513,7 @@ def main():
             chunk = cases[part:part + per]
             s = new_slide()
             suffix = f" ({part // per + 1}/{pages})" if pages > 1 else ""
-            title(s, name + suffix, question)
+            title(s, name + suffix, SUBTITLE.get(g, question))
             rows = [("Case", "Test", "In plain words", "Expected", "Evidence")]
             rows += [(c["case"], c["test"], c["eli5"], c["expected"], CLASSES[c["cls"]][0]) for c in chunk]
             table(s, 0.5, 1.5, 12.33, [2.45, 2.85, 3.45, 2.18, 1.4], rows, size=12, row_h=0.62)
@@ -512,7 +521,7 @@ def main():
     # Last: limits
     s = new_slide()
     title(s, "What the evidence does not show", "Listed in TEST_RESULTS_SUMMARY.md; found by the Mistral Vibe reviews of 17 Nov")
-    table(s, 0.5, 1.5, 12.33, [2.6, 9.73], [("Limit", "Consequence")] + LIMITS, size=14, row_h=0.7)
+    table(s, 0.5, 1.5, 12.33, [2.6, 9.73], [("Limit", "Consequence")] + LIMITS, size=11, row_h=0.5)
 
     prs.save(OUT)
     print(f"saved {OUT.name}: {len(prs.slides)} slides, {sum(c['n'] for c in CASES)} cases/runs/captures")

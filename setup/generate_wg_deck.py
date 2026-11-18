@@ -134,7 +134,7 @@ def slide_method(s):
     title(s, "Method: how a result earns its class", "Rectangles are steps; every result ends with exactly one evidence class")
     top = [
         "Scenarios\nfrom drafts and partners",
-        "Implementations\nbuilt separately",
+        "Implementations\nMaurice is third-party",
         "Run on loopback\ncapture every packet",
         "Independent checker\nother model family",
         "Must reject\nnegative captures",
@@ -167,19 +167,20 @@ def slide_example(s):
 def slide_results(s):
     title(s, "Results by question and evidence class", None)
     text(s, 0.5, 0.95, 12.3, 0.55,
-         "Identity, proof and scope interoperate on the wire across two domains. Revocation is shown mostly by partner records, not yet on our wire.",
+         "Identity, proof and scope checks pass on the wire; only Maurice is an independent implementation, the rest of the chain is our own code. "
+         "Revocation is shown mostly by partner records, not yet on our wire.",
          size=15, bold=True)
     table(s, 0.5, 1.65, 12.33, MATRIX_COLS, matrix_rows(), size=13, row_h=0.45)
 
 
 def slide_findings(s):
-    title(s, "What we learned for the drafts", "Each finding names the evidence it rests on and its class")
+    title(s, "What we learned for the drafts", "Each finding names its evidence and class. Revocation rows concern partner designs, not an IETF WIMSE draft")
     table(s, 0.5, 1.45, 12.33, [6.4, 2.95, 2.98], FINDINGS, size=11, row_h=0.6)
 
 
 def slide_limits(s):
     title(s, "Limits and next steps", "Details in TEST_RESULTS_SUMMARY.md; the full case list is in the test catalog deck")
-    table(s, 0.5, 1.45, 6.6, [1.75, 4.85], [("Limit", "What it means")] + LIMITS, size=11, row_h=0.62)
+    table(s, 0.5, 1.45, 6.6, [1.75, 4.85], [("Limit", "What it means")] + LIMITS, size=9, row_h=0.45)
     table(s, 7.35, 1.45, 5.48, [3.6, 1.88], ASKS, size=11, row_h=0.62)
 
 
