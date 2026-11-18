@@ -1,0 +1,596 @@
+{
+ "A2": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-http-signature-08 s3",
+  "note": "Valid WIT plus valid HTTP signature to a granted workload is accepted; Maurice decides (cases.json:5)."
+ },
+ "A3": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-http-signature-08 s3.6",
+  "note": "Server not supporting response signing MUST return 501 with problem type wimse-signed-response-unsupported."
+ },
+ "A4": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-wpt-02 s2",
+  "note": "Valid WIT plus valid WPT is accepted."
+ },
+ "A5": {
+  "basis": "draft-silent",
+  "independent": true,
+  "draft": "draft-ietf-wimse-http-signature-08 s3 / wpt-02 s2.1",
+  "note": "No WIMSE signature and no WPT: http-signature-08 defines no error for an absent signature; 401+WWW-Authenticate: WPT is only a wpt-02 s2.1 SHOULD for WPT-related rejects, and http-signature-08 s3.6 calls 401 NOT RECOMMENDED."
+ },
+ "A6a": {
+  "basis": "draft-silent",
+  "independent": true,
+  "draft": "draft-ietf-wimse-http-signature-08 s3.6",
+  "note": "No draft says what a receiver does with an extra X-API-Key header; 400 is Maurice's behaviour (journal reason mixed-credentials)."
+ },
+ "A6b": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-wpt-02 s2, s2.2",
+  "note": "Receiver check 'exactly one Authorization header field ... WPT scheme'; Bearer alongside WPT is rejected; 400 or 401 both accepted by the case."
+ },
+ "A12a": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-workload-creds-03 s5.1; draft-ietf-wimse-http-signature-08 s3.1",
+  "note": "Ed25519 is the fully-specified alg used in the draft examples; valid proof must be accepted (HTTP-sig)."
+ },
+ "A12b": {
+  "basis": "implementation-policy",
+  "independent": true,
+  "draft": "draft-ietf-wimse-http-signature-08 s3.1",
+  "note": "EdDSA is the deprecated alias; creds-03 s5.1 only requires an IANA-registered alg and http-sig s3.1 lets the recipient reject algs 'not acceptable under local policy', so accepting EdDSA is Maurice policy (HTTP-sig)."
+ },
+ "A12c": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-workload-creds-03 s5.1; draft-ietf-wimse-http-signature-08 s3.1",
+  "note": "Ed25519 is the fully-specified alg used in the draft examples; valid proof must be accepted (WPT)."
+ },
+ "A12d": {
+  "basis": "implementation-policy",
+  "independent": true,
+  "draft": "draft-ietf-wimse-http-signature-08 s3.1",
+  "note": "EdDSA is the deprecated alias; creds-03 s5.1 only requires an IANA-registered alg and http-sig s3.1 lets the recipient reject algs 'not acceptable under local policy', so accepting EdDSA is Maurice policy (WPT)."
+ },
+ "A13a": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-identifier-04 s4.1; draft-ietf-wimse-http-signature-08 s3.6",
+  "note": "Identifier with no path MUST be rejected (path required / no dot segments, decoded or literal); 400 from http-signature-08 s3.6."
+ },
+ "A13b": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-identifier-04 s4.1; draft-ietf-wimse-http-signature-08 s3.6",
+  "note": "Identifier with \"./\" segment MUST be rejected (path required / no dot segments, decoded or literal); 400 from http-signature-08 s3.6."
+ },
+ "A13c": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-identifier-04 s4.1; draft-ietf-wimse-http-signature-08 s3.6",
+  "note": "Identifier with \"../\" segment MUST be rejected (path required / no dot segments, decoded or literal); 400 from http-signature-08 s3.6."
+ },
+ "A13d": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-identifier-04 s4.1; draft-ietf-wimse-http-signature-08 s3.6",
+  "note": "Identifier with %2E%2E segment (decodes to a dot segment) MUST be rejected (path required / no dot segments, decoded or literal); 400 from http-signature-08 s3.6."
+ },
+ "A13e": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-identifier-04 s4.1; draft-ietf-wimse-http-signature-08 s3.6",
+  "note": "Identifier MUST NOT contain port; 400 from http-signature-08 s3.6 (case also tolerates untrusted-trust-domain as the reason)."
+ },
+ "A13f": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-identifier-04 s4.1; draft-ietf-wimse-http-signature-08 s3.6",
+  "note": "Identifier MUST NOT contain query; 400 from http-signature-08 s3.6."
+ },
+ "A13g": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-identifier-04 s4.1; draft-ietf-wimse-http-signature-08 s3.6",
+  "note": "Identifier MUST NOT contain fragment; 400 from http-signature-08 s3.6."
+ },
+ "A13h": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-identifier-04 s4.1; draft-ietf-wimse-http-signature-08 s3.6",
+  "note": "Identifier MUST NOT contain userinfo; 400 from http-signature-08 s3.6 (case also tolerates untrusted-trust-domain as the reason)."
+ },
+ "A13i": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-identifier-04 s4.3 (RFC 3986 s6.2.2)",
+  "note": "Host case and decoded unreserved %7E follow from RFC 3986 s6.2.2 normalization, which the draft requires; the draft does not mention %7E literally; the grant table itself is Maurice config."
+ },
+ "A13j": {
+  "basis": "implementation-policy",
+  "independent": true,
+  "draft": "draft-ietf-wimse-identifier-04 s7.1",
+  "note": "Draft says %2F MUST remain encoded in comparison so /a%2Fb is a different identifier, but the 403 comes from Maurice's grant table (not-authorized)."
+ },
+ "C2": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-http-signature-08 s3, s3.6",
+  "note": "Signature must verify with the key in WIT cnf; mismatch is a failed request authentication, 400."
+ },
+ "C3": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-http-signature-08 s3 (nonce/replay)",
+  "note": "Recipients 'MAY maintain a replay cache and SHOULD reject' a seen nonce; strength is SHOULD, not MUST."
+ },
+ "C4": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-http-signature-08 s3.2, s3.6",
+  "note": "wimse-aud MUST match the recipient's trusted audience values; failure is 400."
+ },
+ "C4b": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-http-signature-08 s3.2",
+  "note": "Audience comparison is Simple String Comparison, so a trailing slash is a mismatch."
+ },
+ "C11": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-workload-creds-03 s3; draft-ietf-wimse-http-signature-08 s3.6",
+  "note": "A credential MUST be validated only against anchors bound to its trust domain; unknown trust domain fails (400)."
+ },
+ "C12": {
+  "basis": "implementation-policy",
+  "independent": true,
+  "draft": "draft-ietf-wimse-workload-creds-03 s5.1.2, s9.1",
+  "note": "Draft supports not resolving iss ('validators are not required to use iss'), but the refusal reason issuer-not-allowed is Maurice's iss allowlist (cases.json C12, no_fetch_port)."
+ },
+ "C12b": {
+  "basis": "implementation-policy",
+  "independent": true,
+  "draft": "draft-ietf-wimse-workload-creds-03 s9.1",
+  "note": "Trust entry without iss allowlist: outcome (400 or 403, three accepted reasons) depends on Maurice's trust configuration; only the no-fetch check is draft-backed."
+ },
+ "IN4": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-workload-creds-03 s5.1.4/s5.3; draft-ietf-wimse-http-signature-08 s3.6",
+  "note": "Expired validity window is an authentication failure; 400."
+ },
+ "IN6": {
+  "basis": "implementation-policy",
+  "independent": true,
+  "draft": "draft-ietf-wimse-workload-creds-03 s5.1.2",
+  "note": "iss is RECOMMENDED-but-optional and validators are not required to use it; the allowlist is Maurice config."
+ },
+ "IN10": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-http-signature-08 s3",
+  "note": "Receiver MUST verify Content-Digest; mismatch is 400."
+ },
+ "IN11": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-http-signature-08 s3",
+  "note": "'If more than one signature has that tag value, the recipient MUST reject the message.'"
+ },
+ "IN12": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-http-signature-08 s3",
+  "note": "keyid MUST NOT be used (sender rule); recipient rejection with 400 is inferred from s3.6 'malformed data structure'."
+ },
+ "IN13": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-wpt-02 s2, s2.1",
+  "note": "WPT alg MUST match cnf jwk alg; 401+WWW-Authenticate: WPT is wpt-02 s2.1 SHOULD but conflicts with http-signature-08 s3.6 (400, 401 NOT RECOMMENDED); our own peers/wimse.py:422 treats Ed25519/EdDSA as equal so would accept this input."
+ },
+ "IN15": {
+  "basis": "implementation-policy",
+  "independent": true,
+  "draft": "",
+  "note": "Authorization of a valid identity is Maurice's grant table; no draft defines it."
+ },
+ "B_CHAIN": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-oauth-transaction-tokens-11 s11-12; draft-ietf-wimse-http-signature-08",
+  "note": "Normal-path 9-hop run; only hop 2 (Maurice :5050, chain_driver.py:145-175) is an independent decider, all other signers/verifiers are peers/wimse.py on both ends."
+ },
+ "C5": {
+  "basis": "draft-required",
+  "independent": false,
+  "draft": "draft-ietf-wimse-http-signature-08 s3",
+  "note": "Txn-Token MUST be signed when present, so swapping it breaks the signature; both signer and verifier are peers/wimse.py (domain_b.py:560). Peer returns distinct reason in body, see contradictions."
+ },
+ "C6": {
+  "basis": "draft-required",
+  "independent": false,
+  "draft": "draft-ietf-oauth-transaction-tokens-11 s9.2",
+  "note": "'A Txn-Token MUST NOT be accepted outside the Trust Domain identified by the aud claim'; 403 code is ours; the driver also blocks the send client-side (chain_driver.py:77-90)."
+ },
+ "C7": {
+  "basis": "implementation-policy",
+  "independent": false,
+  "draft": "draft-ietf-oauth-transaction-tokens-11 s9.2 (tctx)",
+  "note": "tctx is RECOMMENDED and application-defined; refusal comes from the file tool comparing tctx.file (domain_b.py:628); the 'injection' is a follow_injection flag in a scripted agent (domain_b.py:486), no LLM."
+ },
+ "C8": {
+  "basis": "implementation-policy",
+  "independent": false,
+  "draft": "draft-ietf-oauth-transaction-tokens-11 s9.2 (tctx)",
+  "note": "Same mechanism as C7: scripted follow_injection request refused by tctx.file mismatch; no credential-exfiltration logic beyond checking 'eyJ' not in caller_context (domain_b.py:487)."
+ },
+ "C9": {
+  "basis": "implementation-policy",
+  "independent": false,
+  "draft": "",
+  "note": "File tool route policy: /files/read requires a Txn-Token (domain_b.py:599); no draft defines delegated-only routes."
+ },
+ "C9b": {
+  "basis": "implementation-policy",
+  "independent": false,
+  "draft": "",
+  "note": "File tool route policy: /files/index forbids a Txn-Token (domain_b.py:605); no draft defines autonomous-only routes."
+ },
+ "C10": {
+  "basis": "harness-only",
+  "independent": false,
+  "draft": "draft-ietf-wimse-workload-creds-03 s9.3.1",
+  "note": "Revocation is driven by our /admin/revoke endpoint (domain_b.py:536-545); creds-03 s9.3.1 'does not define a revocation mechanism for WITs'."
+ },
+ "D1": {
+  "basis": "draft-required",
+  "independent": false,
+  "draft": "draft-ietf-wimse-http-signature-08 s3",
+  "note": "Txn-Token header present but not in covered components violates 'MUST be signed when they exist'; both ends ours (wimse.py:389)."
+ },
+ "D2": {
+  "basis": "draft-required",
+  "independent": true,
+  "draft": "draft-ietf-wimse-wpt-02 s2, s2.1",
+  "note": "tth MUST match the Txn-Token hash; 401+WWW-Authenticate: WPT is the wpt-02 SHOULD. File-tool hop is ours; an optional second hop to Maurice :5050 (chain_driver.py:702) is independent only when Maurice runs."
+ },
+ "D3_exp": {
+  "basis": "draft-required",
+  "independent": false,
+  "draft": "draft-ietf-oauth-transaction-tokens-11 s12.2",
+  "note": "Downstream MUST verify the Txn-Token is not expired; 403 code is our choice."
+ },
+ "D3_sig": {
+  "basis": "draft-required",
+  "independent": false,
+  "draft": "draft-ietf-oauth-transaction-tokens-11 s12.2",
+  "note": "Downstream MUST validate the JWS signature; 403 code is our choice."
+ },
+ "D3_typ": {
+  "basis": "draft-required",
+  "independent": false,
+  "draft": "draft-ietf-oauth-transaction-tokens-11 s9.1",
+  "note": "typ MUST be txntoken+jwt; 403 code is our choice."
+ },
+ "D3_reqwl": {
+  "basis": "draft-required",
+  "independent": false,
+  "draft": "draft-ietf-oauth-transaction-tokens-11 s9.2",
+  "note": "req_wl is REQUIRED; rejection on absence follows; 403 code is our choice (domain_b.py:591)."
+ },
+ "D3_dup": {
+  "basis": "draft-required",
+  "independent": false,
+  "draft": "draft-ietf-oauth-transaction-tokens-11 s12.1",
+  "note": "'The value of this header MUST be exactly one Txn-Token'; the draft does not say what to do with two header lines, our file tool rejects (domain_b.py:554-558)."
+ },
+ "D4": {
+  "basis": "implementation-policy",
+  "independent": false,
+  "draft": "",
+  "note": "Route requires scope files:read (domain_b.py:616); scope-to-route mapping is deployment policy."
+ },
+ "D5": {
+  "basis": "implementation-policy",
+  "independent": false,
+  "draft": "draft-ietf-oauth-identity-chaining-17 s2.4.2",
+  "note": "AS-B rejects typ at+jwt because it requires typ jwt-chg+jwt (domain_b.py:136-142), a typ the draft does not define; half of the scenario is a driver-side guard (chain_driver.py:1001-1024), not wire. Status 403 vs RFC 6749 s5.2/RFC 7523 s3.1 invalid_grant is unverified here."
+ },
+ "D6": {
+  "basis": "harness-only",
+  "independent": false,
+  "draft": "draft-ietf-oauth-transaction-tokens-11 s13.15, s13.6",
+  "note": "On the wire TTS-A issues four tokens (200); widened/mutated variants come from test_mode (domain_a.py:158-161) and are rejected by the driver helper (domain_a.py:425-452), not by a verifier on the wire."
+ },
+ "D7": {
+  "basis": "draft-required",
+  "independent": false,
+  "draft": "draft-ietf-oauth-identity-chaining-17 s2.4.2, s2.3.3",
+  "note": "aud of the JWT grant MUST identify AS in trust domain B; wrong aud refused by AS-B (domain_b.py:140-149); 403 grant-invalid is our code, RFC 7523 s3.1 defers to RFC 6749 s5.2."
+ },
+ "p2-revoke-upstream": {
+  "basis": "partner-design",
+  "independent": false,
+  "draft": "draft-le-agent-passport-00",
+  "note": "Redthread ProtectedOperation copy with simulated verifier on a fake clock, run in our executor (p2_p7_p8_executor.py:1-12); revocation is not defined by IETF WIMSE."
+ },
+ "p2-before-effect": {
+  "basis": "partner-design",
+  "independent": false,
+  "draft": "draft-le-agent-passport-00",
+  "note": "Redthread ProtectedOperation copy with simulated verifier on a fake clock, run in our executor (p2_p7_p8_executor.py:1-12); revocation is not defined by IETF WIMSE."
+ },
+ "p2-outside-made-up-proof": {
+  "basis": "partner-design",
+  "independent": false,
+  "draft": "MintID protocol / draft-le-agent-passport-00",
+  "note": "Replay of recorded 15 Nov sandbox outcomes by our executor (LIVE_OUTSIDE_VERIFIER unset, p2_p7_p8_executor.py:37); nothing decided live."
+ },
+ "p2-outside-no-agent-answer": {
+  "basis": "partner-design",
+  "independent": false,
+  "draft": "MintID protocol / draft-le-agent-passport-00",
+  "note": "Replay of recorded 15 Nov sandbox outcomes by our executor (LIVE_OUTSIDE_VERIFIER unset, p2_p7_p8_executor.py:37); nothing decided live."
+ },
+ "p7-display-match": {
+  "basis": "partner-design",
+  "independent": false,
+  "draft": "draft-thallapelly-oasnt (not an IETF WIMSE draft)",
+  "note": "Fixed answer: digest string compared with a constant (p2_p7_p8_executor.py:10-12,40); no OmniArx code runs."
+ },
+ "p7-display-mismatch": {
+  "basis": "partner-design",
+  "independent": false,
+  "draft": "draft-thallapelly-oasnt (not an IETF WIMSE draft)",
+  "note": "Fixed answer: digest string compared with a constant (p2_p7_p8_executor.py:10-12,40); no OmniArx code runs."
+ },
+ "p8-no-delegation": {
+  "basis": "partner-design",
+  "independent": false,
+  "draft": "Cred P8 semantics; draft-le-agent-passport-00 for revoked-*",
+  "note": "Fixed status per case name, no Cred code runs (p2_p7_p8_executor.py:10-12)."
+ },
+ "p8-write-under-read": {
+  "basis": "partner-design",
+  "independent": false,
+  "draft": "Cred P8 semantics; draft-le-agent-passport-00 for revoked-*",
+  "note": "Fixed status per case name, no Cred code runs (p2_p7_p8_executor.py:10-12)."
+ },
+ "p8-revoked-between-authz-and-use": {
+  "basis": "partner-design",
+  "independent": false,
+  "draft": "Cred P8 semantics; draft-le-agent-passport-00 for revoked-*",
+  "note": "Fixed status per case name, no Cred code runs (p2_p7_p8_executor.py:10-12)."
+ },
+ "p8-revoked-after-token-released": {
+  "basis": "partner-design",
+  "independent": false,
+  "draft": "Cred P8 semantics; draft-le-agent-passport-00 for revoked-*",
+  "note": "Fixed status per case name, no Cred code runs (p2_p7_p8_executor.py:10-12)."
+ },
+ "redthread-p1-confirmed-revocation": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "draft-le-agent-passport-00",
+  "note": "Redthread's own verifier on a simulated clock; status-list fail-closed semantics are Redthread/MintID design, not a WIMSE draft."
+ },
+ "redthread-p1-expired-cache": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "draft-le-agent-passport-00",
+  "note": "Redthread's own verifier on a simulated clock; status-list fail-closed semantics are Redthread/MintID design, not a WIMSE draft."
+ },
+ "redthread-p1-service-unavailable": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "draft-le-agent-passport-00",
+  "note": "Redthread's own verifier on a simulated clock; status-list fail-closed semantics are Redthread/MintID design, not a WIMSE draft."
+ },
+ "redthread-p1-low-value-grace": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "draft-le-agent-passport-00",
+  "note": "Redthread's own verifier on a simulated clock; status-list fail-closed semantics are Redthread/MintID design, not a WIMSE draft."
+ },
+ "redthread-p1-one-element-in-chain": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "draft-le-agent-passport-00",
+  "note": "Redthread's own verifier on a simulated clock; status-list fail-closed semantics are Redthread/MintID design, not a WIMSE draft."
+ },
+ "redthread-p2-revoke-upstream": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "draft-le-agent-passport-00",
+  "note": "Redthread's own verifier, simulated clock; revocation bound 120 s is Redthread's TTL+skew formula."
+ },
+ "redthread-p2-before-effect": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "draft-le-agent-passport-00",
+  "note": "Redthread's own verifier, simulated clock; revocation bound 120 s is Redthread's TTL+skew formula."
+ },
+ "redthread-p3-wider-host": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "draft-sweeney-wimse-credential-delegation-style attenuation (Redthread schema); TT-11 s13.15 only analogous",
+  "note": "Attenuation on host/methods/exp/tools is Redthread's delegation schema; TT-11 s13.15 forbids widening only 'asserted values' of a replacement token."
+ },
+ "redthread-p3-more-methods": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "draft-sweeney-wimse-credential-delegation-style attenuation (Redthread schema); TT-11 s13.15 only analogous",
+  "note": "Attenuation on host/methods/exp/tools is Redthread's delegation schema; TT-11 s13.15 forbids widening only 'asserted values' of a replacement token."
+ },
+ "redthread-p3-longer-lifetime": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "draft-sweeney-wimse-credential-delegation-style attenuation (Redthread schema); TT-11 s13.15 only analogous",
+  "note": "Attenuation on host/methods/exp/tools is Redthread's delegation schema; TT-11 s13.15 forbids widening only 'asserted values' of a replacement token."
+ },
+ "redthread-p3-dropped-tools": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "draft-sweeney-wimse-credential-delegation-style attenuation (Redthread schema); TT-11 s13.15 only analogous",
+  "note": "Attenuation on host/methods/exp/tools is Redthread's delegation schema; TT-11 s13.15 forbids widening only 'asserted values' of a replacement token."
+ },
+ "redthread-p3-absent-means-default": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "draft-sweeney-wimse-credential-delegation-style attenuation (Redthread schema); TT-11 s13.15 only analogous",
+  "note": "Attenuation on host/methods/exp/tools is Redthread's delegation schema; TT-11 s13.15 forbids widening only 'asserted values' of a replacement token."
+ },
+ "redthread-p3-unknown-member": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "draft-sweeney-wimse-credential-delegation-style attenuation (Redthread schema); TT-11 s13.15 only analogous",
+  "note": "Attenuation on host/methods/exp/tools is Redthread's delegation schema; TT-11 s13.15 forbids widening only 'asserted values' of a replacement token."
+ },
+ "redthread-p4-per-rp-counting": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "",
+  "note": "Cumulative call limits (max_calls, single accounting RP) are Redthread design; no cited WIMSE/OAuth draft defines them."
+ },
+ "redthread-p4-single-accounting-rp": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "",
+  "note": "Cumulative call limits (max_calls, single accounting RP) are Redthread design; no cited WIMSE/OAuth draft defines them."
+ },
+ "redthread-p4-child-limit-wider": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "",
+  "note": "Cumulative call limits (max_calls, single accounting RP) are Redthread design; no cited WIMSE/OAuth draft defines them."
+ },
+ "redthread-p5-rewrite-authority": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "draft-le-agent-passport-00 'Signing'; RFC 9421",
+  "note": "Redthread signs @authority/@target-uri (scenarios/p1_p8/P5 JSON); http-signature-08 s3 deliberately excludes @authority, so the cited WIMSE draft would not make this fail."
+ },
+ "redthread-p5-rewrite-path": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "draft-le-agent-passport-00; draft-ietf-wimse-http-signature-08 s3 (@path)",
+  "note": "Path rewrite breaking the signature is consistent with http-signature-08 (@path MUST be signed) but the run is Redthread's passport signing."
+ },
+ "redthread-p5-authenticated-proxy-verifies": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "draft-le-agent-passport-00 'Intermediaries' (-01 basis)",
+  "note": "Proxy-trust semantics are Redthread/passport design; not in any WIMSE draft cited on the site."
+ },
+ "redthread-p5-forwarded-headers-unauthenticated": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "draft-le-agent-passport-00 'Intermediaries' (-01 basis)",
+  "note": "Proxy-trust semantics are Redthread/passport design; not in any WIMSE draft cited on the site."
+ },
+ "redthread-p6-build-changed": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "",
+  "note": "Pinned build/tool digest checks are Redthread runner semantics; creds-03 and http-signature-08 define no tool or build digest."
+ },
+ "redthread-p6-tool-swapped": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "",
+  "note": "Pinned build/tool digest checks are Redthread runner semantics; creds-03 and http-signature-08 define no tool or build digest."
+ },
+ "redthread-p2-sandbox-outside-made-up-proof": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "MintID protocol / draft-le-agent-passport-00",
+  "note": "Live call to MintID sandbox verifier from Redthread's executor, recorded and hashed."
+ },
+ "redthread-p2-sandbox-outside-no-agent-answer": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "MintID protocol / draft-le-agent-passport-00",
+  "note": "Live call to MintID sandbox verifier from Redthread's executor, recorded and hashed."
+ },
+ "cred-p8-no-delegation": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "Cred P8 semantics (not IETF)",
+  "note": "Cred's own run against a local mock provider; delegation/scope refusals are Cred's design, TT-11/WPT cited loosely."
+ },
+ "cred-p8-write-under-read": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "Cred P8 semantics (not IETF)",
+  "note": "Cred's own run against a local mock provider; delegation/scope refusals are Cred's design, TT-11/WPT cited loosely."
+ },
+ "cred-p8-revoked-between-authz-and-use": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "draft-le-agent-passport-00",
+  "note": "Cred's own run against a local mock provider; revocation semantics are not IETF WIMSE."
+ },
+ "cred-p8-revoked-after-token-released": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "draft-le-agent-passport-00",
+  "note": "Cred's own run against a local mock provider; revocation semantics are not IETF WIMSE."
+ },
+ "mintid-issuer": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "MintID protocol / draft-le-agent-passport-00",
+  "note": "MintID's own testnet trace (one run); the revocation bound is MintID's, not an IETF figure."
+ },
+ "mintid-kill_switch": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "MintID protocol / draft-le-agent-passport-00",
+  "note": "MintID's own testnet trace (one run); the revocation bound is MintID's, not an IETF figure."
+ },
+ "mintid-cascade-cascade_agent_1": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "MintID protocol / draft-le-agent-passport-00",
+  "note": "MintID's own testnet trace (one run); the revocation bound is MintID's, not an IETF figure."
+ },
+ "mintid-cascade-cascade_agent_2": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "MintID protocol / draft-le-agent-passport-00",
+  "note": "MintID's own testnet trace (one run); the revocation bound is MintID's, not an IETF figure."
+ },
+ "p7-v5-omniarx": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "draft-thallapelly-oasnt Appendix A",
+  "note": "OmniArx verifier run reported by email; no record in repo, so result is unverified here."
+ },
+ "p7-r2-omniarx": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "draft-thallapelly-oasnt Appendix A",
+  "note": "OmniArx verifier display-mismatch refusal, reported by email; no record in repo."
+ },
+ "redthread-p2-17nov-issuer": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "MintID protocol / draft-le-agent-passport-00",
+  "note": "Reported by Redthread by email; real MintID calls, simulated clock in Redthread's chain; record not in repo."
+ },
+ "redthread-p2-17nov-killswitch": {
+  "basis": "partner-design",
+  "independent": true,
+  "draft": "MintID protocol / draft-le-agent-passport-00",
+  "note": "Reported by Redthread by email; real MintID calls, simulated clock in Redthread's chain; record not in repo."
+ }
+}

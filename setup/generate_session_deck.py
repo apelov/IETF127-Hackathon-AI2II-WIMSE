@@ -122,7 +122,7 @@ def slide_summary(s):
          "Two points for the authors:\n"
          "\u2013 a released bearer token cannot be revoked\n"
          "\u2013 status checks should tell revoked from stale\n\n"
-         "Our token services are test stand-ins, not yet draft-conformant (see backup)", size=13)
+         "In the recorded chain our token services were test stand-ins; now fixed in code, re-recording pending (see backup)", size=13)
 
 
 def slide_next(s):
@@ -134,7 +134,7 @@ def slide_next(s):
          "Have a use case? Add it in the same format", size=15)
     frame(s, 6.78, 1.2, 6.05, 3.7, "We will")
     text(s, 6.98, 1.7, 5.65, 3.1,
-         "Make our token services follow the drafts (caller authentication, OAuth message formats) and re-record the chain\n\n"
+         "Re-record the chain with the corrected token services (caller authentication, OAuth message formats)\n\n"
          "Make the harness run against any implementation: a configurable target, a wire-only mode and a short \"run yours\" guide\n\n"
          "Send each finding to the draft authors, once the partners have confirmed their rows", size=14)
     box(s, 0.5, 5.15, 12.33, 1.1, f"Repository: {REPO}\nExplorer: {EXPLORER}", size=16, bold=True)
@@ -175,12 +175,12 @@ def slide_findings(s):
 LIMIT_ROWS = [
     ("What our harness does", "What the drafts say", "Status"),
     ("Token services (TTS-A, TTS-B) do not authenticate the caller",
-     "The requester is authenticated (txn-tokens-11 s11.3, s11.5)", "Fix in progress, needs re-recording"),
+     "The requester is authenticated (txn-tokens-11 s11.3, s11.5)", "Fixed in code; re-recording pending"),
     ("Token requests are custom JSON",
-     "Form-encoded RFC 8693 requests (txn-tokens-11 s11.1; identity-chaining-17 s2.3-2.4)", "Fix in progress, needs re-recording"),
+     "Form-encoded RFC 8693 requests (txn-tokens-11 s11.1; identity-chaining-17 s2.3-2.4)", "Fixed in code; re-recording pending"),
     ("test_mode is read from request bodies; /admin/revoke on the File Tool has no authentication",
-     "Not a draft matter: test stand-ins", "Fix in progress, needs re-recording"),
-    ("Coordinator and Research share one key", "Not a draft matter: a test shortcut", "Fix in progress, needs re-recording"),
+     "Not a draft matter: test stand-ins", "Fixed in code; re-recording pending"),
+    ("Coordinator and Research share one key", "Not a draft matter: a test shortcut", "Fixed in code; re-recording pending"),
     ("The chain shows our code is self-consistent; only Maurice (hop 2) is independent",
      "Interop evidence: the 34 cases against Maurice, which follow http-signature-08 closely", "Wording"),
     ("Revocation scenarios (C10, P1, P2, P8, MintID) test partner designs and our harness",
@@ -189,7 +189,7 @@ LIMIT_ROWS = [
 
 
 def slide_limits(s):
-    title(s, "Limits of this test, and what we are fixing", "Our token services and test shortcuts are stand-ins; the receiving-side evidence is Maurice's")
+    title(s, "Limits of this test, and what we have fixed", "The recorded chain used stand-in token services and test shortcuts; the receiving-side evidence is Maurice's")
     table(s, 0.5, 1.5, 12.33, [4.9, 4.9, 2.53], LIMIT_ROWS, size=12, row_h=0.7)
 
 
