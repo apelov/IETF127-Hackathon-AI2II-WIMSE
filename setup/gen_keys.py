@@ -1,6 +1,10 @@
-"""Create throwaway test issuers: `peer` (trusted by Maurice) and `rogue` (not in trust:).
+"""Create throwaway test keys. Test keys only.
 
-Writes keys/<name>.pem (private) and keys/<name>.jwks.json (public). Test keys only.
+`peer` (trusted by Maurice) and `rogue` (not in trust) are issuers; `rich` is the Domain B WIT issuer;
+`tts_a`, `as_a`, `tts_b`, `as_b` sign tokens. `coordinator`, `research` and `operator` are the workload keys of
+the three Domain B workloads that sign requests (one key per workload; each workload's WIT names its key in cnf).
+
+Writes keys/<name>.pem (private) and keys/<name>.jwks.json (public). Existing files are never overwritten.
 """
 import json, pathlib, sys
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -10,7 +14,7 @@ from wimse import jwk_from_public
 
 KEYS = pathlib.Path(__file__).parent.parent / "keys"
 KEYS.mkdir(exist_ok=True)
-for name in ("peer", "rogue", "tts_a", "as_a", "as_b", "tts_b", "rich"):
+for name in ("peer", "rogue", "tts_a", "as_a", "as_b", "tts_b", "rich", "coordinator", "research", "operator"):
     pem = KEYS / f"{name}.pem"
     if pem.exists():
         continue

@@ -4,7 +4,7 @@
 Executes and verifies:
 - Normal Path (B_CHAIN): 3-agent 2-domain call chain with unified txn correlation
 - Negative / Attack Cases (C5, C6, C7, C8, C9, C9b, C10, D1, D2, D3_exp, D3_sig,
-  D3_typ, D3_reqwl, D3_dup, D4, D5, D6, D7)
+  D3_typ, D3_reqwl, D3_dup, D4, D5, D6, D7, T1-T6)
 """
 from __future__ import annotations
 
@@ -28,10 +28,20 @@ if str(HERE) not in sys.path:
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+import journal as peer_journal
 import wimse as w
 from domain_a import validate_narrowed_replacement
 
 KEYS_DIR = ROOT / "keys"
+
+CLIENT_ID = "wimse://peer.ietf127.example/client"
+COORDINATOR_ID = "wimse://rich.ietf127.example/agent/coordinator"
+RESEARCH_ID = "wimse://rich.ietf127.example/agent/research"
+OPERATOR_ID = "wimse://rich.ietf127.example/operator"
+TTS_A_URL = "http://127.0.0.1:5051/tts/token"
+TTS_B_URL = "http://127.0.0.1:5061/tts/token"
+TTS_A_PROOF_AUD = "http://maurice.ietf127.example:5051"
+FILE_AUD = "http://rich.ietf127.example:5063"
 
 
 def _load_private_key(name: str):
@@ -46,7 +56,10 @@ def _load_jwks(name: str) -> dict:
 
 PEER_KEY = _load_private_key("peer")
 ROGUE_KEY = _load_private_key("rogue")
-RICH_KEY = _load_private_key("rich")
+RICH_KEY = _load_private_key("rich")  # Domain B WIT issuer
+COORD_KEY = _load_private_key("coordinator")  # workload keys: one per workload
+RESEARCH_KEY = _load_private_key("research")
+OPERATOR_KEY = _load_private_key("operator")
 TTS_A_KEY = _load_private_key("tts_a")
 TTS_B_KEY = _load_private_key("tts_b")
 AS_A_KEY = _load_private_key("as_a")
@@ -102,6 +115,58 @@ def safe_send(req: w.Req, case: str, timeout: int = 15) -> w.Resp:
 wimse_fetch = safe_send
 
 
+def peer_wit(wkey, sub: str = CLIENT_ID) -> str:
+    """WIT of a Domain A / peer workload, issued by the peer issuer and bound to wkey."""
+    return w.issue_wit(PEER_KEY, kid="peer-1", iss="http://peer.ietf127.example", sub=sub,
+                       workload_pub_jwk=w.jwk_from_public(wkey.public_key()))
+
+
+def rich_wit(wkey, sub: str) -> str:
+    """WIT of a Domain B workload, issued by the Domain B issuer and bound to the workload's own key."""
+    return w.issue_wit(RICH_KEY, kid="rich-1", iss="http://rich.ietf127.example", sub=sub,
+                       workload_pub_jwk=w.jwk_from_public(wkey.public_key()))
+
+
+def signed_form(url: str, form: bytes, wit: str, wkey, aud: str) -> w.Req:
+    """A form POST authenticated with a WIT and an HTTP message signature."""
+    return w.http_sig("POST", url, form, wit, wkey, aud=aud, content_type=w.FORM_CT)
+
+
+def new_txn_form(scope: str, *, tctx: dict | None = None, rctx: dict | None = None, sub: str = "user:alice") -> bytes:
+    """Txn-Token request that starts a transaction at TTS-A (txn-tokens-11 s11.1, s11.2.2)."""
+    return w.txn_token_request(
+        audience="maurice.ietf127.example", scope=scope, subject_token=json.dumps({"sub": sub}),
+        subject_token_type=w.TT_UNSIGNED_JSON, request_context=rctx, request_details=tctx)
+
+
+def replace_form(txn_token: str, scope: str, audience: str = "maurice.ietf127.example") -> bytes:
+    """Txn-Token request that replaces (narrows) an existing Txn-Token (s13.15)."""
+    return w.txn_token_request(audience=audience, scope=scope, subject_token=txn_token, subject_token_type=w.TT_TXN)
+
+
+def reason_of(r: w.Resp) -> str | None:
+    try:
+        return json.loads(r.body.decode()).get("reason")
+    except Exception:
+        return None
+
+
+def error_of(r: w.Resp) -> str | None:
+    """What the response body says: an OAuth error code, a reason, or the problem type (after '#'); None if nothing."""
+    try:
+        d = json.loads(r.body.decode())
+    except Exception:
+        return None
+    if d.get("error") or d.get("reason"):
+        return d.get("error") or d.get("reason")
+    t = d.get("type", "")
+    return t.rsplit("#", 1)[-1] if t and t != "about:blank" else None
+
+
+def claims_of(token: str) -> dict:
+    return w.parse_jwt(token)[1]
+
+
 # ---------------------------------------------------------------------------
 # Case Implementations
 # ---------------------------------------------------------------------------
@@ -110,53 +175,41 @@ wimse_fetch = safe_send
 def run_b_chain(with_maurice: bool) -> tuple[bool, list[str], list[dict]]:
     notes = []
     journal = []
+    wkey = w.new_workload_key("ES256")  # the client workload's key; its WIT names it in cnf
+    wit = peer_wit(wkey)
 
-    # 1. POST http://127.0.0.1:5051/tts/token
-    tts_payload = {
-        "sub": "user:alice",
-        "scope": "files:read files:list",
-        "tctx": {"file": "Q3.pdf"},
-        "req_wl": "wimse://peer.ietf127.example/client",
-    }
+    def step(n, service, status, txn):
+        journal.append({"case": "B_CHAIN", "step": n, "service": service, "status": status, "txn": txn,
+                        "decision": "accept"})
+
+    # 1. TTS-A: Txn-Token request authenticated with the client's WIT + HTTP signature
     r1 = safe_send(
-        w.Req(
-            "POST",
-            "http://127.0.0.1:5051/tts/token",
-            {"Content-Type": "application/json"},
-            json.dumps(tts_payload).encode("utf-8"),
-        ),
+        signed_form(TTS_A_URL, new_txn_form("files:read files:list", tctx={"file": "Q3.pdf"},
+                                            rctx={"req_ip": "127.0.0.1", "authn": "wimse-http-sig"}),
+                    wit, wkey, TTS_A_PROOF_AUD),
         case="B_CHAIN",
     )
     if r1.status != 200:
         return False, [f"Step 1 TTS-A failed ({r1.status}): {r1.body.decode()}"], journal
     d1 = json.loads(r1.body.decode("utf-8"))
-    txn_token_a = d1["txn_token"]
-    txn_a = d1["txn"]
+    if d1.get("issued_token_type") != w.TT_TXN or d1.get("token_type") != "N_A" or "refresh_token" in d1:
+        return False, [f"Step 1 TTS-A response is not a Txn-Token response: {sorted(d1)}"], journal
+    txn_token_a = d1["access_token"]
+    c1 = claims_of(txn_token_a)
+    txn_a = c1["txn"]
+    if c1["req_wl"] != CLIENT_ID:
+        return False, [f"Step 1 req_wl {c1['req_wl']} is not the WIT subject"], journal
     notes.append(f"step1=tts-a status={r1.status} txn={txn_a}")
-    journal.append({
-        "case": "B_CHAIN",
-        "step": 1,
-        "service": "tts-a",
-        "status": r1.status,
-        "txn": txn_a,
-        "decision": "accept",
-    })
+    step(1, "tts-a", r1.status, txn_a)
 
     # 2. If with_maurice or port 5050 is open:
     if with_maurice:
         wkey_m = w.new_workload_key("ES256")
-        wit_m = w.issue_wit(
-            PEER_KEY,
-            kid="peer-1",
-            iss="http://peer.ietf127.example",
-            sub="wimse://peer.ietf127.example/client",
-            workload_pub_jwk=w.jwk_from_public(wkey_m.public_key()),
-        )
         req_m = w.http_sig(
             "POST",
             "http://127.0.0.1:5050/api/v2/agents/dbsccjan18nkaiapu9v0/workflows/text-stats/executions",
             b'{"inputs": {"text": "hello wimse"}}',
-            wit_m,
+            peer_wit(wkey_m),
             wkey_m,
             aud="http://maurice.ietf127.example:5050",
             headers={"Txn-Token": txn_token_a},
@@ -165,88 +218,52 @@ def run_b_chain(with_maurice: bool) -> tuple[bool, list[str], list[dict]]:
         if r_m.status != 200:
             return False, notes + [f"Step 2 Maurice failed ({r_m.status}): {r_m.body.decode()}"], journal
         notes.append(f"step2=maurice status={r_m.status}")
-        journal.append({
-            "case": "B_CHAIN",
-            "step": 2,
-            "service": "maurice",
-            "status": r_m.status,
-            "txn": txn_a,
-            "decision": "accept",
-        })
+        step(2, "maurice", r_m.status, txn_a)
 
-    # 3. POST http://127.0.0.1:5051/oauth/token
-    wkey_as_a = w.new_workload_key("ES256")
-    wit_as_a = w.issue_wit(
-        PEER_KEY,
-        kid="peer-1",
-        iss="http://peer.ietf127.example",
-        sub="wimse://peer.ietf127.example/client",
-        workload_pub_jwk=w.jwk_from_public(wkey_as_a.public_key()),
+    # 3. AS-A: RFC 8693 token exchange for a JWT authorization grant (identity-chaining-17 s2.3)
+    r3 = safe_send(
+        signed_form(
+            "http://127.0.0.1:5051/oauth/token",
+            w.chain_exchange_request(subject_token=txn_token_a, resource="http://rich.ietf127.example:5061"),
+            wit, wkey, TTS_A_PROOF_AUD),
+        case="B_CHAIN",
     )
-    req_as_a = w.http_sig(
-        "POST",
-        "http://127.0.0.1:5051/oauth/token",
-        json.dumps({"subject_token": txn_token_a}).encode("utf-8"),
-        wit_as_a,
-        wkey_as_a,
-        aud="http://maurice.ietf127.example:5051",
-    )
-    r3 = safe_send(req_as_a, case="B_CHAIN")
     if r3.status != 200:
         return False, notes + [f"Step 3 AS-A failed ({r3.status}): {r3.body.decode()}"], journal
     d3 = json.loads(r3.body.decode("utf-8"))
-    assertion = d3["assertion"]
-    if d3["txn"] != txn_a:
-        return False, notes + [f"Step 3 AS-A txn mismatch: {d3['txn']} != {txn_a}"], journal
-    notes.append(f"step3=as-a status={r3.status} txn={d3['txn']}")
-    journal.append({
-        "case": "B_CHAIN",
-        "step": 3,
-        "service": "as-a",
-        "status": r3.status,
-        "txn": txn_a,
-        "decision": "accept",
-    })
+    if d3.get("issued_token_type") != w.TT_JWT or d3.get("token_type") != "N_A" or not d3.get("expires_in"):
+        return False, notes + [f"Step 3 AS-A response is not an RFC 8693 response: {sorted(d3)}"], journal
+    assertion = d3["access_token"]
+    c3 = claims_of(assertion)
+    if c3["txn"] != txn_a or c3.get("client_id") != CLIENT_ID:
+        return False, notes + [f"Step 3 AS-A grant claims mismatch: txn={c3['txn']} client_id={c3.get('client_id')}"], journal
+    notes.append(f"step3=as-a status={r3.status} txn={c3['txn']}")
+    step(3, "as-a", r3.status, txn_a)
 
-    # 4. POST http://127.0.0.1:5061/oauth/token
-    req_as_b = w.Req(
-        "POST",
-        "http://127.0.0.1:5061/oauth/token",
-        {"Content-Type": "application/json"},
-        json.dumps({"assertion": assertion}).encode("utf-8"),
+    # 4. AS-B: RFC 7523 JWT bearer grant -> access token
+    r4 = safe_send(
+        w.Req("POST", "http://127.0.0.1:5061/oauth/token", {"Content-Type": w.FORM_CT}, w.jwt_bearer_request(assertion)),
+        case="B_CHAIN",
     )
-    r4 = safe_send(req_as_b, case="B_CHAIN")
     if r4.status != 200:
         return False, notes + [f"Step 4 AS-B failed ({r4.status}): {r4.body.decode()}"], journal
     d4 = json.loads(r4.body.decode("utf-8"))
+    if d4.get("token_type") != "Bearer" or not d4.get("expires_in"):
+        return False, notes + [f"Step 4 AS-B response is not an RFC 6749 s5.1 response: {sorted(d4)}"], journal
     access_token = d4["access_token"]
-    if d4["txn"] != txn_a:
-        return False, notes + [f"Step 4 AS-B txn mismatch: {d4['txn']} != {txn_a}"], journal
-    notes.append(f"step4=as-b status={r4.status} txn={d4['txn']}")
-    journal.append({
-        "case": "B_CHAIN",
-        "step": 4,
-        "service": "as-b",
-        "status": r4.status,
-        "txn": txn_a,
-        "decision": "accept",
-    })
+    c4 = claims_of(access_token)
+    if c4["txn"] != txn_a or c4.get("client_id") != CLIENT_ID:
+        return False, notes + [f"Step 4 AS-B access token claims mismatch: txn={c4['txn']} client_id={c4.get('client_id')}"], journal
+    notes.append(f"step4=as-b status={r4.status} txn={c4['txn']}")
+    step(4, "as-b", r4.status, txn_a)
 
     # 5. POST http://127.0.0.1:5060/coordinate
-    wkey_coord = w.new_workload_key("ES256")
-    wit_coord = w.issue_wit(
-        PEER_KEY,
-        kid="peer-1",
-        iss="http://peer.ietf127.example",
-        sub="wimse://peer.ietf127.example/client",
-        workload_pub_jwk=w.jwk_from_public(wkey_coord.public_key()),
-    )
     req_coord = w.http_sig(
         "POST",
         "http://127.0.0.1:5060/coordinate",
         json.dumps({"file": "Q3.pdf"}).encode("utf-8"),
-        wit_coord,
-        wkey_coord,
+        wit,
+        wkey,
         aud="http://rich.ietf127.example:5060",
         headers={"Authorization": "Bearer " + access_token},
     )
@@ -263,14 +280,7 @@ def run_b_chain(with_maurice: bool) -> tuple[bool, list[str], list[dict]]:
         return False, notes + [f"Step 5 hops mismatch: {d5.get('hops')}"], journal
 
     notes.append(f"step5=coord status={r5.status} summary={d5.get('summary')} hops={d5.get('hops')}")
-    journal.append({
-        "case": "B_CHAIN",
-        "step": 5,
-        "service": "agent2-coordinator",
-        "status": r5.status,
-        "txn": txn_a,
-        "decision": "accept",
-    })
+    step(5, "agent2-coordinator", r5.status, txn_a)
     return True, notes, journal
 
 
@@ -317,13 +327,9 @@ def run_c5() -> tuple[bool, list[str], list[dict]]:
     # Swap Txn-Token after signing
     req.headers["Txn-Token"] = tok2
     r = safe_send(req, case="C5")
-    reason = None
-    try:
-        reason = json.loads(r.body.decode()).get("reason")
-    except Exception:
-        pass
-    ok = (r.status == 400 and reason == "proof-invalid")
-    notes = [f"status={r.status} want=400 reason={reason} want_reason=proof-invalid"]
+    reason = error_of(r)
+    ok = (r.status == 400 and reason == "wimse-signature-invalid")
+    notes = [f"status={r.status} want=400 body={reason} want_body=wimse-signature-invalid (cause is in the peer journal)"]
     journal = [{"case": "C5", "service": "file-tool", "status": r.status, "decision": "reject", "reason": reason}]
     return ok, notes, journal
 
@@ -371,14 +377,8 @@ def run_c6() -> tuple[bool, list[str], list[dict]]:
 
 
 def run_c7() -> tuple[bool, list[str], list[dict]]:
-    wkey = w.new_workload_key("ES256")
-    wit = w.issue_wit(
-        RICH_KEY,
-        kid="rich-1",
-        iss="http://rich.ietf127.example",
-        sub="wimse://rich.ietf127.example/agent/coordinator",
-        workload_pub_jwk=w.jwk_from_public(wkey.public_key()),
-    )
+    wkey = COORD_KEY
+    wit = rich_wit(wkey, COORDINATOR_ID)
     tok = w.issue_txn_token(
         TTS_B_KEY,
         kid="tts_b-1",
@@ -417,14 +417,8 @@ def run_c7() -> tuple[bool, list[str], list[dict]]:
 
 
 def run_c8() -> tuple[bool, list[str], list[dict]]:
-    wkey = w.new_workload_key("ES256")
-    wit = w.issue_wit(
-        RICH_KEY,
-        kid="rich-1",
-        iss="http://rich.ietf127.example",
-        sub="wimse://rich.ietf127.example/agent/coordinator",
-        workload_pub_jwk=w.jwk_from_public(wkey.public_key()),
-    )
+    wkey = COORD_KEY
+    wit = rich_wit(wkey, COORDINATOR_ID)
     tok = w.issue_txn_token(
         TTS_B_KEY,
         kid="tts_b-1",
@@ -530,15 +524,17 @@ def run_c9b() -> tuple[bool, list[str], list[dict]]:
     return ok, notes, journal
 
 
-def run_c10() -> tuple[bool, list[str], list[dict]]:
-    wkey = w.new_workload_key("ES256")
-    wit = w.issue_wit(
-        RICH_KEY,
-        kid="rich-1",
-        iss="http://rich.ietf127.example",
-        sub="wimse://rich.ietf127.example/agent/research",
-        workload_pub_jwk=w.jwk_from_public(wkey.public_key()),
+def admin_revoke(body: dict) -> w.Req:
+    """A /admin/revoke call authenticated as the operator workload (WIT + HTTP signature)."""
+    return w.http_sig(
+        "POST", "http://127.0.0.1:5063/admin/revoke", json.dumps(body).encode("utf-8"),
+        rich_wit(OPERATOR_KEY, OPERATOR_ID), OPERATOR_KEY, aud=FILE_AUD,
     )
+
+
+def run_c10() -> tuple[bool, list[str], list[dict]]:
+    wkey = RESEARCH_KEY
+    wit = rich_wit(wkey, RESEARCH_ID)
     tok = w.issue_txn_token(
         TTS_B_KEY,
         kid="tts_b-1",
@@ -547,55 +543,25 @@ def run_c10() -> tuple[bool, list[str], list[dict]]:
         txn=str(uuid.uuid4()),
         sub="user:alice",
         scope="files:read",
-        req_wl="wimse://rich.ietf127.example/agent/research",
+        req_wl=RESEARCH_ID,
         tctx={"file": "Q3.pdf"},
     )
+
+    def read_file() -> w.Resp:
+        return safe_send(w.http_sig(
+            "POST", "http://127.0.0.1:5063/files/read", json.dumps({"file": "Q3.pdf"}).encode("utf-8"),
+            wit, wkey, aud=FILE_AUD, headers={"Txn-Token": tok},
+        ), case="C10")
+
     # Step 1: Valid call -> 200
-    req1 = w.http_sig(
-        "POST",
-        "http://127.0.0.1:5063/files/read",
-        json.dumps({"file": "Q3.pdf"}).encode("utf-8"),
-        wit,
-        wkey,
-        aud="http://rich.ietf127.example:5063",
-        headers={"Txn-Token": tok},
-    )
-    r1 = safe_send(req1, case="C10")
-
-    # Step 2: Revoke workload
-    req_rev = w.Req(
-        "POST",
-        "http://127.0.0.1:5063/admin/revoke",
-        {"Content-Type": "application/json"},
-        json.dumps({"workload": "wimse://rich.ietf127.example/agent/research"}).encode("utf-8"),
-    )
-    r_rev = safe_send(req_rev, case="C10")
-
+    r1 = read_file()
+    # Step 2: The operator revokes the workload
+    r_rev = safe_send(admin_revoke({"workload": RESEARCH_ID}), case="C10")
     # Step 3: Call /files/read again -> 403 revoked
-    req3 = w.http_sig(
-        "POST",
-        "http://127.0.0.1:5063/files/read",
-        json.dumps({"file": "Q3.pdf"}).encode("utf-8"),
-        wit,
-        wkey,
-        aud="http://rich.ietf127.example:5063",
-        headers={"Txn-Token": tok},
-    )
-    r3 = safe_send(req3, case="C10")
-    reason3 = None
-    try:
-        reason3 = json.loads(r3.body.decode()).get("reason")
-    except Exception:
-        pass
-
-    # Step 4: Clear revocation
-    req_clr = w.Req(
-        "POST",
-        "http://127.0.0.1:5063/admin/revoke",
-        {"Content-Type": "application/json"},
-        json.dumps({"clear": True}).encode("utf-8"),
-    )
-    r_clr = safe_send(req_clr, case="C10")
+    r3 = read_file()
+    reason3 = reason_of(r3)
+    # Step 4: The operator clears the revocation
+    r_clr = safe_send(admin_revoke({"clear": True}), case="C10")
 
     ok = (
         r1.status == 200
@@ -645,13 +611,9 @@ def run_d1() -> tuple[bool, list[str], list[dict]]:
         drop_components=("txn-token",),
     )
     r = safe_send(req, case="D1")
-    reason = None
-    try:
-        reason = json.loads(r.body.decode()).get("reason")
-    except Exception:
-        pass
-    ok = (r.status == 400 and reason == "proof-invalid")
-    notes = [f"status={r.status} want=400 reason={reason} want_reason=proof-invalid"]
+    reason = error_of(r)
+    ok = (r.status == 400 and reason == "wimse-signature-invalid")
+    notes = [f"status={r.status} want=400 body={reason} want_body=wimse-signature-invalid (cause is in the peer journal)"]
     journal = [{"case": "D1", "service": "file-tool", "status": r.status, "decision": "reject", "reason": reason}]
     return ok, notes, journal
 
@@ -690,12 +652,8 @@ def run_d2(with_maurice: bool) -> tuple[bool, list[str], list[dict]]:
     )
     r = safe_send(req, case="D2")
     auth_hdr = r.headers.get("www-authenticate", "")
-    reason = None
-    try:
-        reason = json.loads(r.body.decode()).get("reason")
-    except Exception:
-        pass
-    ok = (r.status == 401 and auth_hdr.startswith("WPT") and reason == "proof-invalid")
+    reason = error_of(r)
+    ok = (r.status == 401 and auth_hdr.startswith("WPT") and reason is None)
     notes = [f"file_tool status={r.status} www_auth={auth_hdr} reason={reason}"]
     journal = [{"case": "D2", "service": "file-tool", "status": r.status, "decision": "reject", "reason": reason}]
 
@@ -724,11 +682,7 @@ def run_d2(with_maurice: bool) -> tuple[bool, list[str], list[dict]]:
         )
         rm = safe_send(req_m, case="D2")
         auth_hdr_m = rm.headers.get("www-authenticate", "")
-        reason_m = None
-        try:
-            reason_m = json.loads(rm.body.decode()).get("reason") or json.loads(rm.body.decode()).get("error")
-        except Exception:
-            pass
+        reason_m = error_of(rm)
         ok_m = (rm.status == 401 and auth_hdr_m.startswith("WPT"))
         ok = ok and ok_m
         notes.append(f"maurice status={rm.status} www_auth={auth_hdr_m} reason={reason_m}")
@@ -1033,179 +987,206 @@ def run_d5() -> tuple[bool, list[str], list[dict]]:
         scope="files:read",
         txn=str(uuid.uuid4()),
     )
-    req = w.Req(
-        "POST",
-        "http://127.0.0.1:5061/oauth/token",
-        {"Content-Type": "application/json"},
-        json.dumps({"assertion": non_grant}).encode("utf-8"),
-    )
+    req = w.Req("POST", "http://127.0.0.1:5061/oauth/token", {"Content-Type": w.FORM_CT},
+                w.jwt_bearer_request(non_grant))
     r = safe_send(req, case="D5")
-    reason = None
-    try:
-        reason = json.loads(r.body.decode()).get("reason")
-    except Exception:
-        pass
-    ok = guard_blocked and (r.status == 403 and reason == "grant-invalid")
-    notes.append(f"as-b status={r.status} want=403 reason={reason} want_reason=grant-invalid")
+    reason = error_of(r)
+    ok = guard_blocked and (r.status == 400 and reason == "invalid_grant")
+    notes.append(f"as-b status={r.status} want=400 error={reason} want_error=invalid_grant")
     journal.append({"case": "D5", "service": "as-b", "status": r.status, "decision": "reject", "reason": reason})
     return ok, notes, journal
 
 
 def run_d6() -> tuple[bool, list[str], list[dict]]:
-    notes = []
-    journal = []
+    """Replacement Txn-Tokens at TTS-A (txn-tokens-11 s13.15).
 
-    # 1. Original token
-    r1 = safe_send(
-        w.Req(
-            "POST",
-            "http://127.0.0.1:5051/tts/token",
-            {"Content-Type": "application/json"},
-            json.dumps({
-                "sub": "user:alice",
-                "scope": "files:read files:list",
-                "req_wl": "wimse://peer.ietf127.example/client",
-            }).encode("utf-8"),
-        ),
-        case="D6",
-    )
+    On the wire: the original token, a narrowed replacement (200), a widening request (refused, invalid_scope) and a
+    replacement request from an expired token (refused, invalid_grant). Offline: the client-side validator rejects
+    widened, txn-, sub- and aud-mutated tokens that this driver forges, because a conformant TTS never issues them.
+    """
+    wkey = w.new_workload_key("ES256")
+    wit = peer_wit(wkey)
+
+    def ask(form: bytes) -> w.Resp:
+        return safe_send(signed_form(TTS_A_URL, form, wit, wkey, TTS_A_PROOF_AUD), case="D6")
+
+    r1 = ask(new_txn_form("files:read files:list"))
     if r1.status != 200:
-        return False, [f"Orig token failed: {r1.status}"], journal
-    orig_tok = json.loads(r1.body.decode())["txn_token"]
+        return False, [f"Orig token failed: {r1.status}"], []
+    orig_tok = json.loads(r1.body.decode())["access_token"]
 
-    # 2. Narrowed replacement
-    r2 = safe_send(
-        w.Req(
-            "POST",
-            "http://127.0.0.1:5051/tts/token",
-            {"Content-Type": "application/json"},
-            json.dumps({
-                "parent_txn_token": orig_tok,
-                "scope": "files:read",
-            }).encode("utf-8"),
-        ),
-        case="D6",
-    )
+    r2 = ask(replace_form(orig_tok, "files:read"))
     if r2.status != 200:
-        return False, [f"Narrowed token failed: {r2.status}"], journal
-    nar_tok = json.loads(r2.body.decode())["txn_token"]
+        return False, [f"Narrowed token failed: {r2.status}"], []
+    nar_tok = json.loads(r2.body.decode())["access_token"]
     ok_nar, msg_nar = validate_narrowed_replacement(orig_tok, nar_tok, TTS_A_JWKS)
 
-    # 3. Widened replacement
-    r3 = safe_send(
-        w.Req(
-            "POST",
-            "http://127.0.0.1:5051/tts/token",
-            {"Content-Type": "application/json"},
-            json.dumps({
-                "parent_txn_token": orig_tok,
-                "scope": "files:read",
-                "test_mode": "widen_scope",
-            }).encode("utf-8"),
-        ),
-        case="D6",
-    )
-    if r3.status != 200:
-        return False, [f"Widen token failed: {r3.status}"], journal
-    widen_tok = json.loads(r3.body.decode())["txn_token"]
-    ok_widen, msg_widen = validate_narrowed_replacement(orig_tok, widen_tok, TTS_A_JWKS)
+    r3 = ask(replace_form(orig_tok, "files:read files:write"))
+    err3 = error_of(r3)
 
-    # 4. Mutated txn replacement
-    r4 = safe_send(
-        w.Req(
-            "POST",
-            "http://127.0.0.1:5051/tts/token",
-            {"Content-Type": "application/json"},
-            json.dumps({
-                "parent_txn_token": orig_tok,
-                "scope": "files:read",
-                "test_mode": "change_txn",
-            }).encode("utf-8"),
-        ),
-        case="D6",
-    )
-    if r4.status != 200:
-        return False, [f"Change txn token failed: {r4.status}"], journal
-    mut_tok = json.loads(r4.body.decode())["txn_token"]
-    ok_mut, msg_mut = validate_narrowed_replacement(orig_tok, mut_tok, TTS_A_JWKS)
+    oc = claims_of(orig_tok)
+    expired = w.issue_txn_token(
+        TTS_A_KEY, kid="tts_a-1", iss=oc["iss"], aud=oc["aud"], txn=oc["txn"], sub=oc["sub"], scope=oc["scope"],
+        req_wl=oc["req_wl"], tctx=oc["tctx"], ttl=-10)
+    r4 = ask(replace_form(expired, "files:read"))
+    err4 = error_of(r4)
+
+    def forged(**over):
+        kw = dict(kid="tts_a-1", iss=oc["iss"], aud=oc["aud"], txn=oc["txn"], sub=oc["sub"], scope="files:read",
+                  req_wl=oc["req_wl"], tctx=oc["tctx"]) | over
+        return w.issue_txn_token(TTS_A_KEY, **kw)
+
+    ok_widen, msg_widen = validate_narrowed_replacement(orig_tok, forged(scope="files:read files:write"), TTS_A_JWKS)
+    ok_mut, msg_mut = validate_narrowed_replacement(orig_tok, forged(txn="mutated-" + uuid.uuid4().hex[:8]), TTS_A_JWKS)
+    ok_sub, msg_sub = validate_narrowed_replacement(orig_tok, forged(sub="user:mallory"), TTS_A_JWKS)
+    ok_aud, msg_aud = validate_narrowed_replacement(orig_tok, forged(aud="foreign.ietf127.example"), TTS_A_JWKS)
 
     ok = (
-        ok_nar is True
-        and msg_nar == "ok"
-        and ok_widen is False
-        and msg_widen == "scope-widened"
-        and ok_mut is False
-        and msg_mut == "txn-mutated"
+        ok_nar is True and msg_nar == "ok"
+        and r3.status == 400 and err3 == "invalid_scope"
+        and r4.status == 400 and err4 == "invalid_grant"
+        and (ok_widen, msg_widen) == (False, "scope-widened")
+        and (ok_mut, msg_mut) == (False, "txn-mutated")
+        and (ok_sub, msg_sub) == (False, "sub-mutated")
+        and (ok_aud, msg_aud) == (False, "aud-mutated")
     )
-    notes = [f"nar=({ok_nar},{msg_nar}) widen=({ok_widen},{msg_widen}) mut=({ok_mut},{msg_mut})"]
+    notes = [
+        f"nar=({ok_nar},{msg_nar}) widen_request={r3.status} {err3} expired_parent={r4.status} {err4} "
+        f"forged: widen=({ok_widen},{msg_widen}) mut=({ok_mut},{msg_mut}) sub=({ok_sub},{msg_sub}) aud=({ok_aud},{msg_aud})"
+    ]
     journal = [{"case": "D6", "service": "tts-a", "status": 200, "decision": "accept", "reason": "accept"}]
     return ok, notes, journal
 
 
 def run_d7() -> tuple[bool, list[str], list[dict]]:
-    notes = []
-    journal = []
+    """A grant for the wrong audience never gets accepted: AS-A will not mint it for an unknown target, and AS-B
+    refuses one that is minted anyway (forged here with AS-A's key)."""
+    wkey = w.new_workload_key("ES256")
+    wit = peer_wit(wkey)
 
     # 1. Get Txn-Token from TTS-A
-    r1 = safe_send(
-        w.Req(
-            "POST",
-            "http://127.0.0.1:5051/tts/token",
-            {"Content-Type": "application/json"},
-            json.dumps({
-                "sub": "user:alice",
-                "scope": "files:read",
-                "req_wl": "wimse://peer.ietf127.example/client",
-            }).encode("utf-8"),
-        ),
-        case="D7",
-    )
+    r1 = safe_send(signed_form(TTS_A_URL, new_txn_form("files:read"), wit, wkey, TTS_A_PROOF_AUD), case="D7")
     if r1.status != 200:
-        return False, [f"TTS-A failed: {r1.status}"], journal
-    tok_a = json.loads(r1.body.decode())["txn_token"]
+        return False, [f"TTS-A failed: {r1.status}"], []
+    tok_a = json.loads(r1.body.decode())["access_token"]
+    ca = claims_of(tok_a)
 
-    # 2. Exchange at AS-A with test_mode="wrong_aud"
-    wkey = w.new_workload_key("ES256")
-    wit = w.issue_wit(
-        PEER_KEY,
-        kid="peer-1",
-        iss="http://peer.ietf127.example",
-        sub="wimse://peer.ietf127.example/client",
-        workload_pub_jwk=w.jwk_from_public(wkey.public_key()),
-    )
-    req_as_a = w.http_sig(
-        "POST",
+    # 2. AS-A refuses an exchange that names an unknown authorization server
+    r2 = safe_send(signed_form(
         "http://127.0.0.1:5051/oauth/token",
-        json.dumps({"subject_token": tok_a, "test_mode": "wrong_aud"}).encode("utf-8"),
-        wit,
-        wkey,
-        aud="http://maurice.ietf127.example:5051",
-    )
-    r2 = safe_send(req_as_a, case="D7")
-    if r2.status != 200:
-        return False, [f"AS-A failed: {r2.status}"], journal
-    wrong_grant = json.loads(r2.body.decode())["assertion"]
+        w.chain_exchange_request(subject_token=tok_a, resource="http://wrong.example/oauth/token"),
+        wit, wkey, TTS_A_PROOF_AUD), case="D7")
+    err2 = error_of(r2)
 
-    # 3. Send wrong_grant to AS-B -> 403 grant-invalid
-    req_as_b = w.Req(
-        "POST",
-        "http://127.0.0.1:5061/oauth/token",
-        {"Content-Type": "application/json"},
-        json.dumps({"assertion": wrong_grant}).encode("utf-8"),
-    )
-    r3 = safe_send(req_as_b, case="D7")
-    reason = None
-    try:
-        reason = json.loads(r3.body.decode()).get("reason")
-    except Exception:
-        pass
-    ok = (r3.status == 403 and reason == "grant-invalid")
-    notes = [f"as_a_status={r2.status} as_b_status={r3.status} want=403 reason={reason} want_reason=grant-invalid"]
+    # 3. A grant with the wrong aud, signed with AS-A's key, is refused by AS-B
+    wrong_grant = w.issue_chain_grant(
+        AS_A_KEY, kid="as_a-1", iss="http://maurice.ietf127.example:5051", aud="http://wrong.example/oauth/token",
+        sub=ca["sub"], scope=ca["scope"], txn=ca["txn"], tctx=ca.get("tctx"), client_id=CLIENT_ID)
+    r3 = safe_send(
+        w.Req("POST", "http://127.0.0.1:5061/oauth/token", {"Content-Type": w.FORM_CT}, w.jwt_bearer_request(wrong_grant)),
+        case="D7")
+    reason = error_of(r3)
+    ok = (r2.status == 400 and err2 == "invalid_target" and r3.status == 400 and reason == "invalid_grant")
+    notes = [f"as_a_status={r2.status} {err2} as_b_status={r3.status} want=400 error={reason} want_error=invalid_grant"]
     journal = [
-        {"case": "D7", "service": "as-a", "status": r2.status, "decision": "accept"},
+        {"case": "D7", "service": "as-a", "status": r2.status, "decision": "reject", "reason": err2},
         {"case": "D7", "service": "as-b", "status": r3.status, "decision": "reject", "reason": reason},
     ]
     return ok, notes, journal
+
+
+def run_t1() -> tuple[bool, list[str], list[dict]]:
+    """TTS-A request with no WIT and no signature: the TTS authenticates the workload (txn-tokens-11 s11.3, s11.5)."""
+    body = w.form_encode({"req_wl": CLIENT_ID}) + b"&" + new_txn_form("files:read")
+    r = safe_send(w.Req("POST", TTS_A_URL, {"Content-Type": w.FORM_CT}, body), case="T1")
+    err = error_of(r)
+    ok = r.status == 401 and err == "invalid_client" and r.headers.get("www-authenticate", "").startswith("WPT")
+    return ok, [f"status={r.status} want=401 error={err} want_error=invalid_client"], [
+        {"case": "T1", "service": "tts-a", "status": r.status, "decision": "reject", "reason": err}]
+
+
+def run_t2() -> tuple[bool, list[str], list[dict]]:
+    """TTS-B request that carries a valid Txn-Token but no WIT proof: a Txn-Token does not authenticate a workload
+    (s13.12), it can only be a subject_token."""
+    tok = w.issue_txn_token(
+        TTS_B_KEY, kid="tts_b-1", iss="http://rich.ietf127.example:5061", aud="rich.ietf127.example",
+        txn=str(uuid.uuid4()), sub="user:alice", scope="files:read files:list", req_wl=COORDINATOR_ID,
+        tctx={"file": "Q3.pdf"})
+    form = w.txn_token_request(audience="rich.ietf127.example", scope="files:read", subject_token=tok,
+                               subject_token_type=w.TT_TXN)
+    r = safe_send(w.Req("POST", TTS_B_URL, {"Content-Type": w.FORM_CT, "Txn-Token": tok}, form), case="T2")
+    err = error_of(r)
+    ok = r.status == 401 and err == "invalid_client" and r.headers.get("www-authenticate", "").startswith("WPT")
+    return ok, [f"status={r.status} want=401 error={err} want_error=invalid_client"], [
+        {"case": "T2", "service": "tts-b", "status": r.status, "decision": "reject", "reason": err}]
+
+
+def run_t3() -> tuple[bool, list[str], list[dict]]:
+    """Research's WIT presented with the Coordinator's key: the proof must come from the key the WIT names."""
+    wit = rich_wit(RESEARCH_KEY, RESEARCH_ID)
+    tok = w.issue_txn_token(
+        TTS_B_KEY, kid="tts_b-1", iss="http://rich.ietf127.example:5061", aud="rich.ietf127.example",
+        txn=str(uuid.uuid4()), sub="user:alice", scope="files:read", req_wl=RESEARCH_ID, tctx={"file": "Q3.pdf"})
+    req = w.http_sig(
+        "POST", "http://127.0.0.1:5063/files/read", json.dumps({"file": "Q3.pdf"}).encode("utf-8"),
+        wit, COORD_KEY, aud=FILE_AUD, headers={"Txn-Token": tok})
+    r = safe_send(req, case="T3")
+    reason = error_of(r)
+    ok = r.status == 400 and reason == "wimse-signature-invalid"
+    return ok, [f"status={r.status} want=400 body={reason} want_body=wimse-signature-invalid"], [
+        {"case": "T3", "service": "file-tool", "status": r.status, "decision": "reject", "reason": reason}]
+
+
+def run_t4() -> tuple[bool, list[str], list[dict]]:
+    """/admin/revoke needs an operator: no proof -> 401, a workload that is not an operator -> 403; and the
+    attempt changed nothing (Research can still read)."""
+    body = json.dumps({"workload": RESEARCH_ID}).encode("utf-8")
+    r1 = safe_send(w.Req("POST", "http://127.0.0.1:5063/admin/revoke", {"Content-Type": "application/json"}, body), case="T4")
+    reason1 = error_of(r1)
+    r2 = safe_send(w.http_sig(
+        "POST", "http://127.0.0.1:5063/admin/revoke", body, rich_wit(RESEARCH_KEY, RESEARCH_ID), RESEARCH_KEY,
+        aud=FILE_AUD), case="T4")
+    reason2 = reason_of(r2)
+    tok = w.issue_txn_token(
+        TTS_B_KEY, kid="tts_b-1", iss="http://rich.ietf127.example:5061", aud="rich.ietf127.example",
+        txn=str(uuid.uuid4()), sub="user:alice", scope="files:read", req_wl=RESEARCH_ID, tctx={"file": "Q3.pdf"})
+    r3 = safe_send(w.http_sig(
+        "POST", "http://127.0.0.1:5063/files/read", json.dumps({"file": "Q3.pdf"}).encode("utf-8"),
+        rich_wit(RESEARCH_KEY, RESEARCH_ID), RESEARCH_KEY, aud=FILE_AUD, headers={"Txn-Token": tok}), case="T4")
+    ok = r1.status == 401 and reason1 is None and r2.status == 403 and reason2 == "not-authorized" and r3.status == 200
+    notes = [f"unauthenticated={r1.status} {reason1} non_operator={r2.status} {reason2} read_after={r3.status}"]
+    journal = [
+        {"case": "T4", "step": 1, "service": "file-tool", "status": r1.status, "decision": "reject", "reason": reason1},
+        {"case": "T4", "step": 2, "service": "file-tool", "status": r2.status, "decision": "reject", "reason": reason2},
+        {"case": "T4", "step": 3, "service": "file-tool", "status": r3.status, "decision": "accept"},
+    ]
+    return ok, notes, journal
+
+
+def run_t6() -> tuple[bool, list[str], list[dict]]:
+    """The same signed TTS-A request sent twice: the first is served, the replay is refused (nonce already used)."""
+    wkey = w.new_workload_key("ES256")
+    req = signed_form(TTS_A_URL, new_txn_form("files:read"), peer_wit(wkey), wkey, TTS_A_PROOF_AUD)
+    r1 = safe_send(req, case="T6")
+    r2 = safe_send(req, case="T6")
+    err = error_of(r2)
+    ok = r1.status == 200 and r2.status == 400 and err == "invalid_client"
+    return ok, [f"first={r1.status} replay={r2.status} {err} want=400 invalid_client"], [
+        {"case": "T6", "step": 1, "service": "tts-a", "status": r1.status, "decision": "accept"},
+        {"case": "T6", "step": 2, "service": "tts-a", "status": r2.status, "decision": "reject", "reason": err}]
+
+
+def run_t5() -> tuple[bool, list[str], list[dict]]:
+    """A requester named in the request body is ignored: req_wl is the verified WIT subject."""
+    wkey = w.new_workload_key("ES256")
+    form = new_txn_form("files:read") + b"&" + w.form_encode({"req_wl": OPERATOR_ID})
+    r = safe_send(signed_form(TTS_A_URL, form, peer_wit(wkey), wkey, TTS_A_PROOF_AUD), case="T5")
+    req_wl = None
+    if r.status == 200:
+        req_wl = claims_of(json.loads(r.body.decode())["access_token"]).get("req_wl")
+    ok = r.status == 200 and req_wl == CLIENT_ID
+    return ok, [f"status={r.status} req_wl={req_wl} want={CLIENT_ID}"], [
+        {"case": "T5", "service": "tts-a", "status": r.status, "decision": "accept"}]
 
 
 # ---------------------------------------------------------------------------
@@ -1233,7 +1214,38 @@ RUNNERS = {
     "D5": lambda with_m: run_d5(),
     "D6": lambda with_m: run_d6(),
     "D7": lambda with_m: run_d7(),
+    "T1": lambda with_m: run_t1(),
+    "T2": lambda with_m: run_t2(),
+    "T3": lambda with_m: run_t3(),
+    "T4": lambda with_m: run_t4(),
+    "T5": lambda with_m: run_t5(),
+    "T6": lambda with_m: run_t6(),
 }
+
+
+def with_journal_check(cid, fn):
+    """Run a case, then compare the causes the peers journaled with chain_cases.json "journal".
+
+    Response bodies of refused authentications are the same whatever failed (http-signature-08 s3.6), so the precise
+    reason is read from the peers' decision journal, like peers/driver.py reads Maurice's.
+    """
+    def run(with_m):
+        offset = peer_journal.size()
+        ok, notes, entries = fn(with_m)
+        want = CASES.get(cid, {}).get("journal")
+        if want is not None:
+            got = [f"{e['service']} {e['reason']}" for e in peer_journal.read_since(offset)
+                   if e.get("case") == cid and e.get("decision") == "reject"]
+            if got != want:
+                ok = False
+                notes = notes + [f"peer journal {got} differs from chain_cases.json journal {want} ({peer_journal.path()})"]
+            else:
+                notes = notes + [f"journal={got}"]
+        return ok, notes, entries
+    return run
+
+
+RUNNERS = {cid: with_journal_check(cid, fn) for cid, fn in RUNNERS.items()}
 
 
 def main():
@@ -1241,11 +1253,14 @@ def main():
     parser.add_argument("--cases", default="all", help="Comma-separated case IDs or 'all'")
     parser.add_argument("--journal-out", type=pathlib.Path, help="Optional JSONL output path for journal records")
     parser.add_argument("--with-maurice", action="store_true", help="Include live Maurice on 127.0.0.1:5050")
+    parser.add_argument("--no-maurice", action="store_true",
+                        help="Never contact :5050, even if something listens there (skips hop 2 and the Maurice half of D2)")
     parser.add_argument("--with-p1-p8", action="store_true", help="Include P1-P8 executor on 127.0.0.1:5064")
     args = parser.parse_args()
 
-    with_maurice = args.with_maurice or is_port_open(5050)
-    with_p1_p8 = args.with_p1_p8 or is_port_open(5064)
+    # --no-maurice short-circuits: nothing connects to :5050 (or probes :5064, where the real stack may listen)
+    with_maurice = False if args.no_maurice else (args.with_maurice or is_port_open(5050))
+    with_p1_p8 = args.with_p1_p8 or (False if args.no_maurice else is_port_open(5064))
 
     if args.cases == "all":
         case_ids = list(RUNNERS.keys())

@@ -22,6 +22,7 @@ PEERS_DIR = pathlib.Path(__file__).resolve().parent
 if str(PEERS_DIR) not in sys.path:
     sys.path.insert(0, str(PEERS_DIR))
 
+import journal
 import wimse as w
 
 ROOT = PEERS_DIR.parent
@@ -35,8 +36,14 @@ as_b_key = serialization.load_pem_private_key((KEYS_DIR / "as_b.pem").read_bytes
 tts_b_jwks = json.loads((KEYS_DIR / "tts_b.jwks.json").read_text())
 tts_b_key = serialization.load_pem_private_key((KEYS_DIR / "tts_b.pem").read_bytes(), None)
 
+# `rich` is the Domain B WIT issuer; each Domain B workload signs with its own key.
 rich_jwks = json.loads((KEYS_DIR / "rich.jwks.json").read_text())
 rich_key = serialization.load_pem_private_key((KEYS_DIR / "rich.pem").read_bytes(), None)
+coordinator_key = serialization.load_pem_private_key((KEYS_DIR / "coordinator.pem").read_bytes(), None)
+research_key = serialization.load_pem_private_key((KEYS_DIR / "research.pem").read_bytes(), None)
+coordinator_jwks = json.loads((KEYS_DIR / "coordinator.jwks.json").read_text())
+research_jwks = json.loads((KEYS_DIR / "research.jwks.json").read_text())
+operator_jwks = json.loads((KEYS_DIR / "operator.jwks.json").read_text())
 
 peer_jwks = json.loads((KEYS_DIR / "peer.jwks.json").read_text())
 
@@ -46,6 +53,38 @@ TRUST_JWKS = {
     "maurice.ietf127.example": peer_jwks,
     "rich.ietf127.example": rich_jwks,
 }
+
+COORDINATOR_ID = "wimse://rich.ietf127.example/agent/coordinator"
+RESEARCH_ID = "wimse://rich.ietf127.example/agent/research"
+OPERATOR_ID = "wimse://rich.ietf127.example/operator"
+CLIENT_ID = "wimse://peer.ietf127.example/client"
+TRUST_DOMAIN = "rich.ietf127.example"  # aud of every Domain B Txn-Token, and the `audience` of a request to TTS-B
+TTS_B_PROOF_AUD = "http://rich.ietf127.example:5061"  # wimse-aud of requests signed for AS-B / TTS-B
+# who may ask TTS-B for a Txn-Token (txn-tokens-11 s11.3)
+TTS_B_REQUESTERS = {COORDINATOR_ID, RESEARCH_ID}
+# who may call /admin/revoke on the File Tool
+ADMIN_OPERATORS = {OPERATOR_ID}
+# Domain B workloads have one pinned key each: the WIT of such a workload must name exactly that key
+WORKLOAD_KEYS = {COORDINATOR_ID: coordinator_jwks["keys"][0], RESEARCH_ID: research_jwks["keys"][0],
+                 OPERATOR_ID: operator_jwks["keys"][0]}
+
+
+def pinned_key_ok(peer_id: str, info: dict) -> bool:
+    """True unless peer_id has a pinned workload key and its WIT's cnf.jwk is a different key."""
+    pin = WORKLOAD_KEYS.get(peer_id)
+    if pin is None:
+        return True
+    jwk = (info["wit_claims"].get("cnf") or {}).get("jwk") or {}
+    return (jwk.get("kty"), jwk.get("crv"), jwk.get("x"), jwk.get("y")) == (pin.get("kty"), pin.get("crv"), pin.get("x"), pin.get("y"))
+
+
+def workload_wit(key, sub: str) -> str:
+    """WIT of a Domain B workload: issued by the Domain B issuer, bound to the workload's own key."""
+    return w.issue_wit(rich_key, kid="rich-1", iss="http://rich.ietf127.example", sub=sub,
+                       workload_pub_jwk=w.jwk_from_public(key.public_key()))
+
+
+NONCES = {n: w.NonceCache() for n in ("tts-b", "coordinator", "research", "admin", "file-tool")}  # replay caches
 
 # Module-level state
 JOURNAL: list[dict[str, Any]] = []
@@ -84,6 +123,7 @@ def log_decision(service: str, decision: str, reason: str, status: int, *,
         entry["case"] = case
     with JOURNAL_LOCK:
         JOURNAL.append(entry)
+    journal.append(entry)
 
 
 class WimseBaseHandler(BaseHTTPRequestHandler):
@@ -109,6 +149,18 @@ class WimseBaseHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def send_auth_failure(self, status: int, extra_headers: dict[str, str] | None = None) -> None:
+        """Refused authentication: the same body whatever check failed (http-signature-08 s3.6); the cause is journaled."""
+        ctype, problem = w.auth_failure_body(status)
+        body = json.dumps(problem).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        for k, v in (extra_headers or {}).items():
+            self.send_header(k, v)
+        self.end_headers()
+        self.wfile.write(body)
+
     def send_error_json(self, status: int, reason: str, extra_headers: dict[str, str] | None = None) -> None:
         self.send_json(status, {"error": reason, "reason": reason}, extra_headers=extra_headers)
 
@@ -116,24 +168,31 @@ class WimseBaseHandler(BaseHTTPRequestHandler):
 class TokenServicesHandler(WimseBaseHandler):
     """Port 5061: AS-B & TTS-B"""
 
+    def send_oauth_error(self, status: int, error: str, extra_headers: dict[str, str] | None = None) -> None:
+        self.send_json(status, {"error": error}, extra_headers=extra_headers)
+
     def do_POST(self) -> None:
         u = urllib.parse.urlsplit(self.path)
         path = u.path
         body = self.read_body()
         case = self.headers.get("X-Test-Case")
 
-        try:
-            req_json = json.loads(body.decode("utf-8")) if body else {}
-        except Exception:
-            req_json = {}
-
         if path == "/oauth/token":
-            # AS-B: RFC 7523 / cross-domain grant exchange
-            assertion = req_json.get("assertion")
-            if not assertion or not isinstance(assertion, str):
-                log_decision("as-b", "reject", "grant-invalid", 403, case=case)
-                self.send_error_json(403, "grant-invalid")
+            # AS-B: RFC 7523 s2.1 JWT bearer grant (identity-chaining-17 s2.4). Errors: RFC 7523 s3.1 / RFC 6749 s5.2,
+            # 400 and an error code; the precise cause is only journaled.
+            def refuse(error: str, cause: str) -> None:
+                log_decision("as-b", "reject", cause, 400, case=case)
+                self.send_oauth_error(400, error)
+
+            ctype = self.headers.get("Content-Type", "").split(";")[0].strip().lower()
+            req = w.form_decode(body) if ctype == w.FORM_CT else None
+            if req is None or not req.get("assertion"):
+                refuse("invalid_request", "malformed-request")
                 return
+            if req.get("grant_type") != w.GRANT_JWT_BEARER:
+                refuse("unsupported_grant_type", "wrong-grant-type")
+                return
+            assertion = req["assertion"]
 
             try:
                 claims = w.verify_jwt(
@@ -142,11 +201,15 @@ class TokenServicesHandler(WimseBaseHandler):
                     expected_typ="jwt-chg+jwt",
                     expected_aud="http://rich.ietf127.example:5061/oauth/token",
                 )
-                if not claims.get("txn") or not claims.get("sub"):
-                    raise ValueError("missing-claims")
-            except Exception:
-                log_decision("as-b", "reject", "grant-invalid", 403, case=case)
-                self.send_error_json(403, "grant-invalid")
+            except ValueError as exc:
+                refuse("invalid_grant", str(exc))  # typ-mismatch, aud-mismatch, sig-invalid, token-expired ...
+                return
+            if not claims.get("txn") or not claims.get("sub") or not claims.get("client_id"):
+                refuse("invalid_grant", "missing-claims")
+                return
+            scope = req.get("scope", claims.get("scope", ""))
+            if not set(scope.split()) <= set(claims.get("scope", "").split()):
+                refuse("invalid_scope", "scope-widened")
                 return
 
             at_jwt = w.issue_access_token(
@@ -155,76 +218,75 @@ class TokenServicesHandler(WimseBaseHandler):
                 iss="http://rich.ietf127.example:5061",
                 aud=["http://rich.ietf127.example:5060", "http://rich.ietf127.example:5062"],
                 sub=claims["sub"],
-                scope=claims.get("scope", ""),
+                scope=scope,
                 txn=claims["txn"],
                 tctx=claims.get("tctx", {}),
+                client_id=claims["client_id"],
             )
             log_decision("as-b", "accept", "accept", 200, txn=claims["txn"], case=case)
-            self.send_json(200, {"access_token": at_jwt, "txn": claims["txn"]})
+            self.send_json(200, {"access_token": at_jwt, "token_type": "Bearer", "expires_in": 120},
+                           extra_headers={"Cache-Control": "no-store"})
             return
 
         elif path == "/tts/token":
-            # TTS-B: Transaction Token Service
-            src_claims = None
-            if "access_token" in req_json and isinstance(req_json["access_token"], str):
-                try:
-                    src_claims = w.verify_jwt(
-                        req_json["access_token"],
-                        as_b_jwks,
-                        expected_typ="at+jwt",
-                    )
-                except Exception:
-                    src_claims = None
-            elif "txn_token" in req_json and isinstance(req_json["txn_token"], str):
-                try:
-                    src_claims = w.verify_jwt(
-                        req_json["txn_token"],
-                        tts_b_jwks,
-                        expected_typ="txntoken+jwt",
-                        expected_aud="rich.ietf127.example",
-                    )
-                except Exception:
-                    src_claims = None
-
-            if not src_claims or not req_json.get("req_wl") or not src_claims.get("txn"):
-                log_decision("tts-b", "reject", "grant-invalid", 403, case=case)
-                self.send_error_json(403, "grant-invalid")
-                return
-
-            req_scope = req_json.get("scope", src_claims.get("scope", ""))
-            src_scope_set = set(src_claims.get("scope", "").split())
-            req_scope_set = set(req_scope.split())
-            if not (req_scope_set <= src_scope_set):
-                log_decision("tts-b", "reject", "scope-widened", 403, txn=src_claims.get("txn"), case=case)
-                self.send_error_json(403, "scope-widened")
-                return
-
-            tok = w.issue_txn_token(
-                tts_b_key,
-                kid="tts_b-1",
-                iss="http://rich.ietf127.example:5061",
-                aud="rich.ietf127.example",
-                txn=src_claims["txn"],
-                sub=src_claims["sub"],
-                scope=req_scope,
-                req_wl=req_json["req_wl"],
-                tctx=src_claims.get("tctx", {}),
-            )
-            log_decision(
-                "tts-b",
-                "accept",
-                "accept",
-                200,
-                txn=src_claims["txn"],
-                scope=req_scope,
-                req_wl=req_json["req_wl"],
-                case=case,
-            )
-            self.send_json(200, {"txn_token": tok, "txn": src_claims["txn"]})
+            self.handle_tts(body, case)
             return
 
         else:
             self.send_error_json(404, "not-found")
+
+    def handle_tts(self, body: bytes, case: str | None) -> None:
+        """TTS-B: Txn-Token request per txn-tokens-11 s11. The requester is the verified WIT subject."""
+        ok, status, reason, info = w.verify_wimse_proof(
+            "POST", self.path, dict(self.headers), body, TRUST_JWKS, expected_aud=TTS_B_PROOF_AUD, seen_nonces=NONCES["tts-b"])
+        if ok and not pinned_key_ok(info["peer_id"], info):
+            ok, status, reason = False, 400, "proof-invalid"
+        if not ok:
+            log_decision("tts-b", "reject", reason, status, case=case)
+            # one body for every authentication failure: the reason is not revealed
+            extra = {"WWW-Authenticate": 'WPT realm="wimse"'} if status == 401 else None
+            self.send_oauth_error(status, "invalid_client", extra_headers=extra)
+            return
+        req_wl = info["peer_id"]
+        try:
+            if req_wl not in TTS_B_REQUESTERS:
+                raise w.OAuthError("unauthorized_client")
+            f = w.parse_txn_token_request(body, self.headers.get("Content-Type", ""), TRUST_DOMAIN)
+            stype = f["subject_token_type"]
+            if stype == w.TT_ACCESS:
+                verify = (as_b_jwks, "at+jwt", None)
+            elif stype == w.TT_TXN:  # a replacement (s13.15)
+                verify = (tts_b_jwks, "txntoken+jwt", TRUST_DOMAIN)
+            else:
+                raise w.OAuthError("invalid_request")
+            try:
+                src = w.verify_jwt(f["subject_token"], verify[0], expected_typ=verify[1], expected_aud=verify[2])
+            except ValueError as exc:  # includes an expired token
+                raise w.OAuthError("invalid_grant", cause=str(exc)) from None
+            if not src.get("txn") or not src.get("sub"):
+                raise w.OAuthError("invalid_grant", cause="missing-claims")
+            req_scope = f.get("scope") or src.get("scope", "")
+            if not set(req_scope.split()) <= set(src.get("scope", "").split()):
+                raise w.OAuthError("invalid_scope", cause="scope-widened")
+        except w.OAuthError as exc:
+            log_decision("tts-b", "reject", exc.cause, exc.status, req_wl=req_wl, case=case)
+            self.send_oauth_error(exc.status, exc.error)
+            return
+
+        tok = w.issue_txn_token(
+            tts_b_key,
+            kid="tts_b-1",
+            iss="http://rich.ietf127.example:5061",
+            aud=TRUST_DOMAIN,
+            txn=src["txn"],
+            sub=src["sub"],
+            scope=req_scope,
+            req_wl=req_wl,
+            tctx=src.get("tctx", {}),
+            rctx=src.get("rctx"),
+        )
+        log_decision("tts-b", "accept", "accept", 200, txn=src["txn"], scope=req_scope, req_wl=req_wl, case=case)
+        self.send_json(200, w.txn_token_response(tok), extra_headers={"Cache-Control": "no-store"})
 
 
 class CoordinatorHandler(WimseBaseHandler):
@@ -243,12 +305,13 @@ class CoordinatorHandler(WimseBaseHandler):
         # 1. Verify caller WIMSE proof
         ok, status, reason, info = w.verify_wimse_proof(
             "POST", self.path, dict(self.headers), body,
-            TRUST_JWKS, expected_aud="http://rich.ietf127.example:5060"
-        )
+            TRUST_JWKS, expected_aud="http://rich.ietf127.example:5060", seen_nonces=NONCES["coordinator"])
+        if ok and not pinned_key_ok(info["peer_id"], info):
+            ok, status, reason = False, 400, "proof-invalid"
         if not ok:
             log_decision("agent2-coordinator", "reject", reason, status, case=case)
             extra = {"WWW-Authenticate": 'WPT realm="wimse"'} if status == 401 else None
-            self.send_error_json(status, reason, extra_headers=extra)
+            self.send_auth_failure(status, extra)
             return
 
         # Require "authorization" in covered components
@@ -257,7 +320,7 @@ class CoordinatorHandler(WimseBaseHandler):
         comps = [c.strip(' "') for c in comp_part.split()]
         if "authorization" not in comps:
             log_decision("agent2-coordinator", "reject", "proof-invalid", 400, case=case)
-            self.send_error_json(400, "proof-invalid")
+            self.send_auth_failure(400)
             return
 
         peer_id = info["peer_id"]
@@ -285,39 +348,33 @@ class CoordinatorHandler(WimseBaseHandler):
             self.send_error_json(403, "not-authorized")
             return
 
-        # 3. Call TTS-B to get Agent 2's Domain B Txn-Token
-        tts_payload = {
-            "access_token": at_token,
-            "req_wl": "wimse://rich.ietf127.example/agent/coordinator",
-            "scope": at_claims.get("scope", ""),
-        }
-        tts_req = w.Req(
-            "POST",
-            "http://127.0.0.1:5061/tts/token",
-            {"Content-Type": "application/json"},
-            json.dumps(tts_payload).encode("utf-8"),
+        # 3. Call TTS-B to get Agent 2's Domain B Txn-Token. The request authenticates with the Coordinator's own
+        #    WIT and an HTTP signature (txn-tokens-11 s11.3); the access token is the subject_token.
+        wit2 = workload_wit(coordinator_key, COORDINATOR_ID)
+        tts_body = w.txn_token_request(
+            audience=TRUST_DOMAIN,
+            scope=at_claims.get("scope", ""),
+            subject_token=at_token,
+            subject_token_type=w.TT_ACCESS,
+        )
+        tts_req = w.http_sig(
+            "POST", "http://127.0.0.1:5061/tts/token", tts_body, wit2, coordinator_key,
+            aud=TTS_B_PROOF_AUD, content_type=w.FORM_CT,
         )
         tts_resp = w.send(tts_req, case=case)
         if tts_resp.status != 200:
             log_decision("agent2-coordinator", "reject", "tts-error", 502, case=case)
             self.send_error_json(502, "tts-error")
             return
-        txn_tok_2 = json.loads(tts_resp.body.decode("utf-8"))["txn_token"]
+        txn_tok_2 = json.loads(tts_resp.body.decode("utf-8"))["access_token"]
 
-        # 4. Mint Agent 2's WIT and call Agent 3 (Forwarding X-Test-Case)
-        wit2 = w.issue_wit(
-            rich_key,
-            kid="rich-1",
-            iss="http://rich.ietf127.example",
-            sub="wimse://rich.ietf127.example/agent/coordinator",
-            workload_pub_jwk=w.jwk_from_public(rich_key.public_key()),
-        )
+        # 4. Call Agent 3 with the same WIT (forwarding X-Test-Case)
         req3 = w.http_sig(
             "POST",
             "http://127.0.0.1:5062/research",
             body if body else b"{}",
             wit2,
-            rich_key,
+            coordinator_key,
             aud="http://rich.ietf127.example:5062",
             headers={"Txn-Token": txn_tok_2},
         )
@@ -371,12 +428,13 @@ class ResearchHandler(WimseBaseHandler):
         # 1. Verify caller WIMSE proof & Check revocation
         ok, status, reason, info = w.verify_wimse_proof(
             "POST", self.path, dict(self.headers), body,
-            TRUST_JWKS, expected_aud="http://rich.ietf127.example:5062"
-        )
+            TRUST_JWKS, expected_aud="http://rich.ietf127.example:5062", seen_nonces=NONCES["research"])
+        if ok and not pinned_key_ok(info["peer_id"], info):
+            ok, status, reason = False, 400, "proof-invalid"
         if not ok:
             log_decision("agent3-research", "reject", reason, status, case=case)
             extra = {"WWW-Authenticate": 'WPT realm="wimse"'} if status == 401 else None
-            self.send_error_json(status, reason, extra_headers=extra)
+            self.send_auth_failure(status, extra)
             return
 
         peer_id = info["peer_id"]
@@ -436,24 +494,25 @@ class ResearchHandler(WimseBaseHandler):
             },
         }
 
-        # 4. Call TTS-B to get narrowed Txn-Token (scope="files:read")
-        tts_req_body = {
-            token_type: raw_token,
-            "scope": "files:read",
-            "req_wl": "wimse://rich.ietf127.example/agent/research",
-        }
-        tts_req = w.Req(
-            "POST",
-            "http://127.0.0.1:5061/tts/token",
-            {"Content-Type": "application/json"},
-            json.dumps(tts_req_body).encode("utf-8"),
+        # 4. Call TTS-B to get a narrowed Txn-Token (scope="files:read"). Research authenticates with its own WIT and
+        #    an HTTP signature; the received token is only the subject_token (txn-tokens-11 s13.12, s13.15).
+        wit3 = workload_wit(research_key, RESEARCH_ID)
+        tts_body = w.txn_token_request(
+            audience=TRUST_DOMAIN,
+            scope="files:read",
+            subject_token=raw_token,
+            subject_token_type=w.TT_TXN if token_type == "txn_token" else w.TT_ACCESS,
+        )
+        tts_req = w.http_sig(
+            "POST", "http://127.0.0.1:5061/tts/token", tts_body, wit3, research_key,
+            aud=TTS_B_PROOF_AUD, content_type=w.FORM_CT,
         )
         tts_resp = w.send(tts_req, case=case)
         if tts_resp.status != 200:
             log_decision("agent3-research", "reject", "tts-error", 502, peer_id=peer_id, case=case)
             self.send_error_json(502, "tts-error")
             return
-        narrowed_tok = json.loads(tts_resp.body.decode("utf-8"))["txn_token"]
+        narrowed_tok = json.loads(tts_resp.body.decode("utf-8"))["access_token"]
 
         # 5. Call File Tool with WPT bound to narrowed Txn-Token
         try:
@@ -462,19 +521,12 @@ class ResearchHandler(WimseBaseHandler):
             req_json = {}
         target_file = req_json.get("file", "Q3.pdf")
 
-        wit3 = w.issue_wit(
-            rich_key,
-            kid="rich-1",
-            iss="http://rich.ietf127.example",
-            sub="wimse://rich.ietf127.example/agent/research",
-            workload_pub_jwk=w.jwk_from_public(rich_key.public_key()),
-        )
         req_file = w.wpt_request(
             "POST",
             "http://127.0.0.1:5063/files/read",
             json.dumps({"file": target_file}).encode("utf-8"),
             wit3,
-            rich_key,
+            research_key,
             aud="http://rich.ietf127.example:5063",
             alg="ES256",
             headers={"Txn-Token": narrowed_tok},
@@ -491,7 +543,7 @@ class ResearchHandler(WimseBaseHandler):
                 "http://127.0.0.1:5063/files/read",
                 json.dumps({"file": "salaries.xlsx"}).encode("utf-8"),
                 wit3,
-                rich_key,
+                research_key,
                 aud="http://rich.ietf127.example:5063",
                 alg="ES256",
                 headers={"Txn-Token": narrowed_tok},
@@ -533,6 +585,21 @@ class FileToolHandler(WimseBaseHandler):
         case = self.headers.get("X-Test-Case")
 
         if path == "/admin/revoke":
+            # Only an authenticated operator workload may change the revocation set: WIT + HTTP signature
+            ok, status, reason, info = w.verify_wimse_proof(
+                "POST", self.path, dict(self.headers), body,
+                TRUST_JWKS, expected_aud="http://rich.ietf127.example:5063", seen_nonces=NONCES["admin"])
+            if ok and not pinned_key_ok(info["peer_id"], info):
+                ok, status, reason = False, 400, "proof-invalid"
+            if not ok:
+                log_decision("file-tool", "reject", reason, status, case=case)
+                extra = {"WWW-Authenticate": 'WPT realm="wimse"'} if status == 401 else None
+                self.send_auth_failure(status, extra)
+                return
+            if info["peer_id"] not in ADMIN_OPERATORS:
+                log_decision("file-tool", "reject", "not-authorized", 403, peer_id=info["peer_id"], case=case)
+                self.send_error_json(403, "not-authorized")
+                return
             try:
                 req_json = json.loads(body.decode("utf-8")) if body else {}
             except Exception:
@@ -541,6 +608,7 @@ class FileToolHandler(WimseBaseHandler):
                 REVOKED_WORKLOADS.clear()
             elif "workload" in req_json:
                 REVOKED_WORKLOADS.add(req_json["workload"])
+            log_decision("file-tool", "accept", "accept", 200, peer_id=info["peer_id"], case=case)
             self.send_json(200, {"revoked": sorted(list(REVOKED_WORKLOADS))})
             return
 
@@ -559,12 +627,13 @@ class FileToolHandler(WimseBaseHandler):
         # 2. Verify WIMSE proof
         ok, status, reason, info = w.verify_wimse_proof(
             "POST", self.path, dict(self.headers), body,
-            TRUST_JWKS, expected_aud="http://rich.ietf127.example:5063"
-        )
+            TRUST_JWKS, expected_aud="http://rich.ietf127.example:5063", seen_nonces=NONCES["file-tool"])
+        if ok and not pinned_key_ok(info["peer_id"], info):
+            ok, status, reason = False, 400, "proof-invalid"
         if not ok:
             log_decision("file-tool", "reject", reason, status, case=case)
             extra = {"WWW-Authenticate": 'WPT realm="wimse"'} if status == 401 else None
-            self.send_error_json(status, reason, extra_headers=extra)
+            self.send_auth_failure(status, extra)
             return
 
         peer_id = info["peer_id"]
