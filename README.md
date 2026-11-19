@@ -99,6 +99,32 @@ PASS	WIMSE	inbound	bf10aed475bb	maurice@bf10aed475bb, wimse-client@bf10aed475bb	
 - **`inbound` (`validation/bundle-inbound/inbound/`):** 34/34 cases passed against `bin/maurice` (sha256 `36f92fe8...`), verified by `checkers/observes_wimse.py` (NVIDIA Nemotron Ultra), rejecting all 3 negative mutants (`unrelated.pcap`, `request_only.pcap`, `forbidden_fetch.pcap`).
 - **`chain` (`validation/bundle-chain/chain/`):** 19/19 3-agent cross-domain call-chain & attack cases (`:5050–5063`) + 10 `P2/P7/P8` loopback cases on `:5064` (2 simulated, 2 replayed, 6 mocked; see `TEST_RESULTS_SUMMARY.md`) passed, verified by `checkers/observes_chain.py` and `checkers/observes_p1_p8.py`, rejecting all 8 negative mutants (`chain_unrelated.pcap`, `chain_request_only.pcap`, `chain_leaked_txn.pcap`, `chain_leaked_txn_body.pcap`, `chain_hop_flipped.pcap`, `p1_p8_unrelated.pcap`, `p1_p8_request_only.pcap`, `p1_p8_missing_before_effect.pcap`).
 
+## Cred P8 observed-on-wire
+
+The separate `cred-p8` cell runs real Cred `83e9cecfebeb` on loopback `:5065–5066` against a
+local bearer-only provider mock on `:5067`. Its committed bundle is **PASS**: 148 packets,
+12 tagged steps covering four scenario cases plus a successful read control, all six checker
+assertions passed, and all five mutants rejected. The earlier mocked `:5064` and partner-attested
+rows remain unchanged. See [WP10](workpackages/WP10-cred-p8-on-the-wire.md) for preparation,
+authorship and capture commands, and [EVIDENCE.md](EVIDENCE.md) for computed digests.
+
+Draft: `draft-sweeney-wimse-credential-delegation-02`, *Credential Delegation Protocol for AI
+Agents in Multi-System Environments*. Anthropic Claude wrote the launcher, driver and mutant
+generator. OpenAI wrote the independent checker:
+Codex based on GPT-6; exact model ID not exposed by the runtime
+The [authoring record](validation/cred-p8-checker-provenance/codex-checker-provenance.md) is
+committed. The failed nine-round Arete attempt is summarized in
+`validation/cred-p8-checker-provenance/arete-attempt-summary.md`; its full raw archive is retained
+separately by Kieran Sweeney and available on request.
+Peers are recorded as `anthropic+openai` and the checker as `openai`. Because OpenAI appears
+on both sides, the family separation is partial. Captures hold ephemeral test tokens, not private keys
+or production credentials. The test servers are stopped. This is not a live-testnet or production
+provider result. Offline CI checks need no Node or Cred checkout and use the unchanged workflow.
+
+The site and deck generators did not run cleanly in the task environment (missing `lxml` and
+`python-pptx`). They and their committed outputs remain unchanged, so the additional Cred wire
+result is currently documented in Markdown and the bundle, not in those presentations.
+
 ## Slides (IETF 127 WIMSE session, 18 Nov 2026)
 
 - [`IETF127_WIMSE_Session.pptx`](IETF127_WIMSE_Session.pptx): the session deck. Three main slides for a 3-4 minute slot (what was tested and against which drafts, results at a glance, next steps towards a reusable repository), then backup (results by evidence class, findings per draft, participants, the chain).

@@ -1,0 +1,7 @@
+[cred] Multi-user mode: legacy requests must name user_id (set SINGLE_USER_MODE=true for a single shared user)
+[cred] Multi-user mode: legacy requests must name user_id (set SINGLE_USER_MODE=true for a single shared user)
+cred-p8-stack: Cred A http://127.0.0.1:5065 (WIMSE, Txn-Tokens required, handles only)
+cred-p8-stack: Cred B http://127.0.0.1:5066 (allowRawTokens)
+cred-p8-stack: bearer-only provider mock http://127.0.0.1:5067
+cred-p8-stack: cred checkout cred, node v22.23.5
+cred-p8-stack: stopping, provider calls received: 2

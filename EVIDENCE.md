@@ -2,7 +2,7 @@
 
 This catalog indexes every committed packet capture (`.pcap`), decision journal (`.jsonl`), partner trace manifest (`.json`), and AI2II verification bundle (`validation/bundle-*/`) in the repository, along with their exact SHA-256 digests and one-line inspection commands.
 
-All artifacts listed below contain **zero private keys or secrets** (`"contains_secrets": false` in every `verdict.json`, verified by `./reproduce.sh`).
+All bundles record `"contains_secrets": false` (no harness private-key directory or TLS secrets). The Cred P8 capture and mutants intentionally contain ephemeral test tokens from local servers that are now stopped, with publication authorized by Kieran. They contain no production credentials or private signing keys. `./reproduce.sh` checks bundle integrity and verdicts, not a general-purpose secret scan.
 
 ---
 
@@ -12,6 +12,7 @@ Running `PYTHONPATH=. .venv/bin/python -m wire summarize validation` produces:
 
 ```text
 PASS	WIMSE	chain	bf10aed475bb	chain-stack@bf10aed475bb, wimse-chain-client@bf10aed475bb	all peers exited 0, capture non-empty, every checker passed and rejected its negatives	validation/bundle-chain/chain
+PASS	IETF127-cred-p8-wire	cred-p8	3463dab61d4c	cred-p8-stack@83e9cecfebeb, cred-p8-client@3463dab61d4c	all peers exited 0, capture non-empty, every checker passed and rejected its negatives	validation/bundle-cred-p8/cred-p8
 PASS	WIMSE	inbound	bf10aed475bb	maurice@bf10aed475bb, wimse-client@bf10aed475bb	all peers exited 0, capture non-empty, every checker passed and rejected its negatives	validation/bundle-inbound/inbound
 ```
 
@@ -19,6 +20,7 @@ PASS	WIMSE	inbound	bf10aed475bb	maurice@bf10aed475bb, wimse-client@bf10aed475bb	
 |---|---|---|---|---|---|
 | `inbound` | **PASS** | [`validation/bundle-inbound/inbound/`](validation/bundle-inbound/inbound/) | `18239c9ad11b568568b3a46ae6184ac425c7621a090c52006944b5694f061523` | [`validation/nemotron-review.md`](validation/nemotron-review.md) (`nvidia/nemotron-3-ultra-550b-a55b:free`) | `false` |
 | `chain` | **PASS** | [`validation/bundle-chain/chain/`](validation/bundle-chain/chain/) | `c2264997e14c9a61623f7990f4a9634ff159e38a73a826eb75302437e87ea7de` | [`validation/nemotron-p1-p8-review.md`](validation/nemotron-p1-p8-review.md) (`nvidia/nemotron-3-ultra-550b-a55b:free`) · [`validation/gemini-p1-p8-review.md`](validation/gemini-p1-p8-review.md) (`gemini-4-argon`) · [`validation/opus-chain-review.md`](validation/opus-chain-review.md) (`claude -p --model opus`) | `false` |
+| `cred-p8` | **PASS** | [`validation/bundle-cred-p8/cred-p8/`](validation/bundle-cred-p8/cred-p8/) | `75285e24e865cc2d915ad3cb8847cb5e08c524ac00279357d631aa5d5b285c2d` | Independent checker authoring record: [`codex-checker-provenance.md`](validation/cred-p8-checker-provenance/codex-checker-provenance.md), not a separate audit | `false` |
 
 ---
 
@@ -30,10 +32,11 @@ PASS	WIMSE	inbound	bf10aed475bb	maurice@bf10aed475bb, wimse-client@bf10aed475bb	
 |---|---|---:|---:|---|---|
 | [`validation/bundle-inbound/inbound/capture.pcap`](validation/bundle-inbound/inbound/capture.pcap) | Suite 1: 34 WIMSE inbound cases (`A2–A13j`, `C2–C12b`, `IN4–IN15`) on loopback `:5050` & `:47999` | 540 | 72 | `b8508d5f1a3ba03dc8a73617fce8d6cb6c88c5f1593bed04536c2b4d78f15eab` | `tshark -X lua_script:dissectors/wimse.lua -r validation/bundle-inbound/inbound/capture.pcap -Y http` |
 | [`validation/bundle-chain/chain/capture.pcap`](validation/bundle-chain/chain/capture.pcap) | Suite 2 & 3: 19 3-agent cross-domain call-chain cases (`:5050–5063`) + 10 `P2/P7/P8` loopback cases (`:5064`: 2 simulated, 2 replayed, 6 mocked) | 822 | 106 (53 exchanges) | `ac56bdb934f59b92b3ed2f60820c2b6251ff64c03e172b7f612d466067af8ad2` | `tshark -X lua_script:dissectors/wimse.lua -r validation/bundle-chain/chain/capture.pcap -Y 'wimse.test_case == "B_CHAIN"' -O wimse` |
+| [`validation/bundle-cred-p8/cred-p8/capture.pcap`](validation/bundle-cred-p8/cred-p8/capture.pcap) | Real Cred P8, four cases plus read control, 12 tagged steps on `:5065–5067` | 148 | 30 (15 exchanges) | `07a5e08d1f2206210c6dc29d1edced8c161a222aa57fb5e036d9af057f5b66d8` | `tshark -r validation/bundle-cred-p8/cred-p8/capture.pcap -d tcp.port==5065,http -d tcp.port==5066,http -d tcp.port==5067,http -Y http` |
 
 ### 2.2 Negative Mutant Captures (Rejected by Independent Checkers)
 
-Every independent checker is verified to exit non-zero on each of its negative PCAP mutants: `wire run` re-checks this at every recording, and `./reproduce.sh` re-checks it on every run. The mutants were derived from earlier recordings of the same cells (the chain mutants from the `8f8441e` capture, except `chain_leaked_txn_body.pcap`, made from the capture in 2.1).
+Every independent checker is verified to exit non-zero on each of its negative PCAP mutants: `wire run` re-checks this at every recording, and `./reproduce.sh` re-checks it on every run. The mutants were derived from earlier recordings of the same cells (the chain mutants from the `8f8441e` capture, except `chain_leaked_txn_body.pcap`, made from the capture in 2.1). The five Cred mutants come from the preliminary 148-packet tcpdump capture, not the later committed bundle capture; both pass the unchanged OpenAI checker.
 
 | Negative PCAP File | Target Checker | Mutation / Violation Tested | Total Packets | SHA-256 Digest |
 |---|---|---|---:|---|
@@ -48,6 +51,11 @@ Every independent checker is verified to exit non-zero on each of its negative P
 | [`checkers/negatives/p1_p8_unrelated.pcap`](checkers/negatives/p1_p8_unrelated.pcap) | `observes_p1_p8.py` | Non-WIMSE traffic on loopback | 3 | `1281856404dbd4572ae0de3970160c91d5458493fa2239c7134f566e23c51fe3` |
 | [`checkers/negatives/p1_p8_request_only.pcap`](checkers/negatives/p1_p8_request_only.pcap) | `observes_p1_p8.py` | `P2/P7/P8` requests on `:5064` with all HTTP responses stripped | 70 | `cb3bbef9651ff7199b3f9c3b317474aa218ffa78fb9f5d8034b35ebbdd5b5975` |
 | [`checkers/negatives/p1_p8_missing_before_effect.pcap`](checkers/negatives/p1_p8_missing_before_effect.pcap) | `observes_p1_p8.py` | Truncated to frames 1–20 so `P2_before-effect` response and `P2_outside-made-up-proof` / `P2_outside-no-agent-answer` before-effect revocation checks are missing | 20 | `726aef5de0bbd2ed2730abe582719f7ae926ad0c74a54f3dde5b4b0c582f6913` |
+| [`checkers/negatives/cred_p8_unrelated.pcap`](checkers/negatives/cred_p8_unrelated.pcap) | `observes_cred_p8.py` | Unrelated traffic, no P8 tagged requests | 3 | `f425f5e7d083225b52922c844a295a8807d462ccbb8beb69a6a54f7944f7e292` |
+| [`checkers/negatives/cred_p8_request_only.pcap`](checkers/negatives/cred_p8_request_only.pcap) | `observes_cred_p8.py` | All responses stripped; tagged requests lack matched final responses | 74 | `f083352856e4a65089df382a85d161f3bd9072a593bd878da5ac2d1c97cb5d74` |
+| [`checkers/negatives/cred_p8_no_provider.pcap`](checkers/negatives/cred_p8_no_provider.pcap) | `observes_cred_p8.py` | Provider traffic removed; zero provider requests instead of two | 116 | `e1d733e39148789c3656fe8433e2096f45e44ecca42aae6f7b5721d2020f6e4a` |
+| [`checkers/negatives/cred_p8_mock_status.pcap`](checkers/negatives/cred_p8_mock_status.pcap) | `observes_cred_p8.py` | Use after revocation answers 403 instead of Cred's 401 | 148 | `37f84020218b3a6861fb4896c3214917299af872b20798d79c04e865f41d5ef4` |
+| [`checkers/negatives/cred_p8_bearer_mismatch.pcap`](checkers/negatives/cred_p8_bearer_mismatch.pcap) | `observes_cred_p8.py` | Direct call bearer differs from the bearer released by B | 148 | `a27d0dd6b335918b7806b448810a6820789c18470e3398a206309598edc456e9` |
 
 ---
 
@@ -59,6 +67,7 @@ Every independent checker is verified to exit non-zero on each of its negative P
 |---|---|---:|---|
 | [`validation/bundle-inbound/inbound/decision-journal.jsonl`](validation/bundle-inbound/inbound/decision-journal.jsonl) | AgentMaurice WIMSE inbound verifier decision journal across the 34 Suite 1 cases | 35 | `2019fbd387b135f757752bee8ab698432af3033792a0f9611f547955fb6b8ff0` |
 | [`validation/bundle-chain/chain/chain-journal.jsonl`](validation/bundle-chain/chain/chain-journal.jsonl) | Domain A + Domain B + `P2/P7/P8` structured decision journal across Suite 2 & Suite 3 | 38 | `1e60f6063db8a09efa1578f513541528f8a1852f79d36ad0009fbe220a6de285` |
+| [`validation/bundle-cred-p8/cred-p8/cred-p8-journal.jsonl`](validation/bundle-cred-p8/cred-p8/cred-p8-journal.jsonl) | Real Cred P8 driver journal, not an input to the independent packet checker | 12 | `f00663b71d948a541eaab98d4b7016f6fa918280b35360f3035a1e1208b37e8b` |
 
 ### 3.2 Partner Scenario Definitions, Traces & Manifests (`scenarios/p1_p8/`)
 

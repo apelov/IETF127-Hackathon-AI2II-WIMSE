@@ -80,6 +80,27 @@ else
     SKIPPED_CHECKERS=1
 fi
 
+# Scenario P8 answered by real Cred (interop.cred-p8.yaml). Checked only once its bundle is committed.
+# The independent OpenAI checker uses tshark, as do the other packet checkers.
+# Codex based on GPT-6; exact model ID not exposed by the runtime
+CRED_P8_CAPTURE="validation/bundle-cred-p8/cred-p8/capture.pcap"
+if [ -f "$CRED_P8_CAPTURE" ] && command -v tshark >/dev/null 2>&1; then
+    echo "  -> Checking Cred P8 (observes_cred_p8.py on $CRED_P8_CAPTURE)"
+    .venv/bin/python checkers/observes_cred_p8.py "$CRED_P8_CAPTURE"
+    for neg in checkers/negatives/cred_p8_unrelated.pcap checkers/negatives/cred_p8_request_only.pcap checkers/negatives/cred_p8_no_provider.pcap checkers/negatives/cred_p8_mock_status.pcap checkers/negatives/cred_p8_bearer_mismatch.pcap; do
+        if .venv/bin/python checkers/observes_cred_p8.py "$neg" >/dev/null 2>&1; then
+            echo "ERROR: negative mutant $neg unexpectedly passed observes_cred_p8.py!" >&2
+            exit 1
+        else
+            echo "     Rejected negative mutant as expected: $neg"
+        fi
+    done
+elif [ ! -f "$CRED_P8_CAPTURE" ]; then
+    echo "  -> Cred P8 on the wire: no committed bundle yet ($CRED_P8_CAPTURE); nothing checked for it."
+else
+    echo "  -> Cred P8 packet checks skipped: tshark unavailable (ALLOW_NO_TSHARK=1)."
+fi
+
 echo "=== [5/5] Verifying Partner P1-P8 Manifests & SHA-256 Digests ==="
 .venv/bin/python - <<'PY'
 import hashlib, json, pathlib, sys

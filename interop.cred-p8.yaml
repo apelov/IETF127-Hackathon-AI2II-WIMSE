@@ -1,0 +1,52 @@
+# Scenario P8 answered by real Cred, on the wire. Separate from interop.yaml so that the inbound and
+# chain cells do not need node or a Cred checkout (env_checks apply to every cell of a manifest).
+#
+#   PYTHONPATH=. .venv/bin/python -m wire run interop.cred-p8.yaml --cell cred-p8 --out validation/bundle-cred-p8
+#
+# Implementation under test: Cred (github.com/cred-ninja/sdk, branch hackathon/ietf127, commit pinned in
+# cred_p8_cases.json), checked out and built in external/cred. The runner records that checkout's commit
+# and dirty flag for the cred-p8-stack peer.
+#
+# Cred was written mainly with Anthropic Claude, with occasional edits by OpenAI Codex.
+# Anthropic Claude wrote the launcher, driver and mutant generator.
+# OpenAI Codex wrote the checker without reading Cred's source or any earlier checker.
+# Both peers declare anthropic+openai, and the checker declares openai.
+# Because OpenAI appears on both sides, the family separation is partial.
+# Codex based on GPT-6; exact model ID not exposed by the runtime
+# Its authoring record is validation/cred-p8-checker-provenance/codex-checker-provenance.md.
+# The earlier Arete attempt failed all nine code-and-test rounds and is retained in provenance.
+experiment: wimse-p8-cred
+env_checks:
+  - name: cred-checkout-built
+    command: .venv/bin/python setup/check_cred_p8_env.py
+peers:
+  - name: cred-p8-stack
+    path: external/cred
+    family: anthropic+openai
+    under_test: true
+    start: node ../../peers/cred_p8/serve.mjs --cred .
+    ready: {command: "../../.venv/bin/python ../../setup/check_cred_p8_ready.py", timeout_s: 60}
+  - name: cred-p8-client
+    path: .
+    family: anthropic+openai
+    under_test: true
+    start: node peers/cred_p8/driver.mjs --cred external/cred --journal-out {bundle}/cred-p8-journal.jsonl
+capture: {interface: loopback, filter: "tcp port 5065 or tcp port 5066 or tcp port 5067"}
+cells:
+  - name: cred-p8
+    server: cred-p8-stack
+    clients: [cred-p8-client]
+    checkers: [observes-cred-p8]
+    timeout_s: 120
+checkers:
+  - name: observes-cred-p8
+    family: openai
+    observes_capture: true
+    command: .venv/bin/python checkers/observes_cred_p8.py {capture}
+    inputs: []
+    negatives:
+      - {input: checkers/negatives/cred_p8_unrelated.pcap, replaces: "{capture}"}
+      - {input: checkers/negatives/cred_p8_request_only.pcap, replaces: "{capture}"}
+      - {input: checkers/negatives/cred_p8_no_provider.pcap, replaces: "{capture}"}
+      - {input: checkers/negatives/cred_p8_mock_status.pcap, replaces: "{capture}"}
+      - {input: checkers/negatives/cred_p8_bearer_mismatch.pcap, replaces: "{capture}"}

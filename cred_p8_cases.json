@@ -1,0 +1,31 @@
+{
+  "format": "ietf127-wimse-scenario/1",
+  "scenario": "P8",
+  "impl": "cred",
+  "note": "Steps of scenario P8 as real Cred answers them on loopback. Expected statuses and Cred error codes are the ones in scenarios/p1_p8/cred-P8.jsonl; scenario reasons come from the reason_mapping in scenarios/p1_p8/cred-P8.manifest.json. Step write-under-read/read-allowed is a control added here (not in Cred's record): it proves the provider path is live, so no provider traffic during a refusal means something.",
+  "cred": {
+    "repository": "https://github.com/cred-ninja/sdk",
+    "branch": "hackathon/ietf127",
+    "commit": "83e9cecfebebff653b35e1aa9fef83749e603a01",
+    "checkout": "external/cred"
+  },
+  "ports": {"cred_a": 5065, "cred_b": 5066, "provider": 5067},
+  "configurations": {
+    "A": "WIMSE (WIT + WPT or HTTP signature), required Txn-Tokens for domain-b.example, brokered handles only (Cred default)",
+    "B": "deprecated allowRawTokens: true, no Txn-Tokens, read-only connection; the only Cred path that releases the provider bearer token"
+  },
+  "steps": [
+    {"id": "P8CRED_no-delegation_use-without-delegation", "case": "no-delegation", "step": "use-without-delegation", "config": "A", "port": 5065, "method": "POST", "path": "/api/v1/use", "status": 401, "cred_error": "invalid_token", "decision": "deny", "reason": "no-delegation", "token_released": false, "provider_calls": 0},
+    {"id": "P8CRED_no-delegation_ask-for-delegation", "case": "no-delegation", "step": "ask-for-delegation", "config": "A", "port": 5065, "method": "POST", "path": "/api/v1/delegate", "status": 403, "cred_error": "permission_required", "decision": "deny", "reason": "no-delegation", "token_released": false, "provider_calls": 0},
+    {"id": "P8CRED_write-under-read_delegate-read", "case": "write-under-read", "step": "delegate-read", "config": "A", "port": 5065, "method": "POST", "path": "/api/v1/delegate", "status": 200, "cred_error": null, "decision": "allow", "reason": "ok", "token_released": false, "provider_calls": 0},
+    {"id": "P8CRED_write-under-read_read-allowed", "case": "write-under-read", "step": "read-allowed", "config": "A", "port": 5065, "method": "POST", "path": "/api/v1/use", "status": 200, "cred_error": null, "decision": "allow", "reason": "ok", "token_released": false, "provider_calls": 1, "control": true},
+    {"id": "P8CRED_write-under-read_write", "case": "write-under-read", "step": "write", "config": "A", "port": 5065, "method": "POST", "path": "/api/v1/use", "status": 403, "cred_error": "scope_insufficient", "decision": "deny", "reason": "scope-exceeded", "token_released": false, "provider_calls": 0},
+    {"id": "P8CRED_revoked-between-authz-and-use_delegate-read", "case": "revoked-between-authz-and-use", "step": "delegate-read", "config": "A", "port": 5065, "method": "POST", "path": "/api/v1/delegate", "status": 200, "cred_error": null, "decision": "allow", "reason": "ok", "token_released": false, "provider_calls": 0},
+    {"id": "P8CRED_revoked-between-authz-and-use_revoke", "case": "revoked-between-authz-and-use", "step": "revoke", "config": "A", "port": 5065, "method": "DELETE", "path": "/api/v1/delegations/", "status": 200, "cred_error": null, "decision": "revocation recorded", "reason": "ok", "token_released": false, "provider_calls": 0},
+    {"id": "P8CRED_revoked-between-authz-and-use_use-after-revoke", "case": "revoked-between-authz-and-use", "step": "use-after-revoke", "config": "A", "port": 5065, "method": "POST", "path": "/api/v1/use", "status": 401, "cred_error": "delegation_revoked", "decision": "deny", "reason": "status-revoked", "token_released": false, "provider_calls": 0},
+    {"id": "P8CRED_revoked-after-token-released_ask-for-bearer-token", "case": "revoked-after-token-released", "step": "ask-for-bearer-token", "config": "A", "port": 5065, "method": "POST", "path": "/api/v1/delegate", "status": 403, "cred_error": "raw_token_disabled", "decision": "deny", "reason": "token-not-released", "token_released": false, "provider_calls": 0},
+    {"id": "P8CRED_revoked-after-token-released_release-bearer-token", "case": "revoked-after-token-released", "step": "release-bearer-token", "config": "B", "port": 5066, "method": "POST", "path": "/api/v1/delegate", "status": 200, "cred_error": null, "decision": "allow", "reason": "token-released", "token_released": true, "provider_calls": 0},
+    {"id": "P8CRED_revoked-after-token-released_revoke", "case": "revoked-after-token-released", "step": "revoke", "config": "B", "port": 5066, "method": "DELETE", "path": "/api/v1/delegations/", "status": 200, "cred_error": null, "decision": "revocation recorded, token already released", "reason": "token-released", "token_released": true, "provider_calls": 0},
+    {"id": "P8CRED_revoked-after-token-released_direct-provider-call", "case": "revoked-after-token-released", "step": "direct-provider-call", "config": "B", "port": 5067, "method": "GET", "path": "/calendar/v3/calendars/primary/events", "status": 200, "cred_error": null, "decision": "effect occurred at provider", "reason": "token-released", "token_released": true, "provider_calls": 1}
+  ]
+}
