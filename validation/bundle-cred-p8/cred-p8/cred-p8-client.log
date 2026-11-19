@@ -1,0 +1,13 @@
+ok   P8CRED_no-delegation_use-without-delegation HTTP 401 cred=invalid_token (expected 401 invalid_token)
+ok   P8CRED_no-delegation_ask-for-delegation HTTP 403 cred=permission_required (expected 403 permission_required)
+ok   P8CRED_write-under-read_delegate-read HTTP 200 cred=- (expected 200 -)
+ok   P8CRED_write-under-read_read-allowed HTTP 200 cred=- (expected 200 -)
+ok   P8CRED_write-under-read_write HTTP 403 cred=scope_insufficient (expected 403 scope_insufficient)
+ok   P8CRED_revoked-between-authz-and-use_delegate-read HTTP 200 cred=- (expected 200 -)
+ok   P8CRED_revoked-between-authz-and-use_revoke HTTP 200 cred=- (expected 200 -)
+ok   P8CRED_revoked-between-authz-and-use_use-after-revoke HTTP 401 cred=delegation_revoked (expected 401 delegation_revoked)
+ok   P8CRED_revoked-after-token-released_ask-for-bearer-token HTTP 403 cred=raw_token_disabled (expected 403 raw_token_disabled)
+ok   P8CRED_revoked-after-token-released_release-bearer-token HTTP 200 cred=- (expected 200 -)
+ok   P8CRED_revoked-after-token-released_revoke HTTP 200 cred=- (expected 200 -)
+ok   P8CRED_revoked-after-token-released_direct-provider-call HTTP 200 cred=- (expected 200 -)
+SUMMARY steps=12 failures=0 cred_commit=83e9cecfebebff653b35e1aa9fef83749e603a01

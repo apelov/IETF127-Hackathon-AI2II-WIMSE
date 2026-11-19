@@ -1,0 +1,41 @@
+PASS 1 read-only permission grants
+PASS 2 tagged HTTP steps
+PASS 3 P8 scenario reasons
+PASS 4 A revocation before use
+PASS 5 A withholds the provider bearer
+PASS 6 provider requests and released bearer
+--- negative: checkers/negatives/cred_p8_unrelated.pcap replaces {capture}
+FAIL 1 read-only permission grants — port 5065 has 0 pre-step permission grants, expected one
+FAIL 2 tagged HTTP steps — no P8 step requests in capture
+FAIL 3 P8 scenario reasons — P8CRED_no-delegation_use-without-delegation has no response for reason mapping
+FAIL 4 A revocation before use — A did not confirm revocation of the granted delegation
+FAIL 5 A withholds the provider bearer — no provider bearer on a matched call within the allowed read
+FAIL 6 provider requests and released bearer — provider saw 0 requests, expected 2
+--- negative: checkers/negatives/cred_p8_request_only.pcap replaces {capture}
+FAIL 1 read-only permission grants — port 5065 permission grant has no matched response
+FAIL 2 tagged HTTP steps — P8CRED_no-delegation_use-without-delegation has no matched final HTTP response
+FAIL 3 P8 scenario reasons — P8CRED_no-delegation_use-without-delegation has no response for reason mapping
+FAIL 4 A revocation before use — A did not confirm revocation of the granted delegation
+FAIL 5 A withholds the provider bearer — no provider bearer on a matched call within the allowed read
+FAIL 6 provider requests and released bearer — provider requests do not match the brokered read and tagged direct call
+--- negative: checkers/negatives/cred_p8_no_provider.pcap replaces {capture}
+PASS 1 read-only permission grants
+FAIL 2 tagged HTTP steps — P8CRED_revoked-after-token-released_direct-provider-call occurs 0 times, expected once
+PASS 3 P8 scenario reasons
+PASS 4 A revocation before use
+FAIL 5 A withholds the provider bearer — no provider bearer on a matched call within the allowed read
+FAIL 6 provider requests and released bearer — provider saw 0 requests, expected 2
+--- negative: checkers/negatives/cred_p8_mock_status.pcap replaces {capture}
+PASS 1 read-only permission grants
+FAIL 2 tagged HTTP steps — P8CRED_revoked-between-authz-and-use_use-after-revoke returned HTTP 403, expected 401
+PASS 3 P8 scenario reasons
+FAIL 4 A revocation before use — A use after revocation returned HTTP 403, expected 401
+PASS 5 A withholds the provider bearer
+PASS 6 provider requests and released bearer
+--- negative: checkers/negatives/cred_p8_bearer_mismatch.pcap replaces {capture}
+PASS 1 read-only permission grants
+PASS 2 tagged HTTP steps
+PASS 3 P8 scenario reasons
+PASS 4 A revocation before use
+PASS 5 A withholds the provider bearer
+FAIL 6 provider requests and released bearer — direct provider bearer differs from the bearer released by configuration B
