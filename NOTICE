@@ -9,6 +9,30 @@ option. This covers the harness, peers, checkers, vendored wire/ runner,
 dissector, work packages, documentation, and the captures, journals and
 evidence bundles produced by this harness.
 
+Cred P8 harness contribution
+----------------------------
+Kieran Sweeney contributes cred_p8_cases.json, interop.cred-p8.yaml,
+peers/cred_p8/, setup/check_cred_p8_*.py, checkers/cred_p8_dev.py,
+checkers/observes_cred_p8.py,
+checkers/make_cred_p8_negatives.py,
+workpackages/WP10-cred-p8-on-the-wire.md, and the associated checker
+slim provenance documents, mutants and validation/bundle-cred-p8/ evidence
+under either Apache-2.0 or MIT, at the recipient's option. The full raw provenance
+archive, including the upstream Nous Research model card, is retained separately
+by Kieran Sweeney and is not included or relicensed by this contribution.
+
+Cred itself remains its authors' work and is fetched separately, not vendored.
+Anthropic Claude wrote the launcher, driver, original development checker and
+mutant generator. OpenAI authored the independent checker:
+Codex based on GPT-6; exact model ID not exposed by the runtime
+Its record is validation/cred-p8-checker-provenance/codex-checker-provenance.md.
+The earlier Nous Research Arete 27B attempt failed nine code-and-test rounds,
+never passed the real capture, and is summarized in the provenance directory;
+its complete raw archive is retained separately by Kieran Sweeney.
+Captures and mutants contain ephemeral test tokens from local test servers,
+not production credentials. Private signing keys and runtime state are not
+included. Existing partner records below retain their original terms.
+
 Third-party contributions (not relicensed)
 ------------------------------------------
 The following were provided by other parties and remain credited to them.
